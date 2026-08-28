@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_SITE_URL: ${VITE_SITE_URL:-}
+        VITE_TONCONNECT_MANIFEST_URL: ${VITE_TONCONNECT_MANIFEST_URL:-}
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:80"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,152 @@
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: clip;
+}
+
+html {
+  background: var(--bg);
+  scroll-padding-top: calc(var(--header-h) + var(--space-6));
+  scrollbar-gutter: stable;
+  interpolate-size: allow-keywords;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+select,
+summary,
+label {
+  user-select: none;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: var(--font-base);
+  line-height: var(--line-base);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-3);
+}
+
+img,
+svg {
+  display: block;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input:not([type="range"]):not([type="checkbox"]):not([type="file"]):focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: var(--space-3);
+  height: var(--space-3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-sm);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-theme-switching] *,
+[data-theme-switching] *::before,
+[data-theme-switching] *::after {
+  transition: none !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 0;
+}
+
+::view-transition-new(root) {
+  z-index: 1;
+}
+
+@media (pointer: coarse) {
+  input[type="text"],
+  textarea {
+    font-size: var(--font-lg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

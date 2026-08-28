@@ -1,0 +1,41 @@
+.wrap {
+  margin-bottom: var(--space-10);
+}
+
+.heading {
+  composes: tableHeading from "../shared.module.css";
+}
+
+.error {
+  margin-bottom: var(--space-5);
+}
+
+.list {
+  --table-min: 840px;
+  --table-cols: minmax(0, 1.19fr) minmax(0, 1.2fr) minmax(0, 0.55fr) minmax(0, 0.96fr) minmax(0, 1.7fr);
+}
+
+.head {
+  composes: tableCardHead from "../shared.module.css";
+}
+
+.rows {
+  composes: tableCards from "../shared.module.css";
+}
+
+.card {
+  composes: tableRow tableCard cardAppear from "../shared.module.css";
+}
+
+.timer {
+  composes: tableValue from "../shared.module.css";
+  font-variant-numeric: tabular-nums;
+}
+
+.timerSoon {
+  composes: inkWarn from "../shared.module.css";
+}
+
+.timerOver {
+  composes: inkDanger from "../shared.module.css";
+}

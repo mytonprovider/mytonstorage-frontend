@@ -1,0 +1,108 @@
+.notice {
+  composes: alert from "./shared.module.css";
+  --notice-pill: 0px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: var(--space-2);
+  row-gap: var(--space-4);
+  line-height: var(--line-base);
+  color: var(--text);
+}
+
+.notice:has(.action) {
+  --notice-pill: var(--control-xs);
+}
+
+.neutral.neutral {
+  --tone: var(--text-3);
+  --tone-text: var(--text-3);
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.icon {
+  flex: none;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  margin-top: max(calc((var(--line-base) * 1em - var(--icon-sm)) / 2), calc((var(--notice-pill) - var(--icon-sm)) / 2));
+  color: var(--tone-text);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  padding-block: max(0px, calc((var(--notice-pill) - var(--line-base) * 1em) / 2));
+}
+
+.action {
+  display: inline-flex;
+  align-self: center;
+  margin-left: auto;
+}
+
+.action > * {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-xs);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--tone) 16%, transparent);
+  color: var(--tone-text);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .action > *:hover {
+    background: color-mix(in srgb, var(--tone) 26%, transparent);
+  }
+}
+
+@media (pointer: coarse) {
+  .notice:has(.action) {
+    --notice-pill: var(--control-field);
+  }
+
+  .action > * {
+    height: var(--control-field);
+  }
+
+  .action > *::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+  }
+}
+
+@media (max-width: 539px) {
+  .notice.notice {
+    --notice-pill: 0px;
+    column-gap: var(--space-4);
+    row-gap: var(--space-5);
+    padding: var(--space-5) var(--space-6);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-base);
+  }
+
+  .icon {
+    width: var(--icon-control);
+    height: var(--icon-control);
+    margin-top: calc((var(--line-base) * 1em - var(--icon-control)) / 2);
+  }
+
+  .action {
+    flex-basis: 100%;
+    justify-content: flex-start;
+    padding-left: calc(var(--icon-control) + var(--space-4));
+  }
+
+  .action > * {
+    height: var(--control-field);
+    padding: 0 var(--space-6);
+    font-size: var(--font-base);
+  }
+}

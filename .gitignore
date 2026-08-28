@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.vite/
+logs/
+*.log
+*.local
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.eslintcache
+.claude/
+CLAUDE.md
+.idea/
+.vscode/
+.DS_Store

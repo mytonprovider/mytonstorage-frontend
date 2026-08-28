@@ -1,0 +1,87 @@
+.body {
+  composes: sheetBody fadeIn from "../shared.module.css";
+}
+
+.statusCard {
+  composes: statusCard from "../shared.module.css";
+}
+
+.bar {
+  composes: statusBar from "../shared.module.css";
+}
+
+.barFill {
+  composes: statusBarFill from "../shared.module.css";
+}
+
+.statusBody {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--row-py) var(--pad-pill);
+}
+
+.statusWord {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--tone-text);
+}
+
+.checksRow {
+  composes: checksRow from "../shared.module.css";
+}
+
+.checksLabel {
+  composes: checksLabel from "../shared.module.css";
+}
+
+.table {
+  composes: tablePanel from "../shared.module.css";
+  --table-min: 1130px;
+  --table-cols: minmax(0, 1.4fr) minmax(0, 1.1fr) minmax(0, 1.25fr) minmax(0, 1.35fr) minmax(0, 1.3fr) minmax(0, 1.9fr) minmax(0, 1.95fr);
+}
+
+.head {
+  composes: tableHead from "../shared.module.css";
+}
+
+.row {
+  composes: tableRow from "../shared.module.css";
+}
+
+.head.head,
+.row.row {
+  column-gap: var(--space-3);
+}
+
+.row + .row {
+  border-top: 1px solid var(--border);
+}
+
+.row > :has(.checkCell) {
+  overflow: visible;
+}
+
+.checkCell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.checkWord {
+  composes: ellipsis from "../shared.module.css";
+  color: var(--tone-text);
+}
+
+.row > :first-child {
+  gap: var(--space-2);
+}
+
+.paymentAlert {
+  align-self: stretch;
+}

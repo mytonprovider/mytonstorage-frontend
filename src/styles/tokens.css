@@ -1,0 +1,233 @@
+:root {
+  color-scheme: light;
+
+  --bg: #ffffff;
+  --surface: #f6f7f8;
+  --surface-2: #eef0f2;
+  --surface-3: #e3e6e9;
+
+  --border: #dfe2e6;
+  --border-strong: #c2c7cd;
+  --border-control: #828992;
+
+  --text: #14161a;
+  --text-2: #4a5158;
+  --text-3: #646b73;
+
+  --accent: #0098ea;
+  --accent-weak: #e6f5fe;
+  --accent-text: #006ca7;
+  --accent-ring: #4eb7f1;
+  --focus-edge: #3f90bc;
+
+  --btn: #0072b3;
+  --btn-hover: #00618f;
+  --btn-ink: #ffffff;
+  --btn-danger: #c81e1e;
+  --btn-danger-hover: #a81717;
+
+  --tone-gray: #98b2bf;
+  --tone-gray-weak: #f0f3f6;
+  --tone-gray-text: #5f6d74;
+  --tone-gray-ring: #808f97;
+  --tone-green: #47c58a;
+  --tone-green-weak: #ecf8f2;
+  --tone-green-text: #1f7b50;
+  --tone-green-ring: #2e9f6a;
+  --tone-yellow: #e5a10a;
+  --tone-yellow-weak: #fdf4e3;
+  --tone-yellow-text: #876722;
+  --tone-yellow-ring: #ad8732;
+  --tone-red: #ed6767;
+  --tone-red-weak: #fdeeee;
+  --tone-red-text: #ae2b2b;
+  --tone-red-ring: #d56f6f;
+  --tone-orange: #d1600b;
+  --tone-orange-weak: #fbefe4;
+  --tone-orange-text: #9c5927;
+  --tone-orange-ring: #c87a40;
+
+  --scrim: rgba(6, 12, 18, 0.5);
+
+  --shadow-1: 0 1px 2px rgba(16, 24, 32, 0.06);
+  --shadow-edge: rgba(16, 24, 32, 0.08);
+  --shadow-2: 0 2px 24px rgba(16, 24, 32, 0.14);
+  --shadow-3: 0 40px 80px -32px rgba(16, 24, 32, 0.36), 0 4px 12px rgba(16, 24, 32, 0.14);
+  --focus-ring: 0 0 0 4px rgba(5, 139, 207, 0.14);
+
+  --space-0: 2px;
+  --space-05: 3px;
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-25: 7px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
+  --space-10: 40px;
+  --space-11: 44px;
+
+  --radius-xs: 7px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-control: 40px;
+  --radius-pill: 999px;
+
+  --font-xs: 12px;
+  --font-sm: 13px;
+  --font-base: 14px;
+  --font-md: 15px;
+  --font-lg: 16px;
+  --font-xl: 20px;
+  --font-hero: clamp(26px, 1.4rem + 2vw, 40px);
+  --font-hero-sub: clamp(16px, 0.9rem + 0.6vw, 18px);
+
+  --line-tight: 1.18;
+  --line-base: 1.45;
+  --line-control: 24px;
+
+  --control-xs: 26px;
+  --control-sm: 32px;
+  --control-field: 36px;
+  --control-md: 40px;
+  --control-input: 44px;
+  --control-lg: 48px;
+
+  --pad-pill: 14px;
+  --control-thumb: 18px;
+
+  --icon-xs: 12px;
+  --icon-sm: 16px;
+  --icon-control: 18px;
+  --icon-lg: 22px;
+
+  --content-max: 1080px;
+  --reading-max: 700px;
+  --header-h: 76px;
+  --row-py: 13px;
+  --sheet-max: 840px;
+  --sheet-min: 380px;
+
+  --dur-fast: 0.18s;
+  --dur-base: 0.26s;
+  --dur-slow: 0.32s;
+  --dur-shimmer: 1.4s;
+  --dur-stagger: 28ms;
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --tracking-tight: -0.025em;
+  --tracking-snug: -0.01em;
+
+  --font-sans: "Inter Variable";
+  --font-mono: "JetBrains Mono Variable";
+
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0e0e11;
+  --surface: #16161a;
+  --surface-2: #1d1d22;
+  --surface-3: #26262c;
+
+  --border: #26262c;
+  --border-strong: #3a3a42;
+  --border-control: #6a6a76;
+
+  --text: #f5f5f7;
+  --text-2: #b0b0b8;
+  --text-3: #8f8f98;
+
+  --accent: #5cc4f7;
+  --accent-weak: #14262f;
+  --accent-text: var(--accent);
+  --accent-ring: #2b576e;
+  --focus-edge: #307190;
+
+  --tone-gray: #83838a;
+  --tone-gray-weak: #33333a;
+  --tone-gray-text: #a6a6b0;
+  --tone-gray-ring: #646471;
+  --tone-green: #25955b;
+  --tone-green-weak: #1e2b25;
+  --tone-green-text: #32ae70;
+  --tone-green-ring: #2b724e;
+  --tone-yellow: #e2a92f;
+  --tone-yellow-weak: #2f2a1a;
+  --tone-yellow-text: #c19538;
+  --tone-yellow-ring: #7a622e;
+  --tone-red: #ff5c5c;
+  --tone-red-weak: #342223;
+  --tone-red-text: #e29b9b;
+  --tone-red-ring: #ac4141;
+  --tone-orange: #e07a2c;
+  --tone-orange-weak: #322418;
+  --tone-orange-text: #cd8954;
+  --tone-orange-ring: #8b5a35;
+
+  --btn-danger: #d92d20;
+  --btn-danger-hover: #b8261b;
+
+  --focus-ring: 0 0 0 4px rgba(1, 164, 245, 0.16);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.16);
+  --shadow-edge: rgba(0, 0, 0, 0.32);
+  --shadow-2: 0 2px 24px rgba(0, 0, 0, 0.24);
+  --shadow-3: 0 32px 64px -24px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.3);
+
+}
+
+[data-tone="gray"] {
+  --tone: var(--tone-gray);
+  --tone-weak: var(--tone-gray-weak);
+  --tone-text: var(--tone-gray-text);
+  --tone-ring: var(--tone-gray-ring);
+}
+
+[data-tone="green"] {
+  --tone: var(--tone-green);
+  --tone-weak: var(--tone-green-weak);
+  --tone-text: var(--tone-green-text);
+  --tone-ring: var(--tone-green-ring);
+}
+
+[data-tone="yellow"] {
+  --tone: var(--tone-yellow);
+  --tone-weak: var(--tone-yellow-weak);
+  --tone-text: var(--tone-yellow-text);
+  --tone-ring: var(--tone-yellow-ring);
+}
+
+[data-tone="red"] {
+  --tone: var(--tone-red);
+  --tone-weak: var(--tone-red-weak);
+  --tone-text: var(--tone-red-text);
+  --tone-ring: var(--tone-red-ring);
+}
+
+[data-tone="orange"] {
+  --tone: var(--tone-orange);
+  --tone-weak: var(--tone-orange-weak);
+  --tone-text: var(--tone-orange-text);
+  --tone-ring: var(--tone-orange-ring);
+}
+
+[data-tone="accent"] {
+  --tone: var(--accent);
+  --tone-weak: var(--accent-weak);
+  --tone-text: var(--accent-text);
+  --tone-ring: var(--accent-ring);
+}
+
+[data-tone="field"] {
+  --tone: var(--border);
+  --tone-weak: var(--surface);
+  --tone-text: var(--text);
+  --tone-ring: var(--border);
+}

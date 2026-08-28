@@ -1,0 +1,179 @@
+.heading {
+  composes: tableHeading from "../shared.module.css";
+}
+
+.toggle {
+  composes: textAction from "../shared.module.css";
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.list {
+  --row-min: calc(var(--control-sm) + var(--row-py) * 2);
+  --table-min: 960px;
+  --table-cols: minmax(0, 1.3fr) minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 0.6fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
+}
+
+.statusCell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+@media (max-width: 1119px) {
+  .item .card.card > :first-child {
+    grid-row: 1;
+  }
+
+  .statusCell {
+    grid-row: 1;
+    grid-column: 1 / -1;
+    justify-self: end;
+    align-self: center;
+    padding-bottom: var(--space-4);
+  }
+}
+
+.statusGhost {
+  composes: ghost from "../shared.module.css";
+  border-radius: var(--radius-pill);
+}
+
+.actionsWait {
+  align-self: center;
+  min-height: var(--control-sm);
+  margin-right: var(--space-3);
+}
+
+.pillStack {
+  composes: stack from "../shared.module.css";
+}
+
+.pillGhost {
+  composes: stackGhost from "../shared.module.css";
+}
+
+.scroll {
+  composes: tableScroll from "../shared.module.css";
+}
+
+.head {
+  composes: tableCardHead from "../shared.module.css";
+}
+
+.rows {
+  composes: tableCards from "../shared.module.css";
+}
+
+.item {
+  composes: tableCard cardAppear from "../shared.module.css";
+  display: flex;
+  flex-direction: column;
+}
+
+.card {
+  composes: tableRow from "../shared.module.css";
+  min-height: var(--row-min);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+}
+
+.card.card {
+  background: transparent;
+}
+
+@media (hover: hover) {
+  .card:hover {
+    background: var(--surface-2);
+  }
+}
+
+.card:focus-visible {
+  outline: none;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--focus-edge);
+}
+
+.cardOpen {
+  transition: background-color var(--dur-slow) ease;
+}
+
+.cardOpen.cardOpen,
+.cardOpen.cardOpen:hover {
+  background: var(--accent-weak);
+}
+
+.actions {
+  composes: tableActions from "../shared.module.css";
+}
+
+.action.action[data-active] {
+  background: var(--surface);
+  color: var(--accent-text);
+}
+
+.actionIcon {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+@media (pointer: coarse) {
+  .actions.actions {
+    gap: var(--space-7);
+  }
+}
+
+.mobileActions {
+  composes: tableActions from "../shared.module.css";
+}
+
+.mobileActions.mobileActions {
+  display: none;
+}
+
+.mobileAction.mobileAction[data-active],
+.mobileAction.mobileAction[data-active]:hover {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--accent-text);
+}
+
+@media (max-width: 539px) {
+  .actions.actions {
+    display: none;
+  }
+
+  .mobileActions.mobileActions {
+    display: flex;
+  }
+}
+
+.paidLow {
+  composes: inkWarn from "../shared.module.css";
+}
+
+.error {
+  margin-bottom: var(--space-5);
+}
+
+.digging {
+  composes: tableCard from "../shared.module.css";
+  display: flex;
+  align-items: center;
+  min-height: var(--row-min);
+  padding: var(--row-py) var(--pad-pill);
+}
+
+.more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-7) 0 var(--space-2);
+}
+
+.showing {
+  font-size: var(--font-sm);
+  color: var(--text-3);
+}

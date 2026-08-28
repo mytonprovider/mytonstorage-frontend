@@ -1,0 +1,63 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  padding: clamp(var(--space-9), 6vw, 72px) var(--space-6) var(--space-3);
+}
+
+.main:focus-visible {
+  outline: none;
+}
+
+.hero {
+  max-width: var(--reading-max);
+  margin: 0 auto var(--space-10);
+  text-align: center;
+}
+
+.heroTitle {
+  margin-bottom: var(--space-5);
+  font-size: var(--font-hero);
+  line-height: var(--line-tight);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  text-wrap: pretty;
+}
+
+.heroSub {
+  color: var(--text-2);
+  font-size: var(--font-hero-sub);
+  text-wrap: pretty;
+}
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  min-height: calc(var(--control-input) + var(--space-1) * 2);
+  margin: 0 auto var(--space-10);
+}
+
+.stage {
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+
+.files {
+  min-height: 70dvh;
+}
+
+.authError {
+  max-width: var(--content-max);
+  margin: 0 auto var(--space-6);
+}
+
+.gate {
+  composes: emptyState from "./components/shared.module.css";
+  text-wrap: pretty;
+}
+

@@ -1,0 +1,303 @@
+.step {
+  composes: fadeIn from "../shared.module.css";
+}
+
+.dropHead {
+  composes: tableHeading from "../shared.module.css";
+}
+
+.drop {
+  padding: clamp(var(--space-8), 5vw, var(--control-lg)) var(--space-8);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--panel-bg, var(--surface));
+  box-shadow: var(--shadow-1);
+  text-align: center;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+
+.dragging {
+  border-color: var(--accent-ring);
+  background: var(--accent-weak);
+}
+
+.hint {
+  color: var(--text-2);
+  font-size: var(--font-md);
+}
+
+@media (pointer: coarse) {
+  .hint {
+    display: none;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-5);
+  margin: var(--space-7) 0 var(--space-5);
+}
+
+.pick {
+  gap: var(--space-4);
+  cursor: pointer;
+}
+
+.srInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.pick:has(.srInput:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pickBlocked.pickBlocked {
+  cursor: default;
+}
+
+.pickBlockedFilled.pickBlockedFilled,
+.pickBlockedFilled.pickBlockedFilled:hover {
+  background: var(--surface-3);
+  color: var(--text-3);
+}
+
+.pickBlockedOutline.pickBlockedOutline {
+  opacity: 0.4;
+}
+
+.pickBlockedOutline.pickBlockedOutline:hover {
+  border-color: var(--border);
+}
+
+.pickIcon {
+  width: var(--icon-control);
+  height: var(--icon-control);
+}
+
+.max {
+  color: var(--text-3);
+  font-size: var(--font-sm);
+}
+
+.list {
+  margin-top: var(--space-10);
+}
+
+.listHead {
+  composes: tableHeading from "../shared.module.css";
+}
+
+.panel {
+  composes: tablePanel from "../shared.module.css";
+  --table-cols: minmax(0, 1fr) 88px var(--control-xs);
+}
+
+.head {
+  composes: tableHead from "../shared.module.css";
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
+
+.scroll {
+  max-height: min(40dvh, 240px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.row {
+  composes: tableRow from "../shared.module.css";
+}
+
+.row + .row {
+  border-top: 1px solid var(--border);
+}
+
+.fileName {
+  display: flex;
+  align-items: baseline;
+}
+
+.fileExt {
+  flex: none;
+}
+
+.rowIcon {
+  flex: none;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  color: var(--text-2);
+}
+
+.removeIcon {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+.foot {
+  padding: var(--row-py) var(--pad-pill);
+  border-top: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: var(--font-sm);
+}
+
+.form {
+  margin-top: var(--space-10);
+}
+
+.formHead {
+  composes: tableHeading from "../shared.module.css";
+}
+
+.box {
+  composes: panel from "../shared.module.css";
+}
+
+.inputWrap {
+  --counter-w: 5em;
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.descInput {
+  composes: inputControl from "../shared.module.css";
+  padding: 0 calc(var(--space-6) + var(--counter-w)) 0 var(--space-6);
+  border: 1px solid var(--border-control);
+}
+
+.descInput:disabled {
+  opacity: 0.4;
+}
+
+.counter {
+  position: absolute;
+  top: 50%;
+  right: var(--space-6);
+  width: var(--counter-w);
+  text-align: right;
+  transform: translateY(-50%);
+  font-size: var(--font-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.counterOver {
+  composes: inkDanger from "../shared.module.css";
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-7);
+}
+
+.progressNote {
+  color: var(--text-2);
+  font-size: var(--font-sm);
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.progressTrack {
+  flex: 1;
+  height: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.progressValue {
+  flex: none;
+  min-width: 3.5ch;
+  text-align: right;
+  color: var(--text-2);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transition: width var(--dur-base) ease;
+}
+
+.spinner {
+  composes: spinner from "../shared.module.css";
+}
+
+.submit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin-top: var(--space-7);
+}
+
+.progress + .submit {
+  margin-top: var(--space-5);
+}
+
+.notice {
+  margin-top: var(--space-5);
+}
+
+@media (pointer: coarse) {
+  .panel {
+    --table-cols: minmax(0, 1fr) 88px var(--control-input);
+  }
+}
+
+@media (max-width: 539px) {
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pick {
+    width: 100%;
+  }
+
+  .scroll {
+    max-height: 60dvh;
+  }
+
+  .panel .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .row > :first-child {
+    grid-column: 1;
+  }
+
+  .row > :last-child {
+    grid-row: 1;
+    grid-column: 2;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 539px) {
+  .submit {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .submit > span {
+    display: none;
+  }
+}

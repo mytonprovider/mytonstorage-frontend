@@ -1,0 +1,133 @@
+.scale {
+  --thumb-radius: calc(var(--icon-sm) / 2);
+}
+
+.track {
+  --thumb-pad: calc((var(--control-input) - var(--control-xs)) / 2);
+  position: relative;
+  height: var(--control-thumb);
+}
+
+.rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc((var(--control-thumb) - var(--space-1)) / 2);
+  display: block;
+  height: var(--space-1);
+  border-radius: var(--space-05);
+  background: var(--surface-3);
+}
+
+.fill {
+  composes: rail;
+  left: var(--fill-start);
+  right: var(--fill-end);
+  background: var(--accent);
+}
+
+.thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: var(--icon-control);
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.thumb::-webkit-slider-thumb {
+  appearance: none;
+  pointer-events: auto;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--surface);
+  background: var(--accent);
+  box-shadow: var(--shadow-1);
+  cursor: grab;
+}
+
+.thumb::-moz-range-thumb {
+  pointer-events: auto;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--surface);
+  background: var(--accent);
+  cursor: grab;
+}
+
+.thumb:focus-visible {
+  outline: none;
+}
+
+.thumb:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--focus-ring);
+}
+
+.thumb:focus-visible::-moz-range-thumb {
+  box-shadow: var(--focus-ring);
+}
+
+.ticks {
+  composes: scale;
+  position: relative;
+  height: calc(var(--font-xs) * var(--line-base));
+  margin-top: var(--space-2);
+  color: var(--text-3);
+  font-size: var(--font-xs);
+  line-height: var(--line-base);
+  pointer-events: none;
+}
+
+.tick {
+  position: absolute;
+  top: 0;
+  left: calc(var(--thumb-radius) + (100% - var(--thumb-radius) * 2) * var(--tick));
+  transform: translateX(calc(var(--tick) * -100%));
+  white-space: nowrap;
+}
+
+.tick[data-off] {
+  visibility: hidden;
+}
+
+@media (pointer: coarse) {
+  .scale {
+    --thumb-radius: calc(var(--control-xs) / 2);
+  }
+
+  .thumb {
+    left: calc(-1 * var(--thumb-pad));
+    width: calc(100% + var(--thumb-pad) * 2);
+    height: var(--control-input);
+    top: calc((var(--control-thumb) - var(--control-input)) / 2);
+  }
+
+  .thumb::-webkit-slider-thumb {
+    box-sizing: border-box;
+    width: var(--control-input);
+    height: var(--control-input);
+    border-width: var(--thumb-pad);
+    border-color: transparent;
+    background-clip: content-box;
+    box-shadow: inset 0 0 0 2px var(--surface);
+  }
+
+  .thumb::-moz-range-thumb {
+    box-sizing: border-box;
+    width: var(--control-input);
+    height: var(--control-input);
+    border-width: var(--thumb-pad);
+    border-color: transparent;
+    background-clip: content-box;
+    box-shadow: inset 0 0 0 2px var(--surface);
+  }
+
+  .track:not([data-dual]) .thumb {
+    pointer-events: auto;
+  }
+}

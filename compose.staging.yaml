@@ -1,0 +1,4 @@
+services:
+  app:
+    volumes:
+      - ./staging.conf:/etc/nginx/site/staging.conf:ro

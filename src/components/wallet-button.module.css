@@ -1,0 +1,94 @@
+.root {
+  --menu-trigger: var(--control-input);
+  position: relative;
+  flex: none;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--control-input);
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-control);
+  background: var(--btn);
+  color: var(--btn-ink);
+  font-size: var(--font-md);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.button:hover {
+  background: var(--btn-hover);
+}
+
+.address {
+  font-variant-numeric: tabular-nums;
+}
+
+.buttonIcon {
+  flex: none;
+  width: var(--icon-control);
+  height: var(--icon-control);
+}
+
+.chevron {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex: none;
+  transition: transform var(--dur-fast) ease;
+}
+
+.open {
+  transform: rotate(180deg);
+}
+
+.menu {
+  composes: panel from "./menu.module.css";
+  right: 0;
+}
+
+.item {
+  composes: option from "./menu.module.css";
+}
+
+.danger {
+  composes: inkDanger from "./shared.module.css";
+}
+
+.danger.danger:hover {
+  background: var(--tone-red-weak);
+}
+
+.icon {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex: none;
+  color: var(--text-2);
+}
+
+.dangerIcon {
+  composes: icon;
+  composes: inkDanger from "./shared.module.css";
+}
+
+.done {
+  composes: inkOk from "./shared.module.css";
+}
+
+@media (max-width: 539px) {
+  .label {
+    display: none;
+  }
+
+  .button {
+    justify-content: center;
+    width: var(--control-input);
+    height: var(--control-input);
+    padding: 0;
+  }
+
+  .chevron {
+    display: none;
+  }
+}

@@ -1,0 +1,40 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6);
+}
+
+.bag {
+  composes: panel from "../shared.module.css";
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.name {
+  composes: ellipsis from "../shared.module.css";
+  font-weight: 500;
+  color: var(--text);
+}
+
+.meta {
+  font-size: var(--font-sm);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.soon {
+  composes: inkWarn from "../shared.module.css";
+}
+
+.over {
+  composes: inkDanger from "../shared.module.css";
+}
+
+.note {
+  font-size: var(--font-sm);
+  color: var(--text-3);
+  text-wrap: pretty;
+}
+

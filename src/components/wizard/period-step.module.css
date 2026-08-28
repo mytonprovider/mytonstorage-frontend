@@ -1,0 +1,73 @@
+.step {
+  composes: fadeIn from "../shared.module.css";
+}
+
+.heading {
+  composes: tableHeading from "../shared.module.css";
+}
+
+.label {
+  font-size: var(--font-base);
+  color: var(--text-2);
+}
+
+.value {
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.box {
+  composes: tablePanel from "../shared.module.css";
+  padding: var(--space-6) var(--pad-pill);
+}
+
+.payHeading {
+  composes: tableHeading from "../shared.module.css";
+  margin-top: var(--space-10);
+}
+
+.note {
+  margin-top: var(--space-4);
+  font-size: var(--font-sm);
+  color: var(--text-3);
+  text-wrap: pretty;
+}
+
+.fields {
+  composes: fields from "../sheet-fields.module.css";
+}
+
+.total {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-xs);
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.totalValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.fieldNote {
+  font-size: var(--font-sm);
+  color: var(--text-3);
+  text-wrap: pretty;
+}
+
+.error {
+  margin-top: var(--space-5);
+}
+
+.footer {
+  composes: stepFooter from "../shared.module.css";
+}
+
+.spinner {
+  composes: spinner from "../shared.module.css";
+}
+

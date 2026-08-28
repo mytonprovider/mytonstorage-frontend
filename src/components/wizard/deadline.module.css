@@ -1,0 +1,9 @@
+.notice {
+  margin-bottom: var(--space-7);
+  font-variant-numeric: tabular-nums;
+}
+
+.time {
+  font-weight: 600;
+  color: var(--text);
+}

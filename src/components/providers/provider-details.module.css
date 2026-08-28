@@ -1,0 +1,111 @@
+.body {
+  composes: sheetBody from "../shared.module.css";
+}
+
+.status {
+  composes: statusCard from "../shared.module.css";
+}
+
+.bar {
+  composes: statusBar from "../shared.module.css";
+}
+
+.barPart {
+  composes: statusBarFill from "../shared.module.css";
+}
+
+.statusBody {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4) var(--space-5);
+  padding: var(--row-py) var(--pad-pill);
+}
+
+.statusMain {
+  flex: 1;
+  min-width: 180px;
+}
+
+.statusHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.statusLabel {
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--tone-text);
+}
+
+.statusRatio {
+  font-size: var(--font-sm);
+  font-weight: 400;
+  color: var(--tone-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.statusDescription {
+  margin-top: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  flex: none;
+  margin-left: auto;
+}
+
+.checksRow {
+  composes: checksRow from "../shared.module.css";
+}
+
+.checksLabel {
+  composes: checksLabel from "../shared.module.css";
+}
+
+.legendToggle.legendToggle {
+  padding: 0 var(--space-4);
+  margin-right: calc(-1 * var(--space-4));
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-25);
+  padding: 0 var(--pad-pill) var(--row-py);
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-sm);
+}
+
+.legendLabel {
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
+.legendMeta {
+  font-size: var(--font-xs);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.columns {
+  columns: 300px auto;
+  column-gap: var(--space-5);
+}
+
+.columns > * {
+  margin: 0 0 var(--space-5);
+  break-inside: avoid;
+}

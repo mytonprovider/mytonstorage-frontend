@@ -1,0 +1,25 @@
+.step {
+  composes: fadeIn from "../shared.module.css";
+}
+
+.deployed {
+  margin-bottom: var(--space-7);
+}
+
+.heading {
+  composes: tableHeading from "../shared.module.css";
+}
+
+.box {
+  composes: panel from "../shared.module.css";
+  composes: fields from "../sheet-fields.module.css";
+}
+
+.box + .heading {
+  margin-top: var(--space-10);
+}
+
+.footer {
+  composes: stepFooter from "../shared.module.css";
+}
+

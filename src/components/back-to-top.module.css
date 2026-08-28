@@ -1,0 +1,28 @@
+.button {
+  position: fixed;
+  right: var(--space-8);
+  bottom: var(--space-8);
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  width: var(--control-lg);
+  height: var(--control-lg);
+  border-radius: var(--radius-pill);
+  background: var(--btn);
+  color: var(--btn-ink);
+  visibility: hidden;
+}
+
+.shown {
+  composes: fadeIn from "./shared.module.css";
+  visibility: visible;
+}
+
+.button:hover {
+  background: var(--btn-hover);
+}
+
+.icon {
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+}

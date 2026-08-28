@@ -1,0 +1,8 @@
+.copied {
+  composes: inkOk from "./shared.module.css";
+}
+
+.icon {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}

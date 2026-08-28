@@ -1,0 +1,51 @@
+.tablist {
+  position: relative;
+  display: grid;
+  gap: var(--space-0);
+  width: min(420px, 100%);
+  padding: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  grid-template-columns: repeat(var(--count), minmax(0, 1fr));
+}
+
+.pill {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  width: calc((100% - var(--space-1) * 2 - var(--space-0) * (var(--count) - 1)) / var(--count));
+  height: var(--control-input);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  transition: transform var(--dur-base) var(--ease-sheet);
+  transform: translateX(calc(var(--index) * (100% + var(--space-0))));
+}
+
+.tab {
+  position: relative;
+  min-width: 0;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  height: var(--control-input);
+  padding: 0 var(--pad-pill);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-3);
+  font-size: var(--font-base);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color var(--dur-base) ease;
+}
+
+.selected {
+  color: var(--text);
+}
+
+.badge {
+  color: var(--text-2);
+  font-weight: 500;
+}

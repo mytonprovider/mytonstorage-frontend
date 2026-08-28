@@ -1,0 +1,182 @@
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.root {
+  --menu-trigger: var(--control-md);
+  position: relative;
+  min-width: 0;
+}
+
+.trigger {
+  composes: tonePill from "./shared.module.css";
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  height: var(--menu-trigger);
+  padding: 0 var(--pad-pill);
+  font-size: var(--font-md);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .trigger[data-tone="field"]:hover {
+    --tone: var(--border-strong);
+    --tone-ring: var(--border-strong);
+  }
+}
+
+.trigger:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.chevron {
+  flex: none;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  color: var(--text-3);
+  transition: transform var(--dur-fast) ease;
+}
+
+.trigger[data-tone="accent"] .chevron {
+  color: inherit;
+}
+
+.trigger[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+
+.panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(var(--menu-trigger) + var(--space-2));
+  min-width: 240px;
+  max-width: calc(100vw - var(--space-6) * 2);
+  max-height: 320px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  animation: appear var(--dur-fast) ease-out;
+}
+
+.popover {
+  composes: panel;
+  position: fixed;
+  inset: auto;
+  margin: 0;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  height: var(--control-field);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: var(--font-base);
+  text-align: left;
+}
+
+@media (hover: hover) {
+  .option:not([aria-disabled="true"]):hover {
+    background: var(--surface-2);
+  }
+}
+
+.option[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.count {
+  flex: none;
+  font-size: var(--font-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.check {
+  composes: check from "./shared.module.css";
+}
+
+.checked {
+  composes: checkOn from "./shared.module.css";
+}
+
+.checkIcon {
+  composes: checkIcon from "./shared.module.css";
+}
+
+.rangePanel {
+  min-width: 264px;
+  padding: var(--space-4) var(--space-5) var(--space-2);
+}
+
+.rangeHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.rangeValue {
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rangeUnit {
+  font-size: var(--font-xs);
+  color: var(--text-3);
+}
+
+.rangeNote {
+  margin-top: var(--space-4);
+  color: var(--text-3);
+  font-size: var(--font-sm);
+  line-height: var(--line-base);
+  text-wrap: pretty;
+}
+
+.rangeFoot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 539px) {
+  .trigger {
+    gap: var(--space-2);
+    padding: 0 var(--space-4);
+  }
+}
+
+@media (pointer: coarse) {
+  .root {
+    --menu-trigger: var(--control-input);
+  }
+
+  .option {
+    height: var(--control-input);
+  }
+}

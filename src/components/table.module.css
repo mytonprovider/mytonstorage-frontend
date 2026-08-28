@@ -1,0 +1,31 @@
+.leadLink {
+  composes: tableMono from "./shared.module.css";
+  display: inline-flex;
+  align-items: center;
+}
+
+.ghostValue {
+  composes: shape from "./shared.module.css";
+  width: var(--ghost-w);
+  height: 1em;
+}
+
+.ghostCopy {
+  composes: ghost from "./shared.module.css";
+  display: inline-block;
+  flex: none;
+  width: var(--control-xs);
+  height: var(--control-xs);
+  border-radius: var(--radius-pill);
+}
+
+@media (pointer: coarse) {
+  .leadLink {
+    min-height: var(--control-input);
+  }
+
+  .ghostCopy {
+    width: var(--control-input);
+    height: var(--control-input);
+  }
+}
