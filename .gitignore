@@ -8,6 +8,7 @@ logs/
 .env
 .env.*
 !.env.example
+!.env.hub.example
 .eslintcache
 .claude/
 CLAUDE.md

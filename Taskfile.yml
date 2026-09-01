@@ -1,0 +1,70 @@
+version: "3"
+
+dotenv:
+  - .env
+
+tasks:
+  image:build:
+    desc: Build frontend image locally (set FRONTEND_IMAGE)
+    cmds:
+      - |
+        if [ -z "${FRONTEND_IMAGE:-}" ]; then
+          echo "FRONTEND_IMAGE is required, e.g. FRONTEND_IMAGE=user/mytonstorage-frontend:latest task image:build"
+          exit 1
+        fi
+      - |
+        docker build -f Dockerfile \
+          --build-arg VITE_API_URL="${VITE_API_URL:-https://mytonstorage.org}" \
+          --build-arg VITE_MTPO_URL="${VITE_MTPO_URL:-https://mytonprovider.org}" \
+          --build-arg VITE_SITE_URL="${VITE_SITE_URL:-https://mytonstorage.org}" \
+          --build-arg VITE_TONCONNECT_MANIFEST_URL="${VITE_TONCONNECT_MANIFEST_URL:-https://mytonstorage.org/tonconnect-manifest.json}" \
+          -t "${FRONTEND_IMAGE}" .
+
+  image:push:
+    desc: Push prebuilt frontend image (set FRONTEND_IMAGE)
+    cmds:
+      - |
+        if [ -z "${FRONTEND_IMAGE:-}" ]; then
+          echo "FRONTEND_IMAGE is required, e.g. FRONTEND_IMAGE=user/mytonstorage-frontend:latest task image:push"
+          exit 1
+        fi
+      - docker push "${FRONTEND_IMAGE}"
+
+  image:build:push:
+    desc: Build and push frontend image (set FRONTEND_IMAGE)
+    cmds:
+      - task: image:build
+      - task: image:push
+
+  hub:init:
+    desc: Create .env.hub from example
+    cmds:
+      - |
+        if [ ! -f .env.hub ]; then
+          cp .env.hub.example .env.hub
+          echo "Created .env.hub from .env.hub.example"
+        else
+          echo ".env.hub already exists"
+        fi
+
+  hub:up:
+    desc: Pull and start frontend from Docker Hub image (no local build)
+    deps:
+      - hub:init
+    cmds:
+      - docker compose --env-file .env.hub -f docker-compose.hub.yml up -d
+
+  hub:down:
+    desc: Stop Docker Hub frontend stack
+    cmds:
+      - docker compose --env-file .env.hub -f docker-compose.hub.yml down
+
+  hub:ps:
+    desc: Show Docker Hub frontend stack containers
+    cmds:
+      - docker compose --env-file .env.hub -f docker-compose.hub.yml ps
+
+  hub:logs:
+    desc: Follow logs for Docker Hub frontend stack
+    cmds:
+      - docker compose --env-file .env.hub -f docker-compose.hub.yml logs -f

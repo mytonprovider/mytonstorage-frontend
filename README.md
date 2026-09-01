@@ -121,6 +121,47 @@ To only build the static files without Node or a running container:
 docker build --target dist --output dist .
 ```
 
+### Docker Hub image
+
+Build and push a production image (same pattern as mytonprovider-frontend):
+
+```bash
+docker login
+FRONTEND_IMAGE=<user>/mytonstorage-frontend:latest task image:build:push
+```
+
+Build-time overrides: `VITE_API_URL` (default `https://mytonstorage.org`), `VITE_MTPO_URL` (default `https://mytonprovider.org`), `VITE_SITE_URL`, `VITE_TONCONNECT_MANIFEST_URL`. Copy `.env.example` to `.env` for both `task image:build` and `docker compose`.
+
+### Production layout (same VPS as mytonprovider)
+
+- **UI:** `mytonstorage.org` — this repo, `task hub:up` (container on `${PORT:-8082}`)
+- **API:** mytonstorage-backend — `task hub:up` in [mytonstorage-backend](https://github.com/mytonprovider/mytonstorage-backend) (`BACKEND_PORT`, default `:9092`)
+- **Gateway:** mytonstorage-gateway — `task hub:up` in [mytonstorage-gateway](https://github.com/mytonprovider/mytonstorage-gateway) (`:9093`)
+- **Provider catalog:** `VITE_MTPO_URL` points at `https://mytonprovider.org` (separate domain; CORS on provider)
+
+Host nginx on `mytonstorage.org` must proxy `/api/` to the backend, `/api/v1/gateway/` to the gateway, and `/` to the frontend container. Example for UI only (keep existing API/gateway blocks):
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8082;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+On a VPS, pull and run the prebuilt image:
+
+```bash
+task hub:init
+# edit .env.hub: FRONTEND_IMAGE and PORT
+task hub:up
+task hub:ps
+task hub:logs
+task hub:down
+```
+
 ## Deployment
 
 Every push to `master`, and every pull request, runs lint, tests and build in CI.
