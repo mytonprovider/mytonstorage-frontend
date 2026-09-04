@@ -87,9 +87,10 @@ export const DoneStep = ({
       <div className={styles.box}>
         <SheetField
           label={t("files.bagId")}
-          value={shortenMiddle(bagId.toUpperCase(), 6, 6)}
-          title={bagId.toUpperCase()}
+          value={shortenMiddle(bagId, 6, 6)}
+          title={bagId}
           mono
+          upper
           copy={bagId}
           copied={copied}
           onCopy={onCopy}

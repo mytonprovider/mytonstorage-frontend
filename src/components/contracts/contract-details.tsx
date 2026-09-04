@@ -107,11 +107,12 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
         />
         <SheetField
           label={t("files.bagId")}
-          value={shortenMiddle(bagId.toUpperCase(), 6, 6)}
-          title={bagId.toUpperCase() || undefined}
+          value={shortenMiddle(bagId, 6, 6)}
+          title={bagId || undefined}
           href={bagId ? gatewayUrl(bagId) : undefined}
           mono
-          copy={bagId.toUpperCase()}
+          upper
+          copy={bagId}
           copied={copied}
           onCopy={onCopy}
         />
@@ -178,7 +179,7 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
               {[0, 1, 2].map((slot) => (
                 <div key={slot} aria-hidden="true" className={styles.row}>
                   <span className={shared.tableLead}>
-                    <span className={cx(shared.tableMono, shared.ghost)}>{shortenMiddle("8".repeat(64).toUpperCase(), 6, 6)}</span>
+                    <span className={cx(shared.tableMono, shared.ghost)}>{shortenMiddle("8".repeat(64), 6, 6)}</span>
                     <GhostCopy />
                   </span>
                   <TableCell ghost label={t("details.priceDay")} value={tonLabel(GHOST_TON, 6)} />
@@ -217,8 +218,9 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
                 return (
                   <div key={pubkey} className={styles.row}>
                     <TableLead
-                      shortValue={shortenMiddle(pubkey.toUpperCase(), 6, 6)}
+                      shortValue={shortenMiddle(pubkey, 6, 6)}
                       title={pubkey}
+                      upper
                       copy={pubkey}
                       copied={copied}
                       onCopy={onCopy}

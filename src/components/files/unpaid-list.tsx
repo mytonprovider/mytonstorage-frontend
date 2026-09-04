@@ -32,8 +32,9 @@ const BagRow = ({ bag, index, deadline, busy, copied, onCopy, onContinue, onAskR
   return (
     <article style={{ "--card-index": index % 10 } as CSSProperties} className={styles.card}>
       <TableLead
-        shortValue={shortenMiddle(bag.bag_id.toUpperCase(), 6, 6)}
+        shortValue={shortenMiddle(bag.bag_id, 6, 6)}
         title={bag.bag_id}
+        upper
         href={gatewayUrl(bag.bag_id)}
         copy={bag.bag_id}
         copied={copied}

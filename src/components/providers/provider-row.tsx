@@ -2,7 +2,7 @@ import { useState, type CSSProperties, type MouseEvent, type ReactNode } from "r
 import { ArrowDown, ArrowUp, Check, Star } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
-import { GRAM, formatDuration, formatNumber, formatPercent, shortenMiddle, splitSpace } from "@/lib/format"
+import { BYTES_IN_GIB, GRAM, SECONDS_IN_DAY, formatDuration, formatNumber, formatPercent, shortenMiddle, splitSpace } from "@/lib/format"
 import { MAX_SELECTED } from "@/lib/pricing"
 import { freeSpace, priceInTon, spanAllows, STATUS_KEYS, statusOf, statusPercent } from "@/lib/providers"
 import type { SortDirection, SortField } from "@/lib/providers"
@@ -121,14 +121,11 @@ const StatusLabel = ({ label, ratio }: { label: string; ratio: string | null }) 
   )
 }
 
-const SKELETON_WIDTH: Record<string, string> = {
-  "table.rating": "4em",
-  "table.uptime": "3.7em",
-  "table.price": "4.3em",
-  "table.free": "3.5em",
-  "table.workingTime": "4.7em",
-  "table.location": "4.3em",
-}
+const WIDEST_SPACE = 100 * 1024 * BYTES_IN_GIB
+const WIDEST_WORKING_TIME = 700 * SECONDS_IN_DAY
+const WIDEST_RATING = 9.99
+const WIDEST_UPTIME = 99.99
+const WIDEST_PRICE = 999.99
 
 const Cell = ({ children }: { children: ReactNode }) => (
   <div className={styles.cell}>
@@ -138,6 +135,15 @@ const Cell = ({ children }: { children: ReactNode }) => (
 
 export const ProviderSkeleton = ({ index = 0 }: { index?: number }) => {
   const { t } = useTranslation()
+
+  const sample: Record<string, string> = {
+    "table.rating": formatNumber(WIDEST_RATING, 2),
+    "table.uptime": formatPercent(WIDEST_UPTIME),
+    "table.price": formatNumber(WIDEST_PRICE, 2),
+    "table.free": splitSpace(WIDEST_SPACE).value,
+    "table.workingTime": formatDuration(WIDEST_WORKING_TIME, t),
+    "table.location": t("unknown"),
+  }
 
   return (
     <article
@@ -164,7 +170,7 @@ export const ProviderSkeleton = ({ index = 0 }: { index?: number }) => {
           </span>
         ) : (
           <Cell key={column.id}>
-            <GhostValue width={SKELETON_WIDTH[column.label]} />
+            <GhostValue sample={sample[column.label]} />
           </Cell>
         ),
       )}

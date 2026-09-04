@@ -9,7 +9,7 @@ import {
   type ContractRow as ContractRowData,
   type ContractsState,
 } from "@/lib/contracts"
-import { SECONDS_IN_DAY, formatBytes, formatDate, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
+import { MIB, SECONDS_IN_DAY, formatBytes, formatDate, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
 import { dailyCost, paidDaysLeft, proofDelays } from "@/lib/pricing"
 import { payErrorTone } from "@/lib/wizard"
 import { ConfirmSheet } from "../confirm-sheet"
@@ -33,11 +33,19 @@ export interface OpenEditor {
 export const visibleContracts = (contracts: ContractRowData[], hideClosed: boolean): ContractRowData[] =>
   contracts.filter((contract) => !(hideClosed && contract.closed))
 
-const SKELETON_WIDTH: Record<string, string> = {
-  "files.contract": "7.8em",
-  "files.desc": "8.5em",
-  "files.size": "3.1em",
-  "files.paidUntil": "5.5em",
+const WIDEST_ADDRESS = "E".repeat(48)
+const WIDEST_DESC = "archive-2026-01.tar.zst"
+const WIDEST_SIZE = 999.99 * MIB
+
+const useSkeletonSample = (): Record<string, string> => {
+  const { i18n } = useTranslation()
+
+  return {
+    "files.contract": shortenMiddle(WIDEST_ADDRESS, 6, 6),
+    "files.desc": WIDEST_DESC,
+    "files.size": formatBytes(WIDEST_SIZE),
+    "files.paidUntil": formatDate(nowSeconds(), i18n.language),
+  }
 }
 
 const STATUS_WORDS = {
@@ -70,12 +78,13 @@ const StatusPill = ({ wordKey }: { wordKey: string }) => {
 
 const SkeletonRow = () => {
   const { t } = useTranslation()
+  const sample = useSkeletonSample()
 
   return (
     <div className={styles.item}>
       <article aria-hidden="true" className={styles.card}>
         <span className={shared.tableLead}>
-          <GhostValue width={SKELETON_WIDTH["files.contract"]} />
+          <GhostValue sample={sample["files.contract"]} />
           <GhostCopy />
         </span>
 
@@ -87,7 +96,7 @@ const SkeletonRow = () => {
 
         {["files.desc", "files.size", "files.paidUntil"].map((label) => (
           <TableCell key={label} ghost label={t(label)}>
-            <GhostValue width={SKELETON_WIDTH[label]} />
+            <GhostValue sample={sample[label]} />
           </TableCell>
         ))}
 
@@ -101,12 +110,13 @@ const SkeletonRow = () => {
 
 const PaidUntil = ({ contract }: { contract: ContractRowData }) => {
   const { t, i18n } = useTranslation()
+  const sample = useSkeletonSample()
   const label = t("files.paidUntil")
 
   if (!contract.closed && contract.economics === undefined) {
     return (
       <TableCell label={label}>
-        <GhostValue width={SKELETON_WIDTH["files.paidUntil"]} />
+        <GhostValue sample={sample["files.paidUntil"]} />
       </TableCell>
     )
   }
@@ -422,7 +432,7 @@ export const ContractsList = ({
 
               {hasMore && portion.length >= visible.length && (
                 <div aria-hidden="true" className={styles.digging}>
-                  <GhostValue width="10em" />
+                  <GhostValue sample={shortenMiddle(WIDEST_ADDRESS, 6, 6)} />
                 </div>
               )}
             </div>

@@ -1,4 +1,4 @@
-import type { CSSProperties, KeyboardEvent, ReactNode } from "react"
+import type { KeyboardEvent, ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
 import { CopyButton } from "./copy-button"
@@ -17,13 +17,14 @@ export const activateOnKey =
 interface TableLeadProps {
   shortValue: string
   title: string
+  upper?: boolean
   href?: string
   copy: string
   copied: string | null
   onCopy: (value: string) => void
 }
 
-export const TableLead = ({ shortValue, title, href, copy, copied, onCopy }: TableLeadProps) => {
+export const TableLead = ({ shortValue, title, upper, href, copy, copied, onCopy }: TableLeadProps) => {
   const { t } = useTranslation()
 
   return (
@@ -35,12 +36,12 @@ export const TableLead = ({ shortValue, title, href, copy, copied, onCopy }: Tab
           rel="noopener noreferrer"
           title={title}
           onClick={(event) => event.stopPropagation()}
-          className={styles.leadLink}
+          className={cx(styles.leadLink, upper && styles.upper)}
         >
           {shortValue}
         </a>
       ) : (
-        <span title={title} className={shared.tableMono}>
+        <span title={title} className={cx(shared.tableMono, upper && styles.upper)}>
           {shortValue}
         </span>
       )}
@@ -82,8 +83,10 @@ export const Ratio = ({ valid, total }: { valid: number; total: number }) => {
   )
 }
 
-export const GhostValue = ({ width }: { width: string }) => (
-  <span className={styles.ghostValue} style={{ "--ghost-w": width } as CSSProperties} />
+export const GhostValue = ({ sample }: { sample: string }) => (
+  <span aria-hidden="true" className={styles.ghostValue}>
+    {sample}
+  </span>
 )
 
 export const GhostCopy = () => <span className={styles.ghostCopy} />

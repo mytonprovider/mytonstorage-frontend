@@ -4,10 +4,13 @@
   align-items: center;
 }
 
+.upper {
+  text-transform: uppercase;
+}
+
 .ghostValue {
   composes: shape from "./shared.module.css";
-  width: var(--ghost-w);
-  height: 1em;
+  color: transparent;
 }
 
 .ghostCopy {
