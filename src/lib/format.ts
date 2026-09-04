@@ -41,6 +41,8 @@ export const splitFileName = (name: string): [string, string] => {
 export const GRAM = "GRAM"
 export const MBIT_PER_SECOND = "Mbit/s"
 export const MILLISECONDS = "ms"
+export const BITS_IN_MEGABIT = 1e6
+export const PING_LIMIT = 100000
 
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"]
 const FILE_TOP = BYTE_UNITS.length - 1

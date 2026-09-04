@@ -5,8 +5,10 @@ import { cx } from "@/lib/cx"
 import { scanUrl } from "@/lib/contracts"
 import {
   GRAM,
+  BITS_IN_MEGABIT,
   MBIT_PER_SECOND,
   MILLISECONDS,
+  PING_LIMIT,
   formatBytes,
   formatDiskSpeed,
   formatDuration,
@@ -189,19 +191,19 @@ export const ProviderDetails = ({ provider, unlisted = false, catalogReady = tru
           {
             label: t("provider.down"),
             value: telemetry.speedtest_download
-              ? `${formatNumber(telemetry.speedtest_download / 1e6, 0)} ${MBIT_PER_SECOND}`
+              ? `${formatNumber(telemetry.speedtest_download / BITS_IN_MEGABIT, 0)} ${MBIT_PER_SECOND}`
               : "",
           },
           {
             label: t("provider.up"),
             value: telemetry.speedtest_upload
-              ? `${formatNumber(telemetry.speedtest_upload / 1e6, 0)} ${MBIT_PER_SECOND}`
+              ? `${formatNumber(telemetry.speedtest_upload / BITS_IN_MEGABIT, 0)} ${MBIT_PER_SECOND}`
               : "",
           },
           {
             label: t("provider.ping"),
             value:
-              telemetry.speedtest_ping && telemetry.speedtest_ping < 100000
+              telemetry.speedtest_ping && telemetry.speedtest_ping < PING_LIMIT
                 ? `${formatNumber(telemetry.speedtest_ping, 1)} ${MILLISECONDS}`
                 : "",
           },
