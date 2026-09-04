@@ -1,6 +1,5 @@
 import { Check, Copy } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { cx } from "@/lib/cx"
 import { IconButton } from "./icon-button"
 import styles from "./copy-button.module.css"
 
@@ -19,7 +18,8 @@ export const CopyButton = ({ value, copied, onCopy, label, className }: CopyButt
     <IconButton
       size="xs"
       label={label ?? t("ui.copy")}
-      className={cx(copied && styles.copied, className)}
+      ok={copied}
+      className={className}
       onClick={(event) => {
         event.stopPropagation()
         onCopy(value)

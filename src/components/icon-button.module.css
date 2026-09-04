@@ -28,6 +28,14 @@
   background: var(--tone-red-weak);
 }
 
+.ok {
+  composes: inkOk from "./shared.module.css";
+}
+
+.button.ok:hover:not(:disabled) {
+  color: var(--tone-green-text);
+}
+
 .xs {
   width: var(--control-xs);
   height: var(--control-xs);
