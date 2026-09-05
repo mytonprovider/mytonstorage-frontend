@@ -10,7 +10,7 @@ import styles from "./header.module.css"
 
 interface HeaderProps {
   dark: boolean
-  onToggleTheme: (origin: DOMRect) => void
+  onToggleTheme: () => void
 }
 
 export const Header = ({ dark, onToggleTheme }: HeaderProps) => {
@@ -44,7 +44,7 @@ export const Header = ({ dark, onToggleTheme }: HeaderProps) => {
           {nextLanguage.toUpperCase()}
         </IconButton>
 
-        <IconButton label={t("ui.theme")} size="lg" onClick={(event) => onToggleTheme(event.currentTarget.getBoundingClientRect())}>
+        <IconButton label={t("ui.theme")} size="lg" onClick={onToggleTheme}>
           {dark ? <Sun className={styles.icon} aria-hidden="true" /> : <Moon className={styles.icon} aria-hidden="true" />}
         </IconButton>
       </div>

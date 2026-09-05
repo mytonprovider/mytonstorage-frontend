@@ -116,6 +116,7 @@
   --dur-fast: 0.18s;
   --dur-base: 0.26s;
   --dur-slow: 0.32s;
+  --dur-theme: 0.15s;
   --dur-shimmer: 1.4s;
   --dur-stagger: 28ms;
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);

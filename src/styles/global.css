@@ -120,16 +120,29 @@ textarea:focus-visible {
 
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
+  animation-duration: var(--dur-theme);
 }
 
-::view-transition-old(root) {
-  z-index: 0;
+::view-transition-old(theme-icon) {
+  animation: theme-icon-out var(--dur-base) var(--ease-sheet) both;
 }
 
-::view-transition-new(root) {
-  z-index: 1;
+::view-transition-new(theme-icon) {
+  animation: theme-icon-in var(--dur-base) var(--ease-sheet) both;
+}
+
+@keyframes theme-icon-out {
+  to {
+    transform: rotate(90deg) scale(0.7);
+    opacity: 0;
+  }
+}
+
+@keyframes theme-icon-in {
+  from {
+    transform: rotate(-90deg) scale(0.7);
+    opacity: 0;
+  }
 }
 
 @media (pointer: coarse) {
