@@ -95,7 +95,7 @@
     "count": "Number of providers",
     "selectedTitle": "Selected providers",
     "noneSelected": "No providers selected",
-    "spanShort": "Won't prove {{days}}",
+    "spanShort": "Won't prove every {{days}}",
     "fewer": "Fewer providers",
     "more": "More providers",
     "spanHidden_one": "{{count}} provider hidden — it doesn't prove storage every {{days}}.",
@@ -137,7 +137,7 @@
     "days": "d",
     "floorNote": "No shorter than the check period — {{days}} d.",
     "total": "Total due",
-    "payNote": "Providers will start uploading files once payment is confirmed"
+    "payNote": "Providers will start downloading the files once the payment is confirmed"
   },
   "presets": {
     "1w": "1 week",
@@ -201,8 +201,8 @@
     "providersTitle": "Contract providers",
     "topupBounds": "From {{min}} to {{max}} GRAM.",
     "paidUntil": "Paid until",
-    "confirmations": "Confirmations",
-    "confirmationsHint": "How many selected providers confirmed storage"
+    "confirmations": "Checks",
+    "confirmationsHint": "How many of the providers passed the check. Updated hourly by mytonprovider.org."
   },
   "filters": {
     "title": "Filters",
@@ -211,7 +211,7 @@
     "proofNote": "How often a provider proves it still stores the bag",
     "ratingUnit": "rating",
     "priceUnit": "GRAM / 200 GB · mo",
-    "proofRare": "You learn about a lost bag only at the next check — set the period to {{days}} days or less.",
+    "proofRare": "Between rare checks a provider may stop storing the bag — set the period to {{days}} days or less.",
     "allCountries": "All countries",
     "countries_one": "{{count}} country",
     "countries_other": "{{count}} countries",
@@ -304,6 +304,7 @@
     "uploadFailed": "Upload failed — try again.",
     "offersFailed": "Could not get offers from the providers.",
     "paymentFailed": "The transaction was not confirmed — try again.",
+    "prepareFailed": "Couldn't prepare the transaction — try again.",
     "paymentUnchecked": "The network did not answer — retry the payment: no second contract is created.",
     "confirmTimeout": "No confirmation arrived in time — if you signed the transaction, it will land and the list will refresh itself.",
     "notLinked": "Payment went through, but the bag was not linked to the contract — retry linking.",
@@ -354,14 +355,14 @@
     "priceDay": "Price per day",
     "created": "Created",
     "span": "Check period",
-    "checkOk": "Healthy",
+    "checkOk": "Storing",
     "lastProof": "Last proof",
     "nextProof": "Next proof",
-    "stateOk": "Storage confirmed",
-    "statePartial": "Partially confirmed",
-    "stateFail": "Storage not confirmed",
+    "stateOk": "Storage proven",
+    "statePartial": "Partially proven",
+    "stateFail": "Storage not proven",
     "statePending": "Checks still running",
-    "checksOf": "Checks passed",
+    "checksOf": "Checks",
     "checkAgo": "Last check: {{time}} ago",
     "check": "Check"
   }

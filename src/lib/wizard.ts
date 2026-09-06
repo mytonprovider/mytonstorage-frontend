@@ -87,14 +87,17 @@ const DEPLOY_TIMEOUT_MS = 240_000
 
 const PAYMENT_HASH_TIMEOUT_MS = 60_000
 
-export const payErrorKey = (error: unknown, { withBag = true }: { withBag?: boolean } = {}): string => {
-  if (!(error instanceof ApiError)) return "errors.paymentFailed"
+export const payErrorKey = (
+  error: unknown,
+  { withBag = true, fallback = "errors.paymentFailed" }: { withBag?: boolean; fallback?: string } = {},
+): string => {
+  if (!(error instanceof ApiError)) return fallback
   if (error.status === 429) return "errors.rateLimited"
   if (withBag && error.status === 400 && error.detail.includes("providers unavailable")) return OFFERS_INCOMPLETE
   if (withBag && (error.status === 410 || error.detail.includes("expired") || error.detail.includes("fetch providers rates"))) {
     return "wizard.expired"
   }
-  return "errors.paymentFailed"
+  return fallback
 }
 
 export const deployFailureKey = (deployed: boolean, error: unknown): string | null =>
@@ -413,15 +416,30 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
       }
     }
 
+    let transaction: WalletTransaction
     try {
-      const transaction = await initContract({
+      transaction = await initContract({
         bag_id: bagId,
         providers: data.selected,
         amount: storageCost(offers, gridDays(storageDays, proofDays), proofDays),
         owner_address: address,
         span: proofDays * SECONDS_IN_DAY,
       })
+    } catch (error) {
+      if (!onUnauthorized(error)) {
+        const key = payErrorKey(error, { fallback: "errors.prepareFailed" })
+        if (key === OFFERS_INCOMPLETE) {
+          invalidate()
+          setOffers([])
+          setDeclines([])
+        }
+        setPayError(key)
+      }
+      setSending(false)
+      return
+    }
 
+    try {
       await signDeploy(bagId, transaction)
     } catch (error) {
       if (!onUnauthorized(error)) {
