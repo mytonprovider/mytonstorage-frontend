@@ -14,7 +14,7 @@ browser.
 
 ## Usage
 
-Requires Node 22 and pnpm 11.
+Requires Node 22 and pnpm 11. The `task …` commands below also need [Task](https://taskfile.dev).
 
 1. Install dependencies:
 
@@ -47,8 +47,7 @@ VITE_TONCONNECT_MANIFEST_URL=https://mytonstorage.org/tonconnect-manifest.json
 ```
 
 To work against a backend of your own, serve the app, `/api` and `/tonconnect-manifest.json` from one HTTPS
-origin — expose the dev server through a tunnel, for example `cloudflared tunnel --url http://localhost:5173`,
-and name that host in the backend's `SYSTEM_HOST`. `BACKEND_PROXY_TARGET`, `CATALOG_PROXY_TARGET` and
+origin, and name that host in the backend's `SYSTEM_HOST`. `BACKEND_PROXY_TARGET`, `CATALOG_PROXY_TARGET` and
 `TONCENTER_PROXY_TARGET` override where the dev proxy forwards.
 
 ### Production build
@@ -123,14 +122,21 @@ docker build --target dist --output dist .
 
 ### Docker Hub image
 
-Build and push a production image (same pattern as mytonprovider-frontend):
+1. Copy `.env.example` to `.env` — both `task image:build` and `docker compose` read it. Build-time overrides
+   are `VITE_API_URL`, `VITE_MTPO_URL`, `VITE_SITE_URL` and `VITE_TONCONNECT_MANIFEST_URL`; defaults are in the
+   table above.
 
-```bash
-docker login
-FRONTEND_IMAGE=<user>/mytonstorage-frontend:latest task image:build:push
-```
+2. Sign in to the registry:
 
-Build-time overrides: `VITE_API_URL` (default `https://mytonstorage.org`), `VITE_MTPO_URL` (default `https://mytonprovider.org`), `VITE_SITE_URL`, `VITE_TONCONNECT_MANIFEST_URL`. Copy `.env.example` to `.env` for both `task image:build` and `docker compose`.
+   ```bash
+   docker login
+   ```
+
+3. Build and push the image:
+
+   ```bash
+   FRONTEND_IMAGE=<user>/mytonstorage-frontend:latest task image:build:push
+   ```
 
 ### Production layout (same VPS as mytonprovider)
 
@@ -153,14 +159,21 @@ location / {
 
 On a VPS, pull and run the prebuilt image:
 
-```bash
-task hub:init
-# edit .env.hub: FRONTEND_IMAGE and PORT
-task hub:up
-task hub:ps
-task hub:logs
-task hub:down
-```
+1. Create the environment file:
+
+   ```bash
+   task hub:init
+   ```
+
+2. Set `FRONTEND_IMAGE` and `PORT` in `.env.hub`.
+
+3. Start the container:
+
+   ```bash
+   task hub:up
+   ```
+
+`task hub:ps` shows the container, `task hub:logs` follows its output, `task hub:down` stops it.
 
 ## Deployment
 
