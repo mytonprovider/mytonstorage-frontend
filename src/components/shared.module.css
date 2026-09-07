@@ -415,8 +415,8 @@
 }
 
 .sheetNote {
-  padding: var(--space-6);
-  font-size: var(--font-sm);
+  padding: var(--pad-pill) var(--space-6) var(--space-6);
+  font-size: var(--font-base);
   color: var(--text-2);
   text-wrap: pretty;
 }

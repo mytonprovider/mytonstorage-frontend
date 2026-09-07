@@ -40,13 +40,12 @@ interface SheetProps {
   open: boolean
   title: string
   subject?: string
-  size?: "full" | "auto"
   wide?: boolean
   onClose: () => void
   children: ReactNode
 }
 
-export const Sheet = ({ open, title, subject, size = "full", wide, onClose, children }: SheetProps) => {
+export const Sheet = ({ open, title, subject, wide, onClose, children }: SheetProps) => {
   const { t } = useTranslation()
   const ref = useRef<HTMLDialogElement>(null)
   const timer = useRef(0)
@@ -111,7 +110,7 @@ export const Sheet = ({ open, title, subject, size = "full", wide, onClose, chil
   return (
     <dialog
       ref={ref}
-      className={cx(styles.sheet, size === "auto" && styles.auto, wide && styles.wide)}
+      className={cx(styles.sheet, wide && styles.wide)}
       aria-label={subject ? `${title} ${subject}` : title}
       tabIndex={-1}
       data-dragging={drag.dragging ? "" : undefined}

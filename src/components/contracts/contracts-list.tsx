@@ -417,7 +417,6 @@ export const ContractsList = ({
         open={editing !== null && editingContract !== null}
         title={t(editing?.kind === "extend" ? "files.topupTitle" : "files.providersTitle")}
         subject={editingContract ? shortenMiddle(editingContract.address, 6, 6) : undefined}
-        size={editing?.kind === "extend" ? "auto" : "full"}
         wide={editing?.kind === "edit"}
         onClose={() => onEditingChange(null)}
       >
@@ -429,6 +428,7 @@ export const ContractsList = ({
       <ConfirmSheet
         open={withdrawFor !== null}
         title={t("files.withdrawTitle")}
+        subject={withdrawFor ? shortenMiddle(withdrawFor, 6, 6) : undefined}
         note={t("files.withdrawNote")}
         confirmLabel={t("files.withdraw")}
         onConfirm={() => {
