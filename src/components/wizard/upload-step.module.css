@@ -96,7 +96,7 @@
 }
 
 .panel {
-  composes: tablePanel from "../shared.module.css";
+  composes: tablePanel tableWide from "../shared.module.css";
   --table-cols: minmax(0, 1fr) 88px var(--control-xs);
 }
 
@@ -274,20 +274,6 @@
 
   .scroll {
     max-height: 60dvh;
-  }
-
-  .panel .row {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .row > :first-child {
-    grid-column: 1;
-  }
-
-  .row > :last-child {
-    grid-row: 1;
-    grid-column: 2;
-    justify-self: end;
   }
 }
 

@@ -21,7 +21,7 @@ export const UploadGateSheet = ({ bag, freeStorageSeconds, onClose, onReplace, o
   const tone = countdownTone(left)
 
   return (
-    <Sheet size="auto" open={bag !== null} title={t("files.finishTitle")} onClose={onClose}>
+    <Sheet open={bag !== null} title={t("files.finishTitle")} onClose={onClose}>
       {bag && (
         <div className={styles.body}>
           <div className={styles.bag}>

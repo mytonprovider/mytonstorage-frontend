@@ -21,7 +21,8 @@
   flex-direction: column;
   width: clamp(var(--sheet-min), 58vw, var(--sheet-max));
   max-width: calc(100vw - var(--space-9));
-  height: min(760px, calc(100dvh - var(--space-9)));
+  height: fit-content;
+  max-height: min(760px, calc(100dvh - var(--space-9)));
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
@@ -47,11 +48,6 @@
 
 .sheet::backdrop {
   background: var(--scrim);
-}
-
-.auto {
-  height: fit-content;
-  max-height: min(760px, calc(100dvh - var(--space-9)));
 }
 
 .wide {
@@ -116,8 +112,11 @@
   .sheet {
     width: 100%;
     max-width: 100%;
-    height: 88dvh;
-    margin: auto auto 0;
+    top: auto;
+    bottom: 0;
+    height: auto;
+    max-height: 88dvh;
+    margin: 0;
     border: 0;
     border-top: 1px solid var(--border);
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
@@ -133,11 +132,6 @@
   .sheet[data-leaving] {
     --sheet-y: 100%;
     opacity: 1;
-  }
-
-  .auto {
-    height: fit-content;
-    max-height: 88dvh;
   }
 
   .header {

@@ -203,7 +203,6 @@ const ReplaceFolderSheet = ({ folder, pickedCount, onCancel, onConfirm }: Replac
 
   return (
     <Sheet
-      size="auto"
       open={folder !== null}
       title={t("upload.replaceTitle")}
       onClose={onCancel}
