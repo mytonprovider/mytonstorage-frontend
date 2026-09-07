@@ -173,6 +173,7 @@
     "closed": "Closed",
     "hideClosed": "Hide closed contracts",
     "showMore": "Show more",
+    "lookingForMore": "Looking for contracts",
     "empty": "No storage contracts found",
     "emptyHint": "Upload your first file to start",
     "emptyUnpaid": "Pay for a bag above to get a contract",

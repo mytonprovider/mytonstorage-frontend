@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from "react"
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react"
 import { Check, CircleX, Loader, ScrollText, Server, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
@@ -11,6 +11,7 @@ import {
 } from "@/lib/contracts"
 import { MIB, SECONDS_IN_DAY, formatBytes, formatDate, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
 import { dailyCost, paidDaysLeft, proofDelays } from "@/lib/pricing"
+import { CONTRACT_ROWS_KEY, readStored, writeStored } from "@/lib/local-storage"
 import { payErrorTone } from "@/lib/wizard"
 import { ConfirmSheet } from "../confirm-sheet"
 import { ContractDetails } from "./contract-details"
@@ -24,6 +25,11 @@ import styles from "./contracts-list.module.css"
 
 const SKELETON_ROWS = 3
 const ROW_PORTION = 10
+
+const storedRows = (): number => {
+  const stored = Number(readStored(CONTRACT_ROWS_KEY))
+  return Number.isInteger(stored) && stored > 0 ? Math.ceil(stored / ROW_PORTION) * ROW_PORTION : 0
+}
 
 export interface OpenEditor {
   address: string
@@ -333,10 +339,16 @@ export const ContractsList = ({
   const { t } = useTranslation()
   const [withdrawFor, setWithdrawFor] = useState<string | null>(null)
   const [infoFor, setInfoFor] = useState<string | null>(null)
-  const [shownLimit, setShownLimit] = useState(ROW_PORTION)
+  const [restored] = useState(storedRows)
+  const [shownLimit, setShownLimit] = useState(restored || ROW_PORTION)
+
+  useEffect(() => {
+    writeStored(CONTRACT_ROWS_KEY, String(shownLimit))
+  }, [shownLimit])
 
   const visible = visibleContracts(contracts, hideClosed)
   const portion = visible.slice(0, shownLimit)
+  const digging = hasMore && portion.length >= visible.length
   const infoContract = contracts.find((contract) => contract.address === infoFor) ?? null
   const editingContract = contracts.find((contract) => contract.address === editing?.address) ?? null
 
@@ -408,7 +420,7 @@ export const ContractsList = ({
             <div className={styles.rows}>
               {loading &&
                 visible.length === 0 &&
-                Array.from({ length: SKELETON_ROWS }, (_, index) => <SkeletonRow key={index} />)}
+                Array.from({ length: restored || SKELETON_ROWS }, (_, index) => <SkeletonRow key={index} />)}
               {portion.map((contract, index) => {
                 const openKind =
                   editing && editing.address === contract.address && !contract.closed ? editing.kind : null
@@ -430,23 +442,23 @@ export const ContractsList = ({
                 )
               })}
 
-              {hasMore && portion.length >= visible.length && (
-                <div aria-hidden="true" className={styles.digging}>
-                  <GhostValue sample={shortenMiddle(WIDEST_ADDRESS, 6, 6)} />
-                </div>
-              )}
             </div>
           </div>
 
-          {visible.length > portion.length && (
+          {(hasMore || visible.length > portion.length) && (
             <div className={styles.more}>
               {!hasMore && (
                 <span role="status" className={styles.showing}>
                   {t("ui.showing", { shown: portion.length, total: visible.length })}
                 </span>
               )}
-              <button type="button" className={shared.secondary} onClick={() => setShownLimit((count) => count + ROW_PORTION)}>
-                {t("files.showMore")}
+              <button
+                type="button"
+                className={shared.secondary}
+                disabled={digging}
+                onClick={() => setShownLimit((count) => count + ROW_PORTION)}
+              >
+                {t(digging ? "files.lookingForMore" : "files.showMore")}
               </button>
             </div>
           )}

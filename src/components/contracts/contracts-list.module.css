@@ -157,14 +157,6 @@
   margin-bottom: var(--space-5);
 }
 
-.digging {
-  composes: tableCard from "../shared.module.css";
-  display: flex;
-  align-items: center;
-  min-height: var(--row-min);
-  padding: var(--row-py) var(--pad-pill);
-}
-
 .more {
   display: flex;
   flex-direction: column;

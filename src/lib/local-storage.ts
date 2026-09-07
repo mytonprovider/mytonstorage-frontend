@@ -3,6 +3,7 @@ export const LANGUAGE_KEY = "mts_lang"
 export const HIDE_CLOSED_KEY = "mts_hide_closed"
 export const PENDING_PAID_KEY = "mts_pending_paid"
 export const CONTRACTS_KEY_PREFIX = "mts_contracts_"
+export const CONTRACT_ROWS_KEY = "mts_contract_rows"
 export const ECONOMICS_KEY = "mts_economics"
 
 export const readStored = (key: string): string | null => {
