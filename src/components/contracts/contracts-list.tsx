@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react"
-import { Check, CircleX, Loader, ScrollText, Server, Wallet } from "lucide-react"
+import { Check, Loader, ScrollText } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
 import {
@@ -16,7 +16,6 @@ import { payErrorTone } from "@/lib/wizard"
 import { ConfirmSheet } from "../confirm-sheet"
 import { ContractDetails } from "./contract-details"
 import { Hint } from "../hint"
-import { IconButton } from "../icon-button"
 import { Notice } from "../notice"
 import { Sheet } from "../sheet"
 import { GhostCopy, GhostValue, Ratio, TableCell, TableLead, activateOnKey } from "../table"
@@ -206,92 +205,37 @@ const ContractRow = ({ contract, openKind, active, busy, copied, onCopy, onOpen,
       </TableCell>
 
       {!contract.closed && (
-        <>
-          <div className={styles.actions}>
-            {active ? (
-              <Loader strokeWidth={2.5} aria-hidden="true" className={cx(shared.spinner, styles.actionsWait)} />
-            ) : (
-              <>
-                <IconButton
-                  size="xs"
-                  label={t("files.providers")}
-                  disabled={busy}
-                  data-active={openKind === "edit" ? "" : undefined}
-                  className={styles.action}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onAction("edit")
-                  }}
-                >
-                  <Server className={styles.actionIcon} aria-hidden="true" />
-                </IconButton>
-                <IconButton
-                  size="xs"
-                  label={t("files.topup")}
-                  disabled={busy}
-                  data-active={openKind === "extend" ? "" : undefined}
-                  className={styles.action}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onAction("extend")
-                  }}
-                >
-                  <Wallet className={styles.actionIcon} aria-hidden="true" />
-                </IconButton>
-                <IconButton
-                  size="xs"
-                  danger
-                  label={t("files.withdraw")}
-                  disabled={busy}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onAskWithdraw()
-                  }}
-                >
-                  <CircleX className={styles.actionIcon} aria-hidden="true" />
-                </IconButton>
-              </>
-            )}
-          </div>
-
-          <div className={styles.mobileActions}>
-            <button
-              type="button"
-              disabled={busy}
-              data-active={openKind === "extend" ? "" : undefined}
-              className={cx(shared.rowPrimary, styles.mobileAction)}
-              onClick={(event) => {
-                event.stopPropagation()
-                onAction("extend")
-              }}
-            >
-              {t("files.topup")}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              data-active={openKind === "edit" ? "" : undefined}
-              className={cx(shared.rowAction, styles.mobileAction)}
-              onClick={(event) => {
-                event.stopPropagation()
-                onAction("edit")
-              }}
-            >
-              {t("files.providers")}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              className={shared.rowDanger}
-              onClick={(event) => {
-                event.stopPropagation()
-                onAskWithdraw()
-              }}
-            >
-              {t("files.withdraw")}
-            </button>
-          </div>
-        </>
+        <div className={shared.tableActions}>
+          {active ? (
+            <Loader strokeWidth={2.5} aria-hidden="true" className={cx(shared.spinner, styles.actionsWait)} />
+          ) : (
+            <>
+              <button
+                type="button"
+                disabled={busy}
+                data-active={openKind === "extend" ? "" : undefined}
+                className={cx(shared.rowAction, styles.opened)}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onAction("extend")
+                }}
+              >
+                {t("files.topup")}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                className={shared.rowDanger}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onAskWithdraw()
+                }}
+              >
+                {t("files.withdraw")}
+              </button>
+            </>
+          )}
+        </div>
       )}
     </article>
   )

@@ -12,7 +12,7 @@
 .list {
   --row-min: calc(var(--control-sm) + var(--row-py) * 2);
   --table-min: 960px;
-  --table-cols: minmax(0, 1.3fr) minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 0.6fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
+  --table-cols: minmax(0, 1.3fr) minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 0.6fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 1.5fr);
 }
 
 .statusCell {
@@ -104,49 +104,11 @@
   background: var(--accent-weak);
 }
 
-.actions {
-  composes: tableActions from "../shared.module.css";
-}
-
-.action.action[data-active] {
-  background: var(--surface);
-  color: var(--accent-text);
-}
-
-.actionIcon {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
-}
-
-@media (pointer: coarse) {
-  .actions.actions {
-    gap: var(--space-7);
-  }
-}
-
-.mobileActions {
-  composes: tableActions from "../shared.module.css";
-}
-
-.mobileActions.mobileActions {
-  display: none;
-}
-
-.mobileAction.mobileAction[data-active],
-.mobileAction.mobileAction[data-active]:hover {
+.opened.opened[data-active],
+.opened.opened[data-active]:hover {
   border-color: var(--border);
   background: var(--surface);
   color: var(--accent-text);
-}
-
-@media (max-width: 539px) {
-  .actions.actions {
-    display: none;
-  }
-
-  .mobileActions.mobileActions {
-    display: flex;
-  }
 }
 
 .paidLow {
