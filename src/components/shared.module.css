@@ -14,10 +14,6 @@
   background: var(--surface);
 }
 
-.outline:hover:not(:disabled) {
-  border-color: var(--border-strong);
-}
-
 .textAction {
   height: var(--control-sm);
   padding: 0 var(--pad-pill);
@@ -25,10 +21,6 @@
   color: var(--text-2);
   font-size: var(--font-sm);
   font-weight: 500;
-}
-
-.textAction:hover:not(:disabled) {
-  background: var(--surface-3);
 }
 
 .textAction:disabled {
@@ -56,10 +48,6 @@
   composes: textAction inkDanger;
 }
 
-.textDanger:hover:not(:disabled) {
-  background: var(--tone-red-weak);
-}
-
 .primary {
   display: inline-flex;
   align-items: center;
@@ -75,10 +63,6 @@
   font-weight: 600;
 }
 
-.primary:hover {
-  background: var(--btn-hover);
-}
-
 .primary:disabled {
   background: var(--surface-3);
   color: var(--text-3);
@@ -88,10 +72,6 @@
 .danger {
   composes: primary;
   background: var(--btn-danger);
-}
-
-.danger:hover:not(:disabled) {
-  background: var(--btn-danger-hover);
 }
 
 .secondary {
@@ -136,10 +116,6 @@
   font-size: var(--font-md);
   outline: none;
   transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
-}
-
-.inputControl:hover:not(:disabled) {
-  border-color: var(--border-strong);
 }
 
 .inputControl:focus {
@@ -370,22 +346,12 @@
   composes: rowAction inkDanger;
 }
 
-.rowDanger.rowDanger:hover:not(:disabled) {
-  border-color: var(--tone-red-ring);
-  background: var(--tone-red-weak);
-}
-
 .rowPrimary {
   composes: rowPill;
   border: 1px solid var(--btn);
   background: var(--btn);
   color: var(--btn-ink);
   font-weight: 500;
-}
-
-.rowPrimary:hover:not(:disabled) {
-  border-color: var(--btn-hover);
-  background: var(--btn-hover);
 }
 
 .rowPrimary:disabled {
@@ -782,5 +748,74 @@
   .secondary {
     min-width: 0;
     padding: 0 var(--space-7);
+  }
+}
+
+.outline:active:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.textAction:active:not(:disabled),
+.textDanger:active:not(:disabled) {
+  background: var(--surface-3);
+}
+
+.primary:active:not(:disabled) {
+  background: var(--btn-hover);
+}
+
+.danger:active:not(:disabled) {
+  background: var(--btn-danger-hover);
+}
+
+.rowAction:active:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.rowDanger.rowDanger:active:not(:disabled) {
+  border-color: var(--tone-red-ring);
+  background: var(--tone-red-weak);
+}
+
+.rowPrimary:active:not(:disabled) {
+  border-color: var(--btn-hover);
+  background: var(--btn-hover);
+}
+
+@media (hover: hover) {
+  .outline:hover:not(:disabled) {
+    border-color: var(--border-strong);
+  }
+
+  .textAction:hover:not(:disabled) {
+    background: var(--surface-3);
+  }
+
+  .textDanger:hover:not(:disabled) {
+    background: var(--tone-red-weak);
+  }
+
+  .primary:hover {
+    background: var(--btn-hover);
+  }
+
+  .danger:hover:not(:disabled) {
+    background: var(--btn-danger-hover);
+  }
+
+  .inputControl:hover:not(:disabled) {
+    border-color: var(--border-strong);
+  }
+
+  .rowDanger.rowDanger:hover:not(:disabled) {
+    border-color: var(--tone-red-ring);
+    background: var(--tone-red-weak);
+  }
+
+  .rowPrimary:hover:not(:disabled) {
+    border-color: var(--btn-hover);
+    background: var(--btn-hover);
   }
 }
