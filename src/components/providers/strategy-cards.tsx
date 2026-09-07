@@ -12,8 +12,8 @@ const ICONS: Record<Strategy, LucideIcon> = {
   countries: Globe,
 }
 
-export const RECIPES: Record<Strategy, { criterion: PickCriterion; diversity: Diversity }> = {
-  reliable: { criterion: "score", diversity: "any" },
+export const RECIPES: Record<Strategy, { criterion: PickCriterion; diversity: Diversity; proven?: boolean }> = {
+  reliable: { criterion: "uptime", diversity: "any", proven: true },
   cheap: { criterion: "price", diversity: "any" },
   countries: { criterion: "score", diversity: "differentCountries" },
 }
@@ -39,7 +39,6 @@ export const StrategyCards = ({ strategy, onPick }: StrategyCardsProps) => {
             type="button"
             role="radio"
             aria-checked={active}
-            title={active ? t("catalog.reshuffle") : undefined}
             onClick={() => onPick(option)}
             className={cx(styles.card, active && styles.cardOn)}
           >

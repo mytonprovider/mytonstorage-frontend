@@ -225,15 +225,17 @@ describe("the strategy reshuffle", () => {
     pubkey: at.toString(16).padStart(4, "0") + "0".repeat(60),
     rating: 4.8 - at * 0.2,
   }))
-  const tail = new Set(wide.slice(12).map((provider) => provider.pubkey))
+  const shortlist = new Set(wide.slice(0, 6).map((provider) => provider.pubkey))
+  const drawn = [...Array(20).keys()].map((at) =>
+    pickBest(wide, { count: 3, diversity: "any", priceMax: 4, ratingMax: 5, seed: at + 1 }),
+  )
 
-  it("lets the bottom half of the ranking reach the top picks across seeds", () => {
-    const reached = [...Array(20).keys()].some((at) =>
-      pickBest(wide, { count: 3, diversity: "any", priceMax: 4, ratingMax: 5, seed: at + 1 }).some((key) =>
-        tail.has(key),
-      ),
-    )
-    expect(reached).toBe(true)
+  it("draws only from the shortlist of the ranking", () => {
+    expect(drawn.every((picked) => picked.every((key) => shortlist.has(key)))).toBe(true)
+  })
+
+  it("varies the picks inside the shortlist across seeds", () => {
+    expect(new Set(drawn.map((picked) => picked.join())).size).toBeGreaterThan(1)
   })
 })
 

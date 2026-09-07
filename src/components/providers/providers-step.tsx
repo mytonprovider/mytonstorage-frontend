@@ -4,11 +4,12 @@ import { useTranslation } from "react-i18next"
 import { fetchProviderByKey } from "@/lib/api"
 import { cx } from "@/lib/cx"
 import { nearBottom } from "@/lib/dom"
-import { DEFAULT_PROOF_DAYS, MAX_SELECTED, type ProviderFate } from "@/lib/pricing"
+import { DEFAULT_PICK_COUNT, DEFAULT_PROOF_DAYS, MAX_SELECTED, type ProviderFate } from "@/lib/pricing"
 import {
   NO_FILTERS,
   countSpanMismatched,
   eligibleFor,
+  freshSeed,
   hasFilters,
   matches,
   pickBest,
@@ -124,7 +125,7 @@ export const ProvidersStep = ({
   const [filters, setFilters] = useState<ProviderFilters>(NO_FILTERS)
   const [sortField, setSortField] = useState<SortField>("rating")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
-  const [pickCount, setPickCount] = useState(3)
+  const [pickCount, setPickCount] = useState(DEFAULT_PICK_COUNT)
   const [shownLimit, setShownLimit] = useState(PAGE)
   const [strategy, setStrategy] = useState<Strategy>("reliable")
   const [seed, setSeed] = useState(0)
@@ -194,8 +195,7 @@ export const ProvidersStep = ({
           option,
           pickBest(pool, {
             count: pickCount,
-            diversity: RECIPES[option].diversity,
-            criterion: RECIPES[option].criterion,
+            ...RECIPES[option],
             priceMax,
             ratingMax,
             seed: option === strategy ? seed : 0,
@@ -219,20 +219,13 @@ export const ProvidersStep = ({
     if (pool.length === 0) return
     const recipe = RECIPES[next]
     onSelected(
-      pickBest(pool, {
-        count,
-        diversity: recipe.diversity,
-        priceMax,
-        ratingMax,
-        criterion: recipe.criterion,
-        seed: nextSeed,
-      }),
+      pickBest(pool, { count, ...recipe, priceMax, ratingMax, seed: nextSeed }),
     )
   }
 
   const pickStrategy = (next: Strategy) => {
     if (panelRef.current) panelRef.current.open = false
-    applyStrategy(next, count, active === next ? seed + 1 : 0)
+    if (active !== next) applyStrategy(next, count, freshSeed())
   }
 
   const prefilled = useRef(!autoPick)
@@ -242,7 +235,7 @@ export const ProvidersStep = ({
     if (selected.length > 0) return
     const recipe = RECIPES.reliable
     onSelected(
-      pickBest(pool, { count: pickCount, diversity: recipe.diversity, priceMax, ratingMax, criterion: recipe.criterion }),
+      pickBest(pool, { count: pickCount, ...recipe, priceMax, ratingMax, seed: freshSeed() }),
     )
   }, [loading, providers.length, selected.length, pool, pickCount, priceMax, ratingMax, onSelected])
 
@@ -576,6 +569,11 @@ export const ProvidersStep = ({
           <span>{t("catalog.selectedTitle")}</span>
         </h2>
         <span className={styles.sectionCount}>{`${selected.length} / ${MAX_SELECTED}`}</span>
+        {active && (
+          <button type="button" onClick={() => applyStrategy(active, count, freshSeed())} className={cx(shared.textAction, styles.clearAll)}>
+            {t("catalog.pickAgain")}
+          </button>
+        )}
         <span className={shared.spacer} />
         {onRevert && (
           <button

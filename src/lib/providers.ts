@@ -38,6 +38,10 @@ export const MIN_UPTIME = 20
 
 export const MIN_AUTOPICK_UPTIME = 50
 
+export const MIN_PROVEN_DAYS = 30
+
+const SHORTLIST_WIDTH = 2
+
 const SPACE_FULL_SCORE = 2000 * BYTES_IN_GIB
 
 const UNAVAILABLE = [101, 102, 103, 201, 203]
@@ -216,6 +220,16 @@ export const sortProviders = (list: Provider[], field: SortField, direction: Sor
   })
 }
 
+const uptimeScore = (provider: Provider, ratingMax: number): number => {
+  const uptime = Math.max(0, Math.min(100, provider.uptime || 0)) / 100
+  const rating = Math.max(0, Math.min(1, (provider.rating || 0) / (ratingMax || 1)))
+
+  return uptime * 0.7 + rating * 0.3
+}
+
+const provenEnough = (provider: Provider): boolean =>
+  (provider.working_time || 0) >= MIN_PROVEN_DAYS * SECONDS_IN_DAY
+
 const providerScore = (provider: Provider, priceMax: number, ratingMax: number): number => {
   const rating = Math.max(0, Math.min(1, (provider.rating || 0) / (ratingMax || 1)))
   const uptime = Math.max(0, Math.min(100, provider.uptime || 0)) / 100
@@ -249,7 +263,7 @@ export const eligibleFor = (list: Provider[]): Provider[] => {
   return healthy.length ? healthy : list
 }
 
-export type PickCriterion = "score" | "price"
+export type PickCriterion = "score" | "price" | "uptime"
 
 interface PickOptions {
   count: number
@@ -257,8 +271,11 @@ interface PickOptions {
   priceMax: number
   ratingMax: number
   criterion?: PickCriterion
+  proven?: boolean
   seed?: number
 }
+
+export const freshSeed = (): number => Math.floor(Math.random() * 0xffffffff) + 1
 
 const seeded = (seed: number): (() => number) => {
   let state = seed >>> 0
@@ -270,52 +287,42 @@ const seeded = (seed: number): (() => number) => {
   }
 }
 
-const tickets = (value: number, low: number, high: number): number =>
-  Math.max(1, Math.min(10, Math.floor(((value - low) / (high - low || 1)) * 9) + 1))
-
-const shuffledByWeight = (pool: Provider[], ticketsAt: (rank: number) => number, random: () => number): Provider[] => {
-  const deck: Provider[] = []
-  pool.forEach((provider, rank) => {
-    const count = ticketsAt(rank)
-    for (let at = 0; at < count; at++) deck.push(provider)
-  })
-
+const shuffled = (list: Provider[], random: () => number): Provider[] => {
+  const deck = [...list]
   for (let at = deck.length - 1; at > 0; at--) {
     const swap = Math.floor(random() * (at + 1))
     ;[deck[at], deck[swap]] = [deck[swap], deck[at]]
   }
-
-  const seen = new Set<string>()
-  const drawn: Provider[] = []
-  deck.forEach((provider) => {
-    if (seen.has(provider.pubkey)) return
-    seen.add(provider.pubkey)
-    drawn.push(provider)
-  })
-  return drawn
+  return deck
 }
 
 const orderedFor = (pool: Provider[], options: PickOptions): Provider[] => {
-  const { criterion = "score", priceMax, ratingMax, seed = 0 } = options
+  const { criterion = "score", priceMax, ratingMax, count, seed = 0 } = options
 
-  const scoreOf = (provider: Provider) =>
-    criterion === "price" ? -priceInTon(provider) : providerScore(provider, priceMax, ratingMax)
+  const scoreOf = (provider: Provider) => {
+    if (criterion === "price") return -priceInTon(provider)
+    if (criterion === "uptime") return uptimeScore(provider, ratingMax)
+
+    return providerScore(provider, priceMax, ratingMax)
+  }
 
   const ranked = [...pool].sort((a, b) => scoreOf(b) - scoreOf(a))
   if (!seed) return ranked
 
-  const top = ranked.length - 1
-  return shuffledByWeight(ranked, (rank) => tickets(top - rank, 0, top), seeded(seed))
+  const shortlist = Math.min(ranked.length, count * SHORTLIST_WIDTH)
+  return [...shuffled(ranked.slice(0, shortlist), seeded(seed)), ...ranked.slice(shortlist)]
 }
 
 export const pickBest = (list: Provider[], options: PickOptions): string[] => {
   const eligible = eligibleFor(list)
   const steady = eligible.filter((provider) => (provider.uptime || 0) >= MIN_AUTOPICK_UPTIME)
-  const pool = steady.length ? steady : eligible
-  if (!pool.length) return []
+  const base = steady.length ? steady : eligible
+  if (!base.length) return []
 
+  const want = Math.min(options.count, MAX_SELECTED, base.length)
+  const seasoned = options.proven ? base.filter(provenEnough) : base
+  const pool = seasoned.length >= want ? seasoned : base
   const ordered = orderedFor(pool, options)
-  const want = Math.min(options.count, MAX_SELECTED, pool.length)
   const seen = new Set<string>()
   const picked: string[] = []
 

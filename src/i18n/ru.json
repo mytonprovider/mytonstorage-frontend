@@ -88,7 +88,7 @@
     "limitShort": "Уже выбрано {{max}} провайдеров — это максимум",
     "spanConflict": "Не доказывает хранение каждые {{days}}",
     "clearAll": "Снять все",
-    "reshuffle": "Подобрать другой набор",
+    "pickAgain": "Подобрать заново",
     "declinedSummary_one": "Отказал {{count}} из {{total}} — замените его или снимите.",
     "declinedSummary_few": "Отказали {{count}} из {{total}} — замените их или снимите.",
     "declinedSummary_many": "Отказали {{count}} из {{total}} — замените их или снимите.",

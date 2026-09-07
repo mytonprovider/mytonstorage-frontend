@@ -86,7 +86,7 @@
     "limitShort": "{{max}} providers already selected — that is the limit",
     "spanConflict": "Won't prove storage every {{days}}",
     "clearAll": "Clear all",
-    "reshuffle": "Pick a different set",
+    "pickAgain": "Pick again",
     "declinedSummary_one": "{{count}} of {{total}} declined — replace or unselect it.",
     "declinedSummary_other": "{{count}} of {{total}} declined — replace or unselect them.",
     "stepTitle": "Choose providers",

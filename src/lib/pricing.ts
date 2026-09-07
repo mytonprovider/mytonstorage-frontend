@@ -49,6 +49,7 @@ export const nearestProofDays = (days: number): number =>
   PROOF_STEPS.reduce((closest, step) => (Math.abs(step - days) < Math.abs(closest - days) ? step : closest))
 
 export const MAX_SELECTED = 10
+export const DEFAULT_PICK_COUNT = 5
 export const MAX_BAG_BYTES = 4 * BYTES_IN_GIB - 4 * MIB
 export const MAX_BAG_FILES = 5000
 export const MAX_DESCRIPTION = 100
