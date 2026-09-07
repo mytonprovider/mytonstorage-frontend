@@ -4,12 +4,14 @@ import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
 import { useDismiss } from "@/lib/dismiss"
 import { formatNumber, type Translate } from "@/lib/format"
-import { DEFAULT_PROOF_DAYS, PROOF_PRESETS, PROOF_STEPS, nearestProofDays } from "@/lib/pricing"
+import { PROOF_PRESETS, PROOF_STEPS, nearestProofDays } from "@/lib/pricing"
 import { bounds, countMatching, hasFilters, priceInTon, type ProviderFilters } from "@/lib/providers"
 import type { Provider } from "@/types/provider"
 import { IconButton } from "../icon-button"
 import { Menu, MenuOption, RangeMenuBody } from "../menu"
+import { Hint } from "../hint"
 import { Range } from "../range"
+import shared from "../shared.module.css"
 import styles from "./providers-step.module.css"
 
 type MenuId = "countries" | "rating" | "price" | "proof"
@@ -26,8 +28,40 @@ interface CatalogToolbarProps {
   query: string
   onQuery: (value: string) => void
   proofDays: number
+}
+
+export const ProofPeriodRow = ({
+  proofDays,
+  onProofDays,
+  proofValueLabel,
+}: {
+  proofDays: number
   onProofDays: (days: number) => void
   proofValueLabel?: string
+}) => {
+  const { t } = useTranslation()
+
+  return (
+    <div className={styles.proofRow}>
+      <div className={styles.proofHeading}>
+        <span className={styles.proofLabel}>{t("details.span")}</span>
+        <Hint text={t("filters.proofNote")} />
+        <span className={shared.spacer} />
+        <span className={styles.proofValue}>{proofValueLabel ?? daysLabel(t, proofDays)}</span>
+      </div>
+
+      <Range
+        label={t("details.span")}
+        min={0}
+        max={PROOF_STEPS.length - 1}
+        step={1}
+        value={Math.max(0, PROOF_STEPS.indexOf(nearestProofDays(proofDays)))}
+        valueText={proofValueLabel ?? daysLabel(t, proofDays)}
+        ticks={PROOF_PRESETS.map(([, name], index) => ({ at: index, label: t(`presets.${name}`) }))}
+        onChange={(index) => onProofDays(PROOF_STEPS[index])}
+      />
+    </div>
+  )
 }
 
 export const CatalogToolbar = ({
@@ -39,8 +73,6 @@ export const CatalogToolbar = ({
   query,
   onQuery,
   proofDays,
-  onProofDays,
-  proofValueLabel,
 }: CatalogToolbarProps) => {
   const { t } = useTranslation()
   const searchRef = useRef<HTMLInputElement>(null)
@@ -121,7 +153,7 @@ export const CatalogToolbar = ({
         title={t("filters.title")}
         aria-label={t("filters.title")}
         aria-expanded={filtersOpen}
-        data-tone={hasFilters(filters) || proofDays !== DEFAULT_PROOF_DAYS ? "accent" : "field"}
+        data-tone={hasFilters(filters) ? "accent" : "field"}
         onClick={() => {
           setOpenMenu(null)
           setFiltersOpen(!filtersOpen)
@@ -218,33 +250,6 @@ export const CatalogToolbar = ({
               highValue={filters.ratingMax ?? ratingBounds[1]}
               onChange={(value) => setRange("rating", "Min", value, ratingBounds)}
               onHighChange={(value) => setRange("rating", "Max", value, ratingBounds)}
-            />
-          </RangeMenuBody>
-        </Menu>
-
-        <Menu
-          align="right"
-          label={t("filters.proofPill", { days: daysLabel(t, proofDays) })}
-          active={proofDays !== DEFAULT_PROOF_DAYS}
-          open={openMenu === "proof"}
-          onToggle={() => setOpenMenu(openMenu === "proof" ? null : "proof")}
-        >
-          <RangeMenuBody
-            value={proofValueLabel ?? daysLabel(t, proofDays)}
-            unit={t("filters.proofUnit")}
-            note={t("filters.proofNote")}
-            resetLabel={t("ui.reset")}
-            onReset={() => onProofDays(DEFAULT_PROOF_DAYS)}
-          >
-            <Range
-              label={t("details.span")}
-              min={0}
-              max={PROOF_STEPS.length - 1}
-              step={1}
-              value={Math.max(0, PROOF_STEPS.indexOf(nearestProofDays(proofDays)))}
-              valueText={daysLabel(t, proofDays)}
-              ticks={PROOF_PRESETS.map(([, name], index) => ({ at: index, label: t(`presets.${name}`) }))}
-              onChange={(index) => onProofDays(PROOF_STEPS[index])}
             />
           </RangeMenuBody>
         </Menu>

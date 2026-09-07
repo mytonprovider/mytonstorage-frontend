@@ -23,7 +23,7 @@ import {
 } from "@/lib/providers"
 import type { ProviderDecline } from "@/types/bag"
 import type { Provider } from "@/types/provider"
-import { CatalogToolbar, daysLabel } from "./catalog-toolbar"
+import { CatalogToolbar, ProofPeriodRow, daysLabel } from "./catalog-toolbar"
 import { Notice } from "../notice"
 import { ProviderHeader, ProviderRow, ProviderSkeleton } from "./provider-row"
 import { SelectedTable } from "./selected-table"
@@ -399,8 +399,6 @@ export const ProvidersStep = ({
           query={query}
           onQuery={setQuery}
           proofDays={proofDays}
-          onProofDays={onProofDays}
-          proofValueLabel={proofValueLabel}
         />
 
         {spanMismatchedCount > 0 && (
@@ -465,6 +463,8 @@ export const ProvidersStep = ({
           {rareProof}
         </Notice>
       )}
+
+      {hasPanel && <ProofPeriodRow proofDays={proofDays} onProofDays={onProofDays} proofValueLabel={proofValueLabel} />}
 
       {autoPick && (
         <div className={styles.cards}>
