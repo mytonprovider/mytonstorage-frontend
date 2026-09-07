@@ -8,7 +8,7 @@ import type {
 } from "@/types/contract"
 import type { Offers, ProviderDecline, ProviderOffer, UnpaidBags, UserBag } from "@/types/bag"
 import type { ApiProvider, ApiTelemetry, Provider, Telemetry } from "@/types/provider"
-import { applyServerDate, BYTES_IN_GB, BYTES_IN_GIB } from "./format"
+import { applyServerDate, BYTES_IN_GB, BYTES_IN_GIB, nowSeconds } from "./format"
 import { asArray, asRecord } from "./json"
 
 export const API_URL = import.meta.env.VITE_API_URL ?? "https://mytonstorage.org"
@@ -143,6 +143,13 @@ const quotedDecline = (value: unknown): value is ProviderDecline => {
   return typeof fields.provider_key === "string" && typeof fields.reason === "string"
 }
 
+const OFFERS_TTL = 15 * 60
+
+const quotedCache = new Map<string, { offer: ProviderOffer; at: number }>()
+
+const quoteKey = (bagId: string, pubkey: string, span: number): string =>
+  `${bagId}:${pubkey.toLowerCase()}:${span}`
+
 export const fetchOffers = async (
   bagId: string,
   span: number,
@@ -150,16 +157,36 @@ export const fetchOffers = async (
   bagSize = 0,
   signal?: AbortSignal,
 ): Promise<Offers> => {
+  const at = nowSeconds()
+  const held: ProviderOffer[] = []
+  const asking: string[] = []
+
+  providers.forEach((pubkey) => {
+    const key = quoteKey(bagId, pubkey, span)
+    const known = quotedCache.get(key)
+    if (known && at - known.at <= OFFERS_TTL) {
+      held.push(known.offer)
+      return
+    }
+    quotedCache.delete(key)
+    asking.push(pubkey)
+  })
+
+  if (!asking.length) return { offers: held, declines: [] }
+
   const quoted = asRecord(
     await request(API_URL, "/api/v1/providers/offers", {
-      body: { bag_id: bagId, bag_size: bagSize, span, providers },
+      body: { bag_id: bagId, bag_size: bagSize, span, providers: asking },
       credentials: "include",
       signal,
     }),
   )
 
+  const offers = asArray(quoted.offers).filter(quotedOffer)
+  offers.forEach((offer) => quotedCache.set(quoteKey(bagId, offer.provider.key, span), { offer, at }))
+
   return {
-    offers: asArray(quoted.offers).filter(quotedOffer),
+    offers: [...held, ...offers],
     declines: asArray(quoted.declines).filter(quotedDecline),
   }
 }

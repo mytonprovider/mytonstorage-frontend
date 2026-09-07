@@ -15,6 +15,7 @@ import {
   updateContract,
   withdrawContract,
 } from "./api"
+import { asRecord } from "./json"
 
 const respondWith = (body: unknown, status = 200) =>
   vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(() =>
@@ -210,13 +211,13 @@ describe("initContract", () => {
 describe("fetchOffers", () => {
   it("hands back empty lists when the backend answers with nulls", async () => {
     vi.stubGlobal("fetch", respondWith({ offers: null, declines: null }))
-    await expect(fetchOffers("bag", 604800, ["k"])).resolves.toEqual({ offers: [], declines: [] })
+    await expect(fetchOffers("nulls", 604800, ["k"])).resolves.toEqual({ offers: [], declines: [] })
   })
 
   it("keeps the effective rate the fate check compares against the chain", async () => {
     const offer = { price_per_proof: 1e8, price_per_mb: 210, provider: { key: "ABC", price_per_mb_day: 210 } }
     vi.stubGlobal("fetch", respondWith({ offers: [offer], declines: [] }))
-    await expect(fetchOffers("bag", 604800, ["abc"])).resolves.toEqual({ offers: [offer], declines: [] })
+    await expect(fetchOffers("rate", 604800, ["abc"])).resolves.toEqual({ offers: [offer], declines: [] })
   })
 
   it("drops a quote whose price is not a whole nanoton amount, leaving it short of the keys asked for", async () => {
@@ -233,7 +234,7 @@ describe("fetchOffers", () => {
     ]
     vi.stubGlobal("fetch", respondWith({ offers: [sound, ...broken], declines: [] }))
 
-    const quote = await fetchOffers("bag", 604800, asked)
+    const quote = await fetchOffers("broken", 604800, asked)
 
     expect(quote).toEqual({ offers: [sound], declines: [] })
     expect(quote.offers.length).toBeLessThan(asked.length)
@@ -251,11 +252,38 @@ describe("fetchOffers", () => {
     ]
     vi.stubGlobal("fetch", respondWith({ offers: [], declines }))
 
-    const quote = await fetchOffers("bag", 604800, ["abc", "def", "ghi"])
+    const quote = await fetchOffers("refused", 604800, ["abc", "def", "ghi"])
 
     expect(quote.declines).toEqual([stated])
     quote.declines.forEach((decline) => {
       expect(() => decline.provider_key.toLowerCase() + decline.reason.trim()).not.toThrow()
     })
+  })
+
+  it("asks only for the keys it has no fresh quote for, and asks again once the period changes", async () => {
+    const offerOf = (key: string) => ({
+      price_per_proof: 1e8,
+      price_per_mb: 210,
+      provider: { key, price_per_mb_day: 210 },
+    })
+    const fetch = respondWith({ offers: [offerOf("ABC"), offerOf("DEF")], declines: [] })
+    const asked = (at: number): unknown => {
+      const [, init] = fetch.mock.calls[at]
+      return asRecord(JSON.parse(typeof init?.body === "string" ? init.body : "{}")).providers
+    }
+
+    vi.stubGlobal("fetch", fetch)
+    await fetchOffers("kept", 604800, ["abc", "def"])
+
+    vi.stubGlobal("fetch", fetch)
+    const repeated = await fetchOffers("kept", 604800, ["abc", "def"])
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(repeated.offers.map((offer) => offer.provider.key)).toEqual(["ABC", "DEF"])
+
+    await fetchOffers("kept", 604800, ["abc", "def", "ghi"])
+    expect(asked(1)).toEqual(["ghi"])
+
+    await fetchOffers("kept", 1209600, ["abc"])
+    expect(asked(2)).toEqual(["abc"])
   })
 })
