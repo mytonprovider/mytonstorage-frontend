@@ -571,29 +571,26 @@ export const ProvidersStep = ({
           <span>{t("catalog.selectedTitle")}</span>
         </h2>
         <span className={styles.sectionCount}>{`${selected.length} / ${MAX_SELECTED}`}</span>
-        <span className={shared.spacer} />
-        {active && (
-          <button type="button" onClick={() => applyStrategy(active, count, freshSeed())} className={cx(shared.textAction, styles.clearAll)}>
-            {t("catalog.pickAgain")}
-          </button>
-        )}
-        {onRevert && (
+        <div className={styles.headActions}>
+          {active && (
+            <button type="button" onClick={() => applyStrategy(active, count, freshSeed())} className={shared.textAction}>
+              {t("catalog.pickAgain")}
+            </button>
+          )}
+          <span className={shared.spacer} />
+          {onRevert && (
+            <button type="button" onClick={onRevert} disabled={revertDisabled} className={shared.textDanger}>
+              {t("providers.revert")}
+            </button>
+          )}
           <button
             type="button"
-            onClick={onRevert}
-            disabled={revertDisabled}
-            className={cx(shared.textDanger, styles.clearAll)}
+            onClick={() => onSelected([])}
+            className={cx(shared.textDanger, selected.length === 0 && shared.invisible)}
           >
-            {t("providers.revert")}
+            {t("catalog.clearAll")}
           </button>
-        )}
-        <button
-          type="button"
-          onClick={() => onSelected([])}
-          className={cx(shared.textDanger, styles.clearAll, selected.length === 0 && shared.invisible)}
-        >
-          {t("catalog.clearAll")}
-        </button>
+        </div>
       </div>
 
       {pinned.length > 0 ? (

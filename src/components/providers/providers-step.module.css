@@ -28,6 +28,13 @@
   margin-top: var(--space-10);
 }
 
+.headActions {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .sectionCount {
   color: var(--text-3);
   font-size: var(--font-base);
@@ -563,14 +570,6 @@
     justify-content: space-between;
   }
 
-  .clearAll {
-    order: 1;
-    margin-left: auto;
-  }
-
-  .clearAll + .clearAll {
-    margin-left: 0;
-  }
 }
 
 @media (max-width: 539px) {
