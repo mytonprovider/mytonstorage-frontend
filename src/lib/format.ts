@@ -115,9 +115,10 @@ export const share = (used: number | null | undefined, total: number): string =>
   return `${formatScaled(used ?? 0, divisor)} / ${formatScaled(total, divisor)} ${unit}`
 }
 
-export const formatDuration = (seconds: number | null | undefined, t: Translate): string => {
-  if (seconds == null || !Number.isFinite(seconds)) return ""
-  if (seconds < SECONDS_IN_MINUTE) return t("time.sec", { count: Math.max(0, Math.round(seconds)) })
+export const formatDuration = (input: number | null | undefined, t: Translate): string => {
+  if (input == null || !Number.isFinite(input)) return ""
+  const seconds = Math.round(input)
+  if (seconds < SECONDS_IN_MINUTE) return t("time.sec", { count: Math.max(0, seconds) })
 
   const minutes = Math.floor(seconds / SECONDS_IN_MINUTE) % 60
   const hours = Math.floor(seconds / SECONDS_IN_HOUR) % 24
