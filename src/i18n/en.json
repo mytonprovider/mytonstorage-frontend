@@ -211,7 +211,7 @@
     "proofNote": "How often a provider proves it still stores the bag",
     "ratingUnit": "rating",
     "priceUnit": "GRAM / 200 GB · mo",
-    "proofRare": "Between rare checks a provider may stop storing the bag — set the period to {{days}} days or less.",
+    "proofRare": "Long check periods reduce blockchain fees but increase the risk: a provider may stop storing the bag between infrequent checks. For safety, set the period to {{days}} days or less.",
     "allCountries": "All countries",
     "countries_one": "{{count}} country",
     "countries_other": "{{count}} countries",
