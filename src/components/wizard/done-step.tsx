@@ -15,6 +15,7 @@ interface DoneStepProps {
   size: number
   contractAddress?: string
   paymentHash?: string
+  paymentHashPending?: boolean
   copied: string | null
   onCopy: (value: string) => void
   onFinish: () => void
@@ -27,6 +28,7 @@ export const DoneStep = ({
   size,
   contractAddress,
   paymentHash,
+  paymentHashPending,
   copied,
   onCopy,
   onFinish,
@@ -61,7 +63,7 @@ export const DoneStep = ({
                 onCopy={onCopy}
               />
             )}
-            {paymentHash && (
+            {paymentHash ? (
               <SheetField
                 label={t("done.tx")}
                 value={shortenMiddle(paymentHash, 6, 6)}
@@ -72,6 +74,8 @@ export const DoneStep = ({
                 copied={copied}
                 onCopy={onCopy}
               />
+            ) : (
+              paymentHashPending && <SheetField label={t("done.tx")} value={shortenMiddle("0".repeat(64), 6, 6)} mono pending />
             )}
           </div>
         </>

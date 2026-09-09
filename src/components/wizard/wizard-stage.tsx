@@ -95,6 +95,7 @@ export const WizardStage = ({ wizard, catalog, copied, onCopy, onOpenProvider, o
           size={wizard.bagSize}
           contractAddress={data.contractAddress ?? undefined}
           paymentHash={wizard.paymentHash ?? undefined}
+          paymentHashPending={wizard.paymentHashPending}
           copied={copied}
           onCopy={onCopy}
           onFinish={onFinish}

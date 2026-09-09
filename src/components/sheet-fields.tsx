@@ -30,6 +30,7 @@ export interface SheetFieldProps {
   upper?: boolean
   alert?: boolean
   ghost?: boolean
+  pending?: boolean
   copy?: string
   copied?: string | null
   onCopy?: (value: string) => void
@@ -44,6 +45,7 @@ export const SheetField = ({
   upper,
   alert,
   ghost,
+  pending,
   copy,
   copied,
   onCopy,
@@ -67,7 +69,8 @@ export const SheetField = ({
       ) : (
         <span
           title={title}
-          className={cx(styles.value, mono && styles.mono, upper && styles.upper, alert && styles.alert, ghost && shared.shape)}
+          aria-busy={pending ? "true" : undefined}
+          className={cx(styles.value, mono && styles.mono, upper && styles.upper, alert && styles.alert, (ghost || pending) && shared.shape)}
         >
           {value}
         </span>
