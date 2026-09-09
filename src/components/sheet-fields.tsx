@@ -75,6 +75,7 @@ export const SheetField = ({
           {value}
         </span>
       )}
+      {pending && <span aria-hidden="true" className={styles.copySlot} />}
       {copy && onCopy && (
         <CopyButton
           value={copy}
