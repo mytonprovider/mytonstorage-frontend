@@ -78,7 +78,7 @@ export const WizardStage = ({ wizard, catalog, copied, onCopy, onOpenProvider, o
           proofDays={wizard.proofDays}
           offers={wizard.offers}
           sending={wizard.sending}
-          sent={deployInFlight(data) !== null}
+          sent={deployInFlight(data) !== null && !wizard.sending}
           submitDisabled={wizard.expired}
           error={wizard.payError}
           onDays={wizard.setStorageDays}
