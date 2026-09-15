@@ -146,6 +146,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [payError, setPayError] = useState<string | null>(null)
   const [paymentHash, setPaymentHash] = useState<string | null>(null)
+  const [paymentHashPending, setPaymentHashPending] = useState(false)
 
   const upload = useRef<UploadHandle | null>(null)
   const { checking, invalidate, request: requestQuote } = useQuote()
@@ -174,6 +175,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
     setUploadError(null)
     setPayError(null)
     setPaymentHash(null)
+    setPaymentHashPending(false)
   }, [])
 
   const reset = useCallback(() => {
@@ -370,12 +372,16 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
       if (!confirmed) throw new Error("not confirmed")
 
       deployed = true
+      setPaymentHashPending(true)
       void waitForTransaction(
         transaction.address,
         since,
         tonConnectUI.account?.address,
         PAYMENT_HASH_TIMEOUT_MS,
-      ).then(setPaymentHash)
+      ).then((hash) => {
+        setPaymentHash(hash)
+        setPaymentHashPending(false)
+      })
       await linkPaidBag(bagId, transaction.address)
     } catch (error) {
       const keptContract = contractAfterFailure(transaction.address, error)
@@ -475,6 +481,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
     uploadError,
     payError,
     paymentHash,
+    paymentHashPending,
     gateBag,
     onUnauthorized,
     reset,

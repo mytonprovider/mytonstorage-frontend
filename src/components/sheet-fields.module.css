@@ -64,6 +64,12 @@
   border-radius: var(--radius-sm);
 }
 
+.copySlot {
+  flex: none;
+  width: var(--control-xs);
+  height: var(--control-xs);
+}
+
 @media (pointer: coarse) {
   .link {
     position: relative;

@@ -286,12 +286,13 @@ export const ContractsList = ({
   const [restored] = useState(storedRows)
   const [shownLimit, setShownLimit] = useState(restored || ROW_PORTION)
 
-  useEffect(() => {
-    writeStored(CONTRACT_ROWS_KEY, String(shownLimit))
-  }, [shownLimit])
-
   const visible = visibleContracts(contracts, hideClosed)
   const portion = visible.slice(0, shownLimit)
+
+  useEffect(() => {
+    if (portion.length > 0) writeStored(CONTRACT_ROWS_KEY, String(portion.length))
+  }, [portion.length])
+
   const digging = hasMore && portion.length >= visible.length
   const infoContract = contracts.find((contract) => contract.address === infoFor) ?? null
   const editingContract = contracts.find((contract) => contract.address === editing?.address) ?? null

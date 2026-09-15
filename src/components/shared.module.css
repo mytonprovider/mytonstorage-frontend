@@ -797,7 +797,7 @@
     background: var(--tone-red-weak);
   }
 
-  .primary:hover {
+  .primary:hover:not(:disabled) {
     background: var(--btn-hover);
   }
 
