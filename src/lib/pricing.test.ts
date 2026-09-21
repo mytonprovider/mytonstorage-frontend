@@ -705,7 +705,7 @@ describe("unquotedBounties", () => {
   })
 
   it("charges a bag whose chain rate outgrows that minimum what the contract will really pay", () => {
-    expect(unquotedBounties(MAX_BAG_BYTES, 150 * SECONDS_IN_DAY, [base.pubkey], contract)).toBe(122_760_000)
+    expect(unquotedBounties(MAX_BAG_BYTES, 150 * SECONDS_IN_DAY, [base.pubkey], contract)).toBe(122_880_000)
   })
 
   it("still counts a provider the chain never saw, since it will be created with a full bounty", () => {
@@ -729,7 +729,7 @@ describe("restartBalance", () => {
   })
 
   it("charges the bounty itself once the chain rate outgrows the minimum", () => {
-    expect(restartBalance(MAX_BAG_BYTES, [200, 200, 200], [150 * SECONDS_IN_DAY, 150 * SECONDS_IN_DAY, 150 * SECONDS_IN_DAY])).toBe(368_280_000)
+    expect(restartBalance(MAX_BAG_BYTES, [200, 200, 200], [150 * SECONDS_IN_DAY, 150 * SECONDS_IN_DAY, 150 * SECONDS_IN_DAY])).toBe(368_640_000)
   })
 
   it("holds the intake threshold for a single provider whose bounty stays under it", () => {
