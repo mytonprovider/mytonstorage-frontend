@@ -258,6 +258,7 @@ interface ContractsListProps {
   editing: OpenEditor | null
   renderEditor: (contract: ContractRowData, kind: OpenEditor["kind"]) => ReactNode
   onRetry: () => void
+  onRenotify: () => void
   onHideClosed: (value: boolean) => void
   onCopy: (value: string) => void
   onEditingChange: (editor: OpenEditor | null) => void
@@ -278,6 +279,7 @@ export const ContractsList = ({
   editing,
   renderEditor,
   onRetry,
+  onRenotify,
   onHideClosed,
   onCopy,
   onEditingChange,
@@ -332,10 +334,16 @@ export const ContractsList = ({
           tone={payErrorTone(error)}
           className={styles.error}
           action={
-            errorKind === "load" && (
+            errorKind === "load" ? (
               <button type="button" onClick={onRetry}>
                 {t("ui.retry")}
               </button>
+            ) : (
+              errorKind === "notify" && (
+                <button type="button" onClick={onRenotify}>
+                  {t("files.notifyAgain")}
+                </button>
+              )
             )
           }
         >

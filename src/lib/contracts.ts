@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useTonConnectUI } from "@tonconnect/ui-react"
 import type { BagInfoShort, ContractStatus, StorageContract, WalletTransaction } from "@/types/contract"
 import type { Tone } from "@/types/tone"
-import { failureStatus, fetchBagDetails, sessionEnded } from "./api"
+import { failureStatus, fetchBagDetails, notifyProviders, sessionEnded } from "./api"
 import type { ContractEconomics } from "./contracts-cache"
 import { dropEconomics, getEconomics, getStatuses, peekEconomics, readContractsCache, writeContractsCache } from "./contracts-cache"
 import { HIDE_CLOSED_KEY, readStored, writeStored } from "./local-storage"
@@ -176,8 +176,14 @@ interface ContractsOptions {
 interface ContractsFailure {
   key: string
   status: number | null
-  kind: "load" | "action"
+  kind: "load" | "action" | "notify"
 }
+
+const notifyFailure = (error: unknown): ContractsFailure => ({
+  key: "errors.notifyFailed",
+  status: failureStatus(error),
+  kind: "notify",
+})
 
 export const loadFailure = (error: unknown): ContractsFailure => ({
   key: "errors.failedToLoadContracts",
@@ -193,7 +199,7 @@ export const actionFailure = (error: unknown): ContractsFailure => ({
 
 type ActionResult = ContractsFailure | "refused" | null
 
-type ContractRunner = (contract: string, build: () => Promise<WalletTransaction>) => Promise<boolean>
+type ContractRunner = (contract: string, build: () => Promise<WalletTransaction>, notify?: string[]) => Promise<boolean>
 
 export const runContractAction = (
   lock: { current: string | null },
@@ -232,6 +238,7 @@ export interface ContractsState {
   onHideClosed: (value: boolean) => void
   reload: () => void
   run: ContractRunner
+  renotify: () => void
 }
 
 const hydrate = (owner: string): { headLt: string | null; deepLt: string | null; rows: ContractRow[] } => {
@@ -440,7 +447,20 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
 
   const reload = useCallback(() => setAttempt((value) => value + 1), [])
 
-  const run: ContractRunner = async (contract, build) => {
+  const unnotified = useRef<{ contract: string; providers: string[] } | null>(null)
+
+  const notify = async (contract: string, providers: string[]) => {
+    try {
+      await notifyProviders(contract, providers)
+      unnotified.current = null
+      setFailure(null)
+    } catch (error) {
+      unnotified.current = { contract, providers }
+      if (!onUnauthorized(error)) setFailure(notifyFailure(error))
+    }
+  }
+
+  const run: ContractRunner = async (contract, build, providers) => {
     const pending = runContractAction(busyLock, tonConnectUI, contract, build)
     if (!pending) return false
     setBusy(contract)
@@ -459,7 +479,13 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
       setBusy(null)
     }
 
+    if (confirmed && providers) await notify(contract, providers)
     return confirmed
+  }
+
+  const renotify = () => {
+    const pending = unnotified.current
+    if (pending) void notify(pending.contract, pending.providers)
   }
 
   const onHideClosed = (value: boolean) => {
@@ -479,5 +505,6 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
     onHideClosed,
     reload,
     run,
+    renotify,
   }
 }
