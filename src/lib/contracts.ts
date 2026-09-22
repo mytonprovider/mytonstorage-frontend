@@ -191,22 +191,26 @@ export const actionFailure = (error: unknown): ContractsFailure => ({
   kind: "action",
 })
 
+type ActionResult = ContractsFailure | "refused" | null
+
+type ContractRunner = (contract: string, build: () => Promise<WalletTransaction>) => Promise<boolean>
+
 export const runContractAction = (
   lock: { current: string | null },
   sender: WalletSender,
   contract: string,
   build: () => Promise<WalletTransaction>,
-): Promise<ContractsFailure | null> | null => {
+): Promise<ActionResult> | null => {
   if (lock.current !== null) return null
   lock.current = contract
 
-  const settle = async (): Promise<ContractsFailure | null> => {
+  const settle = async (): Promise<ActionResult> => {
     try {
       const transaction = await build()
       const confirmed = await sendAndConfirm(sender, transaction, ACTION_TIMEOUT_MS)
       return confirmed ? null : { key: CONFIRM_TIMEOUT, status: null, kind: "action" }
     } catch (error) {
-      if (walletRefused(error)) return null
+      if (walletRefused(error)) return "refused"
       throw error
     } finally {
       lock.current = null
@@ -227,7 +231,7 @@ export interface ContractsState {
   hideClosed: boolean
   onHideClosed: (value: boolean) => void
   reload: () => void
-  run: (contract: string, build: () => Promise<WalletTransaction>) => Promise<void>
+  run: ContractRunner
 }
 
 const hydrate = (owner: string): { headLt: string | null; deepLt: string | null; rows: ContractRow[] } => {
@@ -436,13 +440,15 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
 
   const reload = useCallback(() => setAttempt((value) => value + 1), [])
 
-  const run = async (contract: string, build: () => Promise<WalletTransaction>) => {
+  const run: ContractRunner = async (contract, build) => {
     const pending = runContractAction(busyLock, tonConnectUI, contract, build)
-    if (!pending) return
+    if (!pending) return false
     setBusy(contract)
+    let confirmed = false
     try {
       const failure = await pending
-      if (failure) setFailure(failure)
+      if (failure === null) confirmed = true
+      else if (failure !== "refused") setFailure(failure)
     } catch (error) {
       if (!onUnauthorized(error)) setFailure(actionFailure(error))
     } finally {
@@ -452,6 +458,8 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
       if (running.current) void sync(running.current.signal)
       setBusy(null)
     }
+
+    return confirmed
   }
 
   const onHideClosed = (value: boolean) => {

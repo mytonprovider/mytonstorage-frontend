@@ -13,6 +13,7 @@ import {
   MIN_STORAGE_DAYS,
   PERIOD_PRESETS,
   PROOF_STEPS,
+  commonSpan,
   dailyCost,
   fullBounty,
   gridDays,
@@ -665,6 +666,19 @@ describe("quotedBounties", () => {
 
   it("counts nothing while no quote has come back", () => {
     expect(quotedBounties(812 * MIB, week, offerRates(null))).toBe(0)
+  })
+})
+
+describe("commonSpan", () => {
+  it("takes the period most of the contract already lives on", () => {
+    expect(commonSpan([604800, 604800, 1209600])).toBe(604800)
+    expect(commonSpan([1209600, 604800, 604800])).toBe(604800)
+  })
+
+  it("keeps the first one where nothing prevails, and survives an empty contract", () => {
+    expect(commonSpan([604800, 1209600])).toBe(604800)
+    expect(commonSpan([1209600, 604800])).toBe(1209600)
+    expect(commonSpan([])).toBe(0)
   })
 })
 

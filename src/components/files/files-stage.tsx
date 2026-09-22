@@ -86,19 +86,18 @@ export const FilesStage = ({
               onCopy={onCopy}
               onOpen={onOpenProvider}
               onAddManual={catalog.addManual}
-              onSubmit={(pubkeys, span, fileSize, amount) => {
-                void contracts
-                  .run(contract.address, () =>
-                    updateContract({
-                      address: contract.address,
-                      providers: pubkeys,
-                      bag_size: fileSize,
-                      amount,
-                      span,
-                    }),
-                  )
-                  .finally(() => setEditing(null))
-              }}
+              onSubmit={(pubkeys, span, fileSize, amount) =>
+                contracts.run(contract.address, () =>
+                  updateContract({
+                    address: contract.address,
+                    providers: pubkeys,
+                    bag_size: fileSize,
+                    amount,
+                    span,
+                  }),
+                )
+              }
+              onDone={() => setEditing(null)}
             />
           )
         }

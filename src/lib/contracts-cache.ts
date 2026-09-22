@@ -18,7 +18,6 @@ export interface ContractEconomics extends ContractStorageInfo {
   pubkeys: string[]
   spans: number[]
   lastProofs: number[]
-  span: number
 }
 
 const nested = (entry: StackEntry | undefined): StackEntry[] => asArray(entry?.value) as StackEntry[]
@@ -49,7 +48,6 @@ const providersFrom = (stack: StackEntry[]): Omit<ContractEconomics, keyof Contr
     pubkeys: attached.map((provider) => provider.pubkey),
     spans: attached.map((provider) => provider.span),
     lastProofs: attached.map((provider) => provider.lastProof),
-    span: Math.max(0, ...attached.map((provider) => provider.span)),
   }
 }
 

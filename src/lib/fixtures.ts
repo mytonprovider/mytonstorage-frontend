@@ -88,7 +88,6 @@ export const economics: ContractEconomics = {
   pubkeys: [base.pubkey],
   spans: [7 * SECONDS_IN_DAY],
   lastProofs: [1785540000],
-  span: 7 * SECONDS_IN_DAY,
 }
 
 export const offerOf = (pricePerProof: number, pricePerMb = 0, key = base.pubkey): ProviderOffer => ({

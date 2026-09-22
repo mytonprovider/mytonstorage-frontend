@@ -206,6 +206,13 @@ export const quotedBounties = (fileSize: number, spanSeconds: number, offeredRat
 export const updateFee = (bounties: number, added: boolean, balance: number): number =>
   FEE_GAS + Math.max(0, Math.max(added ? MIN_PROVIDER_BALANCE : 0, bounties) - balance)
 
+export const commonSpan = (spans: number[]): number => {
+  const seen = new Map<number, number>()
+  spans.forEach((span) => seen.set(span, (seen.get(span) ?? 0) + 1))
+
+  return [...seen.entries()].reduce((best, [span, count]) => (count > (seen.get(best) ?? 0) ? span : best), spans[0] ?? 0)
+}
+
 export interface OnchainProviders {
   pubkeys: string[]
   ratesPerMibDay: number[]

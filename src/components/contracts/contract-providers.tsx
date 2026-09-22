@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useQuote } from "@/lib/api"
+import { notifyProviders, useQuote } from "@/lib/api"
 import { useCheckLabel } from "@/lib/check-label"
 import { useContractData, type ContractEconomics } from "@/lib/contracts-cache"
 import { formatDate, formatDuration, nowSeconds, SECONDS_IN_DAY, tonLabel } from "@/lib/format"
 import {
+  commonSpan,
   DEFAULT_PROOF_DAYS,
   FEE_GAS,
   nextPaidDaysLeft,
@@ -34,7 +35,8 @@ interface ContractProvidersProps {
   onCopy: (value: string) => void
   onOpen: (pubkey: string) => void
   onAddManual: (provider: Provider) => void
-  onSubmit: (pubkeys: string[], span: number, fileSize: number, amount: number) => void
+  onSubmit: (pubkeys: string[], span: number, fileSize: number, amount: number) => Promise<boolean>
+  onDone: () => void
 }
 
 export const ContractProviders = ({
@@ -51,6 +53,7 @@ export const ContractProviders = ({
   onOpen,
   onAddManual,
   onSubmit,
+  onDone,
 }: ContractProvidersProps) => {
   const { t, i18n } = useTranslation()
   const [pickedKeys, setPickedKeys] = useState<string[] | null>(null)
@@ -60,6 +63,7 @@ export const ContractProviders = ({
   const [snapshot, setSnapshot] = useState<ContractEconomics | null>(null)
   const [offers, setOffers] = useState<ProviderOffer[] | null>(null)
   const [checked, setChecked] = useState(false)
+  const [sent, setSent] = useState(false)
 
   const { economics, statuses, unreadable, offline, retry } = useContractData(contract.address, true)
   const now = nowSeconds()
@@ -74,8 +78,8 @@ export const ContractProviders = ({
   }, [pickedKeys, pickedDays, invalidate])
 
   useEffect(() => {
-    if (economics) setSnapshot((known) => known ?? economics)
-  }, [economics])
+    if (economics && pickedKeys === null && pickedDays === null) setSnapshot(economics)
+  }, [economics, pickedKeys, pickedDays])
 
   if (unreadable) return <Notice tone="red">{t("providers.unreadable")}</Notice>
 
@@ -131,10 +135,11 @@ export const ContractProviders = ({
 
   const bagId = contract.bagId || base.bagId
   const touched = pickedDays !== null
-  const spanSeconds = touched ? pickedDays * SECONDS_IN_DAY : base.span || DEFAULT_PROOF_DAYS * SECONDS_IN_DAY
+  const contractSpan = commonSpan(base.spans)
+  const spanSeconds = touched ? pickedDays * SECONDS_IN_DAY : contractSpan || DEFAULT_PROOF_DAYS * SECONDS_IN_DAY
   const contractKeys = new Set(base.pubkeys.map((key) => key.toLowerCase()))
   const added = selected.some((key) => !contractKeys.has(key.toLowerCase()))
-  const unchanged = !added && selected.length === base.pubkeys.length && !touched
+  const unchanged = !added && selected.length === base.pubkeys.length && spanSeconds === contractSpan
 
   const fates = providerFate(base, selected, spanSeconds, offers)
   const affected = [...fates.values()].filter((fate) => fate === "new" || fate === "recreated").length
@@ -165,7 +170,23 @@ export const ContractProviders = ({
     setPickedDays(null)
   }
 
-  const save = () => onSubmit(selected, spanSeconds, base.fileSize, fee)
+  const save = async () => {
+    setQuoteError(null)
+    if (!sent && !(await onSubmit(selected, spanSeconds, base.fileSize, fee))) {
+      onDone()
+      return
+    }
+    setSent(true)
+
+    try {
+      await notifyProviders(contract.address, selected)
+    } catch {
+      setQuoteError("errors.notifyFailed")
+      return
+    }
+
+    onDone()
+  }
 
   const check = () => {
     setQuoteError(null)
@@ -209,26 +230,26 @@ export const ContractProviders = ({
       declines={declines}
       copied={copied}
       proofValueLabel={
-        touched || !base.span ? undefined : t("providers.spanCurrent", { value: formatDuration(base.span, t) })
+        touched || !contractSpan ? undefined : formatDuration(contractSpan, t)
       }
       fates={fates}
       warning={warning}
       error={quoteError}
       submitLabel={checked ? t("providers.submit") : t("ui.continue")}
       warnOf={warnOf}
-      submitDisabled={busy || unchanged}
+      submitDisabled={busy || (unchanged && !sent)}
       editor
       total={checked ? tonLabel(fee) : undefined}
       until={checked && nextPaidDays !== null ? formatDate(now + nextPaidDays * SECONDS_IN_DAY, i18n.language) : undefined}
       submitReason={unchanged ? t("providers.unchangedHint") : undefined}
-      revertDisabled={unchanged}
-      onSelected={setPickedKeys}
+      revertDisabled={unchanged || sent}
+      onSelected={sent ? () => undefined : setPickedKeys}
       onAddManual={onAddManual}
-      onProofDays={setPickedDays}
+      onProofDays={sent ? () => undefined : setPickedDays}
       onCopy={onCopy}
       onOpen={onOpen}
       onRevert={revert}
-      onContinue={checked ? save : check}
+      onContinue={checked ? () => void save() : check}
     />
   )
 }
