@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
-import { ListChecks, Loader, Minus, Plus, Server, SlidersHorizontal } from "lucide-react"
+import { Loader, Minus, Plus, Server, SlidersHorizontal, SquareCheck } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { fetchProviderByKey } from "@/lib/api"
 import { cx } from "@/lib/cx"
@@ -28,8 +28,7 @@ import { CatalogToolbar, ProofPeriodRow, daysLabel } from "./catalog-toolbar"
 import { Notice } from "../notice"
 import { ProviderHeader, ProviderRow, ProviderSkeleton } from "./provider-row"
 import { SelectedTable } from "./selected-table"
-import { SheetField } from "../sheet-fields"
-import { SheetFooter } from "../sheet"
+import { StepFooter } from "./step-footer"
 import { RECIPES, STRATEGIES, StrategyCards, type Strategy } from "./strategy-cards"
 import shared from "../shared.module.css"
 import styles from "./providers-step.module.css"
@@ -416,12 +415,31 @@ export const ProvidersStep = ({
     )
   }
 
+  const periodPart = (
+    <>
+      {hasPanel && (
+        <ProofPeriodRow
+          sheet={editor}
+          proofDays={proofDays}
+          onProofDays={onProofDays}
+          proofValueLabel={proofValueLabel}
+        />
+      )}
+
+      {rareProof && (
+        <Notice tone="yellow" className={styles.stepAlert}>
+          {rareProof}
+        </Notice>
+      )}
+    </>
+  )
+
   const catalogPart = (
     <>
-      <div className={styles.headRow} data-second={editor ? "" : undefined}>
-        <h2 className={shared.tableTitle}>
+      <div className={styles.headRow} data-sheet={editor ? "" : undefined}>
+        <h2 className={editor ? shared.sheetTitle : shared.tableTitle}>
           <Server className={shared.titleIcon} aria-hidden="true" />
-          <span>{t("catalog.stepTitle")}</span>
+          <span>{t(editor ? "catalog.panel" : "catalog.stepTitle")}</span>
         </h2>
         <span className={shared.spacer} />
 
@@ -453,13 +471,7 @@ export const ProvidersStep = ({
         )}
       </div>
 
-      {rareProof && (
-        <Notice tone="yellow" className={styles.stepAlert}>
-          {rareProof}
-        </Notice>
-      )}
-
-      {hasPanel && <ProofPeriodRow proofDays={proofDays} onProofDays={onProofDays} proofValueLabel={proofValueLabel} />}
+      {!editor && periodPart}
 
       {autoPick && (
         <div className={styles.cards}>
@@ -563,16 +575,30 @@ export const ProvidersStep = ({
     </>
   )
 
+  const declinesNotice = declines.length > 0 && (
+    <Notice
+      tone="red"
+      className={styles.stepError}
+      action={
+        <button type="button" onClick={() => onSelected(withoutDeclined)}>
+          {t("catalog.removeDeclined")}
+        </button>
+      }
+    >
+      {t("catalog.declinedSummary", { count: declines.length, total: selected.length })}
+    </Notice>
+  )
+
   const selectedPart = (
     <>
-      <div className={styles.sectionHead} data-first={editor ? "" : undefined}>
-        <h2 className={shared.tableTitle}>
-          <ListChecks className={shared.titleIcon} aria-hidden="true" />
+      <div className={styles.sectionHead} data-sheet={editor ? "" : undefined}>
+        <h2 className={editor ? shared.sheetTitle : shared.tableTitle}>
+          <SquareCheck className={shared.titleIcon} aria-hidden="true" />
           <span>{t("catalog.selectedTitle")}</span>
         </h2>
         <span className={styles.sectionCount}>{`${selected.length} / ${MAX_SELECTED}`}</span>
         <div className={styles.headActions}>
-          {active && (
+          {autoPick && active && (
             <button type="button" onClick={() => applyStrategy(active, count, freshSeed())} className={shared.textAction}>
               {t("catalog.pickAgain")}
             </button>
@@ -610,68 +636,31 @@ export const ProvidersStep = ({
         <p className={shared.emptyState}>{t("catalog.noneSelected")}</p>
       )}
 
-      {declines.length > 0 && (
-        <Notice
-          tone="red"
-          className={styles.stepError}
-          action={
-            <button type="button" onClick={() => onSelected(withoutDeclined)}>
-              {t("catalog.removeDeclined")}
-            </button>
-          }
-        >
-          {t("catalog.declinedSummary", { count: declines.length, total: selected.length })}
-        </Notice>
-      )}
+      {!editor && declinesNotice}
     </>
   )
 
   return (
     <div className={styles.step}>
-      {editor ? selectedPart : catalogPart}
-      {editor ? catalogPart : selectedPart}
+      {editor && periodPart}
+      {catalogPart}
+      {selectedPart}
 
-      {warning && (
-        <Notice tone="yellow" className={styles.stepError}>
-          {warning}
-        </Notice>
-      )}
-
-      {total && (
-        <div className={styles.summary}>
-          <div className={styles.total}>
-            <span>{t("period.total")}</span>
-            <span className={shared.spacer} />
-            <span className={styles.totalValue}>{total}</span>
-          </div>
-          {until && <SheetField label={t("files.topupNewUntil")} value={until} />}
-        </div>
-      )}
-
-      <SheetFooter className={styles.footer}>
-        {onBack && (
-          <button type="button" onClick={onBack} className={shared.secondary}>
-            {t("ui.back")}
-          </button>
-        )}
-        <span className={shared.spacer} />
-        <button
-          type="button"
-          onClick={onContinue}
-          disabled={selected.length === 0 || checking || submitDisabled}
-          title={submitDisabled ? submitReason : selected.length === 0 ? t("catalog.noneSelected") : undefined}
-          className={shared.primary}
-        >
-          {checking && <Loader strokeWidth={2.5} aria-hidden="true" className={styles.spinner} />}
-          <span>{submitLabel ?? t("ui.continue")}</span>
-        </button>
-      </SheetFooter>
-
-      {error && (
-        <Notice tone="red" className={styles.stepError}>
-          {t(error)}
-        </Notice>
-      )}
+      <StepFooter
+        editor={!!editor}
+        warning={warning}
+        total={total}
+        until={until}
+        declined={editor && declinesNotice}
+        error={error}
+        checking={checking}
+        noneSelected={selected.length === 0}
+        submitDisabled={submitDisabled}
+        submitReason={submitReason}
+        submitLabel={submitLabel}
+        onBack={onBack}
+        onContinue={onContinue}
+      />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react"
-import { Search, SlidersHorizontal, X } from "lucide-react"
+import { CalendarCheck, Search, SlidersHorizontal, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
 import { useDismiss } from "@/lib/dismiss"
@@ -34,12 +34,45 @@ export const ProofPeriodRow = ({
   proofDays,
   onProofDays,
   proofValueLabel,
+  sheet,
 }: {
   proofDays: number
   onProofDays: (days: number) => void
   proofValueLabel?: string
+  sheet?: boolean
 }) => {
   const { t } = useTranslation()
+  const value = proofValueLabel ?? daysLabel(t, proofDays)
+
+  const range = (
+    <Range
+      label={t("details.span")}
+      min={0}
+      max={PROOF_STEPS.length - 1}
+      step={1}
+      value={Math.max(0, PROOF_STEPS.indexOf(nearestProofDays(proofDays)))}
+      valueText={value}
+      ticks={PROOF_PRESETS.map(([, name], index) => ({ at: index, label: t(`presets.${name}`) }))}
+      onChange={(index) => onProofDays(PROOF_STEPS[index])}
+    />
+  )
+
+  if (sheet) {
+    return (
+      <>
+        <div className={styles.headRow}>
+          <h2 className={shared.sheetTitle}>
+            <CalendarCheck className={shared.titleIcon} aria-hidden="true" />
+            <span>{t("details.span")}</span>
+          </h2>
+          <Hint text={t("filters.proofNote")} />
+          <span className={shared.spacer} />
+          <span className={styles.proofValue}>{value}</span>
+        </div>
+        <div className={styles.proofRow}>{range}</div>
+      </>
+    )
+  }
 
   return (
     <div className={styles.proofRow}>
@@ -47,19 +80,9 @@ export const ProofPeriodRow = ({
         <span className={styles.proofLabel}>{t("details.span")}</span>
         <Hint text={t("filters.proofNote")} />
         <span className={shared.spacer} />
-        <span className={styles.proofValue}>{proofValueLabel ?? daysLabel(t, proofDays)}</span>
+        <span className={styles.proofValue}>{value}</span>
       </div>
-
-      <Range
-        label={t("details.span")}
-        min={0}
-        max={PROOF_STEPS.length - 1}
-        step={1}
-        value={Math.max(0, PROOF_STEPS.indexOf(nearestProofDays(proofDays)))}
-        valueText={proofValueLabel ?? daysLabel(t, proofDays)}
-        ticks={PROOF_PRESETS.map(([, name], index) => ({ at: index, label: t(`presets.${name}`) }))}
-        onChange={(index) => onProofDays(PROOF_STEPS[index])}
-      />
+      {range}
     </div>
   )
 }

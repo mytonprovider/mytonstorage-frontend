@@ -279,6 +279,15 @@
   color: var(--text);
 }
 
+.sheetTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-25);
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text);
+}
+
 .titleIcon {
   flex: none;
   width: var(--icon-control);
