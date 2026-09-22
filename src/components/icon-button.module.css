@@ -7,12 +7,8 @@
   background: transparent;
 }
 
-.button:hover:not(:disabled) {
+.button:active:not(:disabled) {
   background: var(--surface-2);
-}
-
-.button:not(.danger):hover:not(:disabled) {
-  color: var(--text);
 }
 
 .button:disabled {
@@ -24,7 +20,7 @@
   composes: inkDanger from "./shared.module.css";
 }
 
-.danger:hover:not(:disabled) {
+.danger:active:not(:disabled) {
   background: var(--tone-red-weak);
 }
 
@@ -32,8 +28,22 @@
   composes: inkOk from "./shared.module.css";
 }
 
-.button.ok:hover:not(:disabled) {
-  color: var(--tone-green-text);
+@media (hover: hover) {
+  .button:hover:not(:disabled) {
+    background: var(--surface-2);
+  }
+
+  .button:not(.danger):hover:not(:disabled) {
+    color: var(--text);
+  }
+
+  .danger:hover:not(:disabled) {
+    background: var(--tone-red-weak);
+  }
+
+  .button.ok:hover:not(:disabled) {
+    color: var(--tone-green-text);
+  }
 }
 
 .xs {
