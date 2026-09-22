@@ -1,6 +1,6 @@
 import { TonConnectError, UserRejectsError } from "@tonconnect/ui-react"
 import type { WalletTransaction } from "@/types/contract"
-import { nowSeconds } from "../format"
+import { nowSeconds, sleep } from "../format"
 import { toRawAddress } from "./ton-address"
 import { fetchTransactions, type ChainTransaction } from "./toncenter"
 
@@ -47,18 +47,6 @@ const seenOnChain = async (
     return null
   }
 }
-
-const sleep = (ms: number, signal: AbortSignal): Promise<void> =>
-  new Promise((resolve) => {
-    const timer = setTimeout(done, ms)
-    signal.addEventListener("abort", done, { once: true })
-
-    function done() {
-      clearTimeout(timer)
-      signal.removeEventListener("abort", done)
-      resolve()
-    }
-  })
 
 const pollUntil = async (
   contract: string,

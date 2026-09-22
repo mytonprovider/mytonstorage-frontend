@@ -9,6 +9,8 @@ import {
   fetchProviderByKey,
   fetchProviders,
   fetchTonProofPayload,
+  forgetOffers,
+  notifyProviders,
   initContract,
   sessionEnded,
   topupContract,
@@ -205,6 +207,45 @@ describe("initContract", () => {
       expect.stringContaining("/api/v1/contracts/topup"),
       expect.stringContaining("/api/v1/contracts/withdraw"),
     ])
+  })
+})
+
+describe("notifyProviders", () => {
+  it("waits out a rate limit instead of giving up on a contract already changed", async () => {
+    vi.useFakeTimers()
+    const answers = [new Response("{}", { status: 429 }), new Response("{}", { status: 200 })]
+    const fetchMock = vi.fn(() => Promise.resolve(answers.shift() ?? new Response("{}", { status: 500 })))
+    vi.stubGlobal("fetch", fetchMock)
+
+    const settled = notifyProviders("EQA", ["key"])
+    await vi.advanceTimersByTimeAsync(5_000)
+    await expect(settled).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    vi.useRealTimers()
+  })
+
+  it("does not repeat a refusal that repeating cannot fix", async () => {
+    const fetchMock = respondWith({ error: "contract not found" }, 400)
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(notifyProviders("EQA", ["key"])).rejects.toBeInstanceOf(ApiError)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("forgetOffers", () => {
+  it("asks the providers again once the backend has refused the quotes it was shown", async () => {
+    const quoted = { offers: [{ provider: { key: "AB" }, price_per_proof: 1, price_per_mb: 1 }], declines: [] }
+    const fetchMock = respondWith(quoted)
+    vi.stubGlobal("fetch", fetchMock)
+
+    await fetchOffers("forgotten", 604800, ["ab"])
+    await fetchOffers("forgotten", 604800, ["ab"])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    forgetOffers()
+    await fetchOffers("forgotten", 604800, ["ab"])
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })
 

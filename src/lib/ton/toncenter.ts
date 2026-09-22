@@ -1,3 +1,4 @@
+import { sleep } from "../format"
 import { asArray, asRecord } from "../json"
 
 const TONCENTER_URL = import.meta.env.VITE_TONCENTER_URL ?? "https://toncenter.com"
@@ -49,15 +50,13 @@ export interface StackEntry {
   value: unknown
 }
 
-const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
 let lastAt = 0
 let queue: Promise<unknown> = Promise.resolve()
 
 const throttle = <T>(task: () => Promise<T>): Promise<T> => {
   const result = queue.then(async () => {
     const wait = lastAt + MIN_GAP_MS - Date.now()
-    if (wait > 0) await delay(wait)
+    if (wait > 0) await sleep(wait)
     lastAt = Date.now()
     return task()
   })

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useTonConnectUI } from "@tonconnect/ui-react"
 import type { PickedFile, ProviderDecline, ProviderOffer, UserBag } from "@/types/bag"
 import type { WalletTransaction } from "@/types/contract"
-import { ApiError, deleteBag, initContract, markBagPaid, sessionEnded, useQuote } from "./api"
+import { ApiError, deleteBag, forgetOffers, initContract, markBagPaid, sessionEnded, useQuote } from "./api"
 import { useCountdown } from "./countdown"
 import { scrollToTop } from "./dom"
 import { nowSeconds, SECONDS_IN_DAY } from "./format"
@@ -435,6 +435,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
       if (!onUnauthorized(error)) {
         const key = payErrorKey(error, { fallback: "errors.prepareFailed" })
         if (key === OFFERS_INCOMPLETE) {
+          forgetOffers()
           invalidate()
           setOffers([])
           setDeclines([])
@@ -451,6 +452,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
       if (!onUnauthorized(error)) {
         const key = payErrorKey(error)
         if (key === OFFERS_INCOMPLETE) {
+          forgetOffers()
           invalidate()
           setOffers([])
           setDeclines([])
