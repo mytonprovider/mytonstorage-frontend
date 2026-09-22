@@ -259,6 +259,7 @@ interface ContractsListProps {
   renderEditor: (contract: ContractRowData, kind: OpenEditor["kind"]) => ReactNode
   onRetry: () => void
   onRenotify: () => void
+  onNotify: (contract: string, providers: string[]) => void
   onHideClosed: (value: boolean) => void
   onCopy: (value: string) => void
   onEditingChange: (editor: OpenEditor | null) => void
@@ -280,6 +281,7 @@ export const ContractsList = ({
   renderEditor,
   onRetry,
   onRenotify,
+  onNotify,
   onHideClosed,
   onCopy,
   onEditingChange,
@@ -422,7 +424,17 @@ export const ContractsList = ({
       )}
 
       <Sheet open={infoContract !== null} title={t("files.details")} onClose={() => setInfoFor(null)}>
-        {infoContract && <ContractDetails contract={infoContract} copied={copied} onCopy={onCopy} />}
+        {infoContract && (
+          <ContractDetails
+            contract={infoContract}
+            copied={copied}
+            onCopy={onCopy}
+            onNotify={(providers) => {
+              onNotify(infoContract.address, providers)
+              setInfoFor(null)
+            }}
+          />
+        )}
       </Sheet>
 
       <Sheet

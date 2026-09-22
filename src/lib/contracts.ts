@@ -238,6 +238,7 @@ export interface ContractsState {
   onHideClosed: (value: boolean) => void
   reload: () => void
   run: ContractRunner
+  notify: (contract: string, providers: string[]) => Promise<void>
   renotify: () => void
 }
 
@@ -505,6 +506,7 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
     onHideClosed,
     reload,
     run,
+    notify,
     renotify,
   }
 }

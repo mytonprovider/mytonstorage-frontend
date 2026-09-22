@@ -23,13 +23,15 @@ interface ContractDetailsProps {
   contract: StorageContract
   copied: string | null
   onCopy: (value: string) => void
+  onNotify: (providers: string[]) => void
 }
 
-export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsProps) => {
+export const ContractDetails = ({ contract, copied, onCopy, onNotify }: ContractDetailsProps) => {
   const { t, i18n } = useTranslation()
   const { economics, statuses, unreadable, offline, retry } = useContractData(contract.address, true)
 
   const now = nowSeconds()
+  const unproven = economics ? economics.lastProofs.filter((lastProof) => !lastProof).length : 0
   const checkLabel = useCheckLabel(now)
 
   const checks = statuses.length > 0 ? countChecks(statuses, contract.address) : { valid: contract.valid, total: contract.total }
@@ -266,6 +268,20 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
               })}
             </div>
           </div>
+
+          {unproven > 0 && (
+            <Notice
+              tone="yellow"
+              className={styles.paymentAlert}
+              action={
+                <button type="button" onClick={() => onNotify(economics.pubkeys)}>
+                  {t("files.notify")}
+                </button>
+              }
+            >
+              {t("files.unproven", { count: unproven })}
+            </Notice>
+          )}
         </SheetSection>
       )}
     </div>
