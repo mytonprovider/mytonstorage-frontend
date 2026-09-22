@@ -10,7 +10,7 @@ import { forgetPendingFound, readPendingPaid } from "./paid-link"
 import type { TransactionsPage } from "./ton/toncenter"
 import { ChainRequestError, fetchTransactions } from "./ton/toncenter"
 import { sendAndConfirm, walletRefused, type WalletSender } from "./ton/transactions"
-import { CONFIRM_TIMEOUT, payErrorKey } from "./wizard"
+import { CONFIRM_TIMEOUT, payErrorKey } from "./errors"
 
 export const OPCODE_DEPLOY = "0x3dc680ae"
 export const OPCODE_CLOSE = "0x61fff683"

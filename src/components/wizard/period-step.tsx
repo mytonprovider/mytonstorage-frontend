@@ -10,7 +10,7 @@ import {
   roundQuote,
   storageCost,
 } from "@/lib/pricing"
-import { payErrorTone } from "@/lib/wizard"
+import { payErrorTone } from "@/lib/errors"
 import type { ProviderOffer } from "@/types/bag"
 import { GridRange } from "../grid-range"
 import { Notice } from "../notice"

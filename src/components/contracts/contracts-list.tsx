@@ -12,7 +12,7 @@ import {
 import { MIB, SECONDS_IN_DAY, formatBytes, formatDate, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
 import { dailyCost, paidDaysLeft, proofDelays } from "@/lib/pricing"
 import { CONTRACT_ROWS_KEY, readStored, writeStored } from "@/lib/local-storage"
-import { payErrorTone } from "@/lib/wizard"
+import { payErrorTone } from "@/lib/errors"
 import { ConfirmSheet } from "../confirm-sheet"
 import { ContractDetails } from "./contract-details"
 import { Hint } from "../hint"
