@@ -259,6 +259,7 @@ interface ContractsListProps {
   renderEditor: (contract: ContractRowData, kind: OpenEditor["kind"]) => ReactNode
   onRetry: () => void
   onRenotify: () => void
+  notifyStatus: ContractsState["notifyStatus"]
   onNotify: (contract: string, providers: string[]) => void
   onHideClosed: (value: boolean) => void
   onCopy: (value: string) => void
@@ -281,6 +282,7 @@ export const ContractsList = ({
   renderEditor,
   onRetry,
   onRenotify,
+  notifyStatus,
   onNotify,
   onHideClosed,
   onCopy,
@@ -429,10 +431,8 @@ export const ContractsList = ({
             contract={infoContract}
             copied={copied}
             onCopy={onCopy}
-            onNotify={(providers) => {
-              onNotify(infoContract.address, providers)
-              setInfoFor(null)
-            }}
+            notifyState={notifyStatus?.contract === infoContract.address ? notifyStatus.state : null}
+            onNotify={(providers) => onNotify(infoContract.address, providers)}
           />
         )}
       </Sheet>

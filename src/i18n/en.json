@@ -202,6 +202,7 @@
     "edit": "Edit",
     "notifyAgain": "Notify providers",
     "notify": "Notify",
+    "notified": "Providers notified — storage starts with the first proof",
     "unproven_one": "{{count}} provider has not started storing yet",
     "unproven_other": "{{count}} providers have not started storing yet",
     "editTitle": "Edit contract",

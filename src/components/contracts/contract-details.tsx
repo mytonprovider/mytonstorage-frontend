@@ -1,8 +1,8 @@
-import { FileText, Server, Wallet } from "lucide-react"
+import { FileText, Loader, Server, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { gatewayUrl } from "@/lib/api"
 import { useCheckLabel } from "@/lib/check-label"
-import { LOW_BALANCE_DAYS, contractTone, countChecks, scanUrl } from "@/lib/contracts"
+import { LOW_BALANCE_DAYS, contractTone, countChecks, scanUrl, type NotifyState } from "@/lib/contracts"
 import { useContractData } from "@/lib/contracts-cache"
 import { GHOST_TON, SECONDS_IN_DAY, formatBytes, formatDate, formatDateTime, formatDuration, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
 import { PROOF_STEPS, dailyCost, paidDaysLeft, proofDelays } from "@/lib/pricing"
@@ -23,10 +23,11 @@ interface ContractDetailsProps {
   contract: StorageContract
   copied: string | null
   onCopy: (value: string) => void
+  notifyState: NotifyState | null
   onNotify: (providers: string[]) => void
 }
 
-export const ContractDetails = ({ contract, copied, onCopy, onNotify }: ContractDetailsProps) => {
+export const ContractDetails = ({ contract, copied, onCopy, notifyState, onNotify }: ContractDetailsProps) => {
   const { t, i18n } = useTranslation()
   const { economics, statuses, unreadable, offline, retry } = useContractData(contract.address, true)
 
@@ -269,18 +270,25 @@ export const ContractDetails = ({ contract, copied, onCopy, onNotify }: Contract
             </div>
           </div>
 
-          {unproven > 0 && (
-            <Notice
-              tone="yellow"
-              className={styles.paymentAlert}
-              action={
-                <button type="button" onClick={() => onNotify(economics.pubkeys)}>
-                  {t("files.notify")}
-                </button>
-              }
-            >
-              {t("files.unproven", { count: unproven })}
+          {unproven > 0 && notifyState === "sent" ? (
+            <Notice tone="green" className={styles.paymentAlert}>
+              {t("files.notified")}
             </Notice>
+          ) : (
+            unproven > 0 && (
+              <Notice
+                tone={notifyState === "failed" ? "red" : "yellow"}
+                className={styles.paymentAlert}
+                action={
+                  <button type="button" disabled={notifyState === "sending"} onClick={() => onNotify(economics.pubkeys)}>
+                    {notifyState === "sending" && <Loader strokeWidth={2.5} aria-hidden="true" className={shared.spinner} />}
+                    <span>{t("files.notify")}</span>
+                  </button>
+                }
+              >
+                {notifyState === "failed" ? t("errors.notifyFailed") : t("files.unproven", { count: unproven })}
+              </Notice>
+            )
           )}
         </SheetSection>
       )}

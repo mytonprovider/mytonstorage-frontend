@@ -239,7 +239,15 @@ export interface ContractsState {
   reload: () => void
   run: ContractRunner
   notify: (contract: string, providers: string[]) => Promise<void>
+  notifyStatus: NotifyStatus | null
   renotify: () => void
+}
+
+export type NotifyState = "sending" | "sent" | "failed"
+
+interface NotifyStatus {
+  contract: string
+  state: NotifyState
 }
 
 const hydrate = (owner: string): { headLt: string | null; deepLt: string | null; rows: ContractRow[] } => {
@@ -449,14 +457,18 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
   const reload = useCallback(() => setAttempt((value) => value + 1), [])
 
   const unnotified = useRef<{ contract: string; providers: string[] } | null>(null)
+  const [notifyStatus, setNotifyStatus] = useState<NotifyStatus | null>(null)
 
   const notify = async (contract: string, providers: string[]) => {
+    setNotifyStatus({ contract, state: "sending" })
     try {
       await notifyProviders(contract, providers)
       unnotified.current = null
       setFailure(null)
+      setNotifyStatus({ contract, state: "sent" })
     } catch (error) {
       unnotified.current = { contract, providers }
+      setNotifyStatus({ contract, state: "failed" })
       if (!onUnauthorized(error)) setFailure(notifyFailure(error))
     }
   }
@@ -507,6 +519,7 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
     reload,
     run,
     notify,
+    notifyStatus,
     renotify,
   }
 }
