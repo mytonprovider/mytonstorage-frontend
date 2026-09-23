@@ -20,12 +20,9 @@
   margin-top: var(--space-10);
 }
 
-.sectionHead[data-first] {
-  margin-top: 0;
-}
-
-.headRow[data-second] {
-  margin-top: var(--space-10);
+.sectionHead[data-sheet],
+.headRow[data-sheet] {
+  margin-top: var(--space-7);
 }
 
 .headActions {
@@ -284,6 +281,7 @@
 
 .proofHeading {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   margin-bottom: var(--space-4);
@@ -292,6 +290,7 @@
 .proofLabel {
   font-size: var(--font-base);
   color: var(--text-2);
+  white-space: nowrap;
 }
 
 .proofValue {
@@ -495,6 +494,16 @@
   align-items: center;
   gap: var(--space-5);
   margin-top: var(--space-7);
+}
+
+.footerStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.footerStack.footerStack > * {
+  margin-top: 0;
 }
 
 .spinner {

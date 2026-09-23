@@ -8,7 +8,7 @@ import type {
 } from "@/types/contract"
 import type { Offers, ProviderDecline, ProviderOffer, UnpaidBags, UserBag } from "@/types/bag"
 import type { ApiProvider, ApiTelemetry, Provider, Telemetry } from "@/types/provider"
-import { applyServerDate, BYTES_IN_GB, BYTES_IN_GIB, nowSeconds } from "./format"
+import { applyServerDate, BYTES_IN_GB, BYTES_IN_GIB, nowSeconds, sleep } from "./format"
 import { asArray, asRecord } from "./json"
 
 export const API_URL = import.meta.env.VITE_API_URL ?? "https://mytonstorage.org"
@@ -47,14 +47,37 @@ interface RequestOptions {
   method?: string
   signal?: AbortSignal
   credentials?: RequestCredentials
+  retry?: boolean
 }
 
 const REQUEST_TIMEOUT_MS = 30_000
+
+const RETRY_STATUSES = new Set([429, 502, 503, 504])
+
+const RETRY_BACKOFF_MS = 4_000
+
+const RETRY_ATTEMPTS = 2
+
+const worthRetry = (error: unknown): boolean =>
+  error instanceof ApiError ? RETRY_STATUSES.has(error.status) : error instanceof TypeError
 
 const withTimeout = (signal: AbortSignal | undefined, ms: number): AbortSignal =>
   signal ? AbortSignal.any([signal, AbortSignal.timeout(ms)]) : AbortSignal.timeout(ms)
 
 const request = async (base: string, path: string, options: RequestOptions = {}): Promise<unknown> => {
+  const attempts = options.retry ? RETRY_ATTEMPTS : 1
+
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await send(base, path, options)
+    } catch (error) {
+      if (attempt === attempts || options.signal?.aborted || !worthRetry(error)) throw error
+      await sleep(RETRY_BACKOFF_MS * attempt, options.signal)
+    }
+  }
+}
+
+const send = async (base: string, path: string, options: RequestOptions): Promise<unknown> => {
   const method = options.method ?? (options.body === undefined ? "GET" : "POST")
 
   const response = await fetch(`${base}${path}`, {
@@ -111,6 +134,7 @@ export const fetchBagDetails = async (addresses: string[], signal?: AbortSignal)
     body: { contracts: addresses },
     credentials: "include",
     signal,
+    retry: true,
   })
   return asArray(listed).filter((bag): bag is BagInfoShort => typeof asRecord(bag).bag_id === "string")
 }
@@ -119,6 +143,7 @@ export const markBagPaid = async (bagId: string, storageContract: string): Promi
   await request(API_URL, "/api/v1/files/paid", {
     body: { bag_id: bagId, storage_contract: storageContract },
     credentials: "include",
+    retry: true,
   })
 }
 
@@ -149,6 +174,8 @@ const quotedCache = new Map<string, { offer: ProviderOffer; at: number }>()
 
 const quoteKey = (bagId: string, pubkey: string, span: number): string =>
   `${bagId}:${pubkey.toLowerCase()}:${span}`
+
+export const forgetOffers = (): void => quotedCache.clear()
 
 export const fetchOffers = async (
   bagId: string,
@@ -256,7 +283,7 @@ const walletTransactionOf = (value: unknown, endpoint: string): WalletTransactio
 
 const walletCall = async (endpoint: string, body: unknown): Promise<WalletTransaction> =>
   walletTransactionOf(
-    await request(API_URL, `/api/v1/contracts/${endpoint}`, { body, credentials: "include" }),
+    await request(API_URL, `/api/v1/contracts/${endpoint}`, { body, credentials: "include", retry: true }),
     endpoint,
   )
 
@@ -265,6 +292,10 @@ export const initContract = (payload: InitStorageContract): Promise<WalletTransa
 
 export const updateContract = (payload: UpdateStorageContract): Promise<WalletTransaction> =>
   walletCall("update", payload)
+
+export const notifyProviders = async (address: string, providers: string[]): Promise<void> => {
+  await request(API_URL, "/api/v1/contracts/notify", { body: { address, providers }, credentials: "include", retry: true })
+}
 
 export const topupContract = (address: string, amount: number): Promise<WalletTransaction> =>
   walletCall("topup", { address, amount })
@@ -321,7 +352,7 @@ export const fetchProviderByKey = async (pubkey: string, signal?: AbortSignal): 
 
 export const fetchContractStatuses = async (addresses: string[], signal?: AbortSignal): Promise<ContractStatus[]> => {
   if (!addresses.length) return []
-  const envelope = await request(MTPO_URL, "/api/v1/contracts/statuses", { body: { contracts: addresses }, signal })
+  const envelope = await request(MTPO_URL, "/api/v1/contracts/statuses", { body: { contracts: addresses }, signal, retry: true })
   return asArray(asRecord(envelope).contracts).filter(
     (status): status is ContractStatus => typeof asRecord(status).address === "string",
   )

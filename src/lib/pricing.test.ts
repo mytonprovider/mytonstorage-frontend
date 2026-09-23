@@ -13,6 +13,7 @@ import {
   MIN_STORAGE_DAYS,
   PERIOD_PRESETS,
   PROOF_STEPS,
+  commonSpan,
   dailyCost,
   fullBounty,
   gridDays,
@@ -668,6 +669,19 @@ describe("quotedBounties", () => {
   })
 })
 
+describe("commonSpan", () => {
+  it("takes the period most of the contract already lives on", () => {
+    expect(commonSpan([604800, 604800, 1209600])).toBe(604800)
+    expect(commonSpan([1209600, 604800, 604800])).toBe(604800)
+  })
+
+  it("keeps the first one where nothing prevails, and survives an empty contract", () => {
+    expect(commonSpan([604800, 1209600])).toBe(604800)
+    expect(commonSpan([1209600, 604800])).toBe(1209600)
+    expect(commonSpan([])).toBe(0)
+  })
+})
+
 describe("updateFee", () => {
   it("charges the gas alone while the balance on the contract already covers the bounties", () => {
     expect(updateFee(4_035_640, false, 1_200_000_000)).toBe(FEE_GAS)
@@ -705,7 +719,7 @@ describe("unquotedBounties", () => {
   })
 
   it("charges a bag whose chain rate outgrows that minimum what the contract will really pay", () => {
-    expect(unquotedBounties(MAX_BAG_BYTES, 150 * SECONDS_IN_DAY, [base.pubkey], contract)).toBe(122_760_000)
+    expect(unquotedBounties(MAX_BAG_BYTES, 150 * SECONDS_IN_DAY, [base.pubkey], contract)).toBe(122_880_000)
   })
 
   it("still counts a provider the chain never saw, since it will be created with a full bounty", () => {
@@ -729,7 +743,7 @@ describe("restartBalance", () => {
   })
 
   it("charges the bounty itself once the chain rate outgrows the minimum", () => {
-    expect(restartBalance(MAX_BAG_BYTES, [200, 200, 200], [150 * SECONDS_IN_DAY, 150 * SECONDS_IN_DAY, 150 * SECONDS_IN_DAY])).toBe(368_280_000)
+    expect(restartBalance(MAX_BAG_BYTES, [200, 200, 200], [150 * SECONDS_IN_DAY, 150 * SECONDS_IN_DAY, 150 * SECONDS_IN_DAY])).toBe(368_640_000)
   })
 
   it("holds the intake threshold for a single provider whose bounty stays under it", () => {

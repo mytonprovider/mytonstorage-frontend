@@ -87,8 +87,9 @@ export const FilesStage = ({
               onOpen={onOpenProvider}
               onAddManual={catalog.addManual}
               onSubmit={(pubkeys, span, fileSize, amount) => {
-                void contracts
-                  .run(contract.address, () =>
+                void contracts.run(
+                  contract.address,
+                  () =>
                     updateContract({
                       address: contract.address,
                       providers: pubkeys,
@@ -96,13 +97,17 @@ export const FilesStage = ({
                       amount,
                       span,
                     }),
-                  )
-                  .finally(() => setEditing(null))
+                  pubkeys,
+                )
+                setEditing(null)
               }}
             />
           )
         }
         onRetry={contracts.reload}
+        onRenotify={contracts.renotify}
+        notifyStatus={contracts.notifyStatus}
+        onNotify={(contract, providers) => void contracts.notify(contract, providers)}
         onHideClosed={contracts.onHideClosed}
         onCopy={onCopy}
         onEditingChange={setEditing}

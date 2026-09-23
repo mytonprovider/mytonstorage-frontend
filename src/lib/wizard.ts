@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useTonConnectUI } from "@tonconnect/ui-react"
 import type { PickedFile, ProviderDecline, ProviderOffer, UserBag } from "@/types/bag"
 import type { WalletTransaction } from "@/types/contract"
-import { ApiError, deleteBag, initContract, markBagPaid, sessionEnded, useQuote } from "./api"
+import { ApiError, deleteBag, forgetOffers, initContract, markBagPaid, sessionEnded, useQuote } from "./api"
 import { useCountdown } from "./countdown"
 import { scrollToTop } from "./dom"
+import { checkErrorKey, deployFailureKey, OFFERS_INCOMPLETE, payErrorKey, UNAUTHORIZED, UNPAID_UNKNOWN, uploadErrorKey } from "./errors"
 import { nowSeconds, SECONDS_IN_DAY } from "./format"
 import { clearPendingPaid, contractDeployed, markPendingLinked, readPendingPaid, writePendingPaid, type DeployCheck } from "./paid-link"
 import { DEFAULT_PROOF_DAYS, DEFAULT_STORAGE_DAYS, gridDays, storageCost } from "./pricing"
@@ -61,22 +62,6 @@ export const resumedContract = (bagId: string): string | null => {
   return pending && pending.bagId === bagId ? pending.contract : null
 }
 
-export const UNAUTHORIZED = "errors.unauthorized"
-
-export const UNPAID_UNKNOWN = "errors.unpaidUnknown"
-
-const PAYMENT_UNCHECKED = "errors.paymentUnchecked"
-
-const OFFERS_INCOMPLETE = "errors.offersIncomplete"
-
-export const CONFIRM_TIMEOUT = "errors.confirmTimeout"
-
-export const checkErrorKey = (check: DeployCheck): string =>
-  check === "missing" ? "errors.paymentFailed" : PAYMENT_UNCHECKED
-
-export const payErrorTone = (key: string): "neutral" | "red" =>
-  key === PAYMENT_UNCHECKED || key === CONFIRM_TIMEOUT ? "neutral" : "red"
-
 export const contractAfterFailure = (contract: string | null, error: unknown): string | null =>
   walletRefused(error) ? null : contract
 
@@ -86,34 +71,6 @@ export const clampStep = (picked: number, reached: WizardStep): WizardStep =>
 const DEPLOY_TIMEOUT_MS = 240_000
 
 const PAYMENT_HASH_TIMEOUT_MS = 60_000
-
-export const payErrorKey = (
-  error: unknown,
-  { withBag = true, fallback = "errors.paymentFailed" }: { withBag?: boolean; fallback?: string } = {},
-): string => {
-  if (!(error instanceof ApiError)) return fallback
-  if (error.status === 429) return "errors.rateLimited"
-  if (withBag && error.status === 400 && error.detail.includes("providers unavailable")) return OFFERS_INCOMPLETE
-  if (withBag && (error.status === 410 || error.detail.includes("expired") || error.detail.includes("fetch providers rates"))) {
-    return "wizard.expired"
-  }
-  return fallback
-}
-
-export const deployFailureKey = (deployed: boolean, error: unknown): string | null =>
-  walletRefused(error) ? null : deployed ? "errors.notLinked" : payErrorKey(error)
-
-export const uploadErrorKey = (error: unknown): string => {
-  if (!(error instanceof ApiError)) return "errors.uploadFailed"
-  if (error.status === 0) return "errors.offline"
-  if (error.status === 400 && error.detail.includes("unpaid bags")) return "errors.hasUnpaid"
-  if (error.status === 400 && error.detail.startsWith("too many files")) return "upload.tooMany"
-  if (error.status === 400 && error.detail.includes("invalid filename")) return "errors.badNames"
-  if (error.status === 413) return "errors.uploadTooLarge"
-  if (error.status === 503) return "errors.serverFull"
-  if (error.status === 429) return "errors.rateLimited"
-  return "errors.uploadFailed"
-}
 
 interface WizardOptions {
   restored: boolean
@@ -435,6 +392,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
       if (!onUnauthorized(error)) {
         const key = payErrorKey(error, { fallback: "errors.prepareFailed" })
         if (key === OFFERS_INCOMPLETE) {
+          forgetOffers()
           invalidate()
           setOffers([])
           setDeclines([])
@@ -451,6 +409,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
       if (!onUnauthorized(error)) {
         const key = payErrorKey(error)
         if (key === OFFERS_INCOMPLETE) {
+          forgetOffers()
           invalidate()
           setOffers([])
           setDeclines([])

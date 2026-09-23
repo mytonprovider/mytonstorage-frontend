@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto"
 import { readFileSync } from "node:fs"
+import { Server } from "node:http"
 import react from "@vitejs/plugin-react-swc"
 import { defineConfig, loadEnv } from "vite"
 import tsconfigPaths from "vite-tsconfig-paths"
+
+const UPLOAD_REQUEST_TIMEOUT_MS = 30 * 60 * 1000
 
 const backgroundOf = (selector: string): string => {
   const tokens = readFileSync("src/styles/tokens.css", "utf8")
@@ -59,6 +62,12 @@ export default defineConfig(({ mode }) => {
             .replaceAll("%SITE_URL%", siteUrl)
             .replaceAll("%BG_LIGHT%", backgroundOf(":root {"))
             .replaceAll("%BG_DARK%", backgroundOf('[data-theme="dark"] {')),
+      },
+      {
+        name: "upload-request-timeout",
+        configureServer: (server) => {
+          if (server.httpServer instanceof Server) server.httpServer.requestTimeout = UPLOAD_REQUEST_TIMEOUT_MS
+        },
       },
       {
         name: "tonconnect-manifest",

@@ -10,6 +10,18 @@ let serverOffsetMs: number | null = null
 
 export const nowSeconds = (): number => Math.floor((Date.now() + (serverOffsetMs ?? 0)) / 1000)
 
+export const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
+  new Promise((resolve) => {
+    const timer = setTimeout(done, ms)
+    signal?.addEventListener("abort", done, { once: true })
+
+    function done() {
+      clearTimeout(timer)
+      signal?.removeEventListener("abort", done)
+      resolve()
+    }
+  })
+
 export const applyServerDate = (header: string | null): void => {
   if (serverOffsetMs !== null) return
   const serverMs = Date.parse(header ?? "")

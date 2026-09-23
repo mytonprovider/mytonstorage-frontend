@@ -5,6 +5,7 @@ import { useCheckLabel } from "@/lib/check-label"
 import { useContractData, type ContractEconomics } from "@/lib/contracts-cache"
 import { formatDate, formatDuration, nowSeconds, SECONDS_IN_DAY, tonLabel } from "@/lib/format"
 import {
+  commonSpan,
   DEFAULT_PROOF_DAYS,
   FEE_GAS,
   nextPaidDaysLeft,
@@ -74,8 +75,8 @@ export const ContractProviders = ({
   }, [pickedKeys, pickedDays, invalidate])
 
   useEffect(() => {
-    if (economics) setSnapshot((known) => known ?? economics)
-  }, [economics])
+    if (economics && pickedKeys === null && pickedDays === null) setSnapshot(economics)
+  }, [economics, pickedKeys, pickedDays])
 
   if (unreadable) return <Notice tone="red">{t("providers.unreadable")}</Notice>
 
@@ -131,10 +132,11 @@ export const ContractProviders = ({
 
   const bagId = contract.bagId || base.bagId
   const touched = pickedDays !== null
-  const spanSeconds = touched ? pickedDays * SECONDS_IN_DAY : base.span || DEFAULT_PROOF_DAYS * SECONDS_IN_DAY
+  const contractSpan = commonSpan(base.spans)
+  const spanSeconds = touched ? pickedDays * SECONDS_IN_DAY : contractSpan || DEFAULT_PROOF_DAYS * SECONDS_IN_DAY
   const contractKeys = new Set(base.pubkeys.map((key) => key.toLowerCase()))
   const added = selected.some((key) => !contractKeys.has(key.toLowerCase()))
-  const unchanged = !added && selected.length === base.pubkeys.length && !touched
+  const unchanged = !added && selected.length === base.pubkeys.length && spanSeconds === contractSpan
 
   const fates = providerFate(base, selected, spanSeconds, offers)
   const affected = [...fates.values()].filter((fate) => fate === "new" || fate === "recreated").length
@@ -209,7 +211,7 @@ export const ContractProviders = ({
       declines={declines}
       copied={copied}
       proofValueLabel={
-        touched || !base.span ? undefined : t("providers.spanCurrent", { value: formatDuration(base.span, t) })
+        touched || !contractSpan ? undefined : formatDuration(contractSpan, t)
       }
       fates={fates}
       warning={warning}

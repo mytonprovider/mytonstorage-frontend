@@ -3,21 +3,16 @@ import { TonConnectUIError, UserRejectsError } from "@tonconnect/ui-react"
 import en from "@/i18n/en.json"
 import { ApiError } from "./api"
 import { writePendingPaid } from "./paid-link"
+import { UNAUTHORIZED, checkErrorKey, deployFailureKey, payErrorKey, payErrorTone, uploadErrorKey } from "./errors"
 import {
   EMPTY_WIZARD,
-  UNAUTHORIZED,
   allAccepted,
-  checkErrorKey,
   clampStep,
   contractAfterFailure,
   deployAction,
-  deployFailureKey,
   deployInFlight,
-  payErrorKey,
-  payErrorTone,
   reachedStep,
   resumedContract,
-  uploadErrorKey,
 } from "./wizard"
 import type { WizardData } from "./wizard"
 

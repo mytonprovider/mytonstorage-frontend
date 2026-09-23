@@ -475,11 +475,11 @@ describe("runContractAction", () => {
     expect(outcome).toEqual({ key: "errors.confirmTimeout", status: null, kind: "action" })
   })
 
-  it("swallows a wallet refusal recognized by its class and releases the lock", async () => {
+  it("keeps a wallet refusal apart from a confirmed action, without naming it a failure", async () => {
     const lock = { current: null as string | null }
     sendAndConfirm.mockRejectedValue(new UserRejectsError())
 
-    await expect(runContractAction(lock, sender, "EQA", () => Promise.resolve(transaction))).resolves.toBe(null)
+    await expect(runContractAction(lock, sender, "EQA", () => Promise.resolve(transaction))).resolves.toBe("refused")
     expect(lock.current).toBe(null)
   })
 
@@ -672,7 +672,6 @@ describe("economicsFrom", () => {
       pubkeys: ["000000000000000000000000000000000000000000000000000000000000000b"],
       spans: [86400],
       lastProofs: [0],
-      span: 86400,
     })
   })
 
@@ -682,20 +681,6 @@ describe("economicsFrom", () => {
       num(5),
     ]
     expect(economicsFrom(info, proved).lastProofs).toEqual([1785540000])
-  })
-
-  it("takes the longest span attached to the contract", () => {
-    const spans = [
-      {
-        type: "list",
-        value: [
-          { type: "tuple", value: [num(11), num(300), num(86400), num(0)] },
-          { type: "tuple", value: [num(12), num(300), num(604800), num(0)] },
-        ],
-      },
-      num(1_000_000_000),
-    ]
-    expect(economicsFrom(info, spans).span).toBe(604800)
   })
 
   it("collects a rate from each attached provider", () => {
@@ -715,7 +700,6 @@ describe("economicsFrom", () => {
       pubkeys: [],
       spans: [],
       lastProofs: [],
-      span: 0,
     })
   })
 
@@ -728,7 +712,6 @@ describe("economicsFrom", () => {
       pubkeys: [],
       spans: [],
       lastProofs: [],
-      span: 0,
     })
   })
 })

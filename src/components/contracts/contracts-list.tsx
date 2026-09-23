@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react"
+import { useEffect, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react"
 import { Check, Loader, ScrollText } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
@@ -12,7 +12,7 @@ import {
 import { MIB, SECONDS_IN_DAY, formatBytes, formatDate, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
 import { dailyCost, paidDaysLeft, proofDelays } from "@/lib/pricing"
 import { CONTRACT_ROWS_KEY, readStored, writeStored } from "@/lib/local-storage"
-import { payErrorTone } from "@/lib/wizard"
+import { payErrorTone } from "@/lib/errors"
 import { ConfirmSheet } from "../confirm-sheet"
 import { ContractDetails } from "./contract-details"
 import { Hint } from "../hint"
@@ -166,6 +166,11 @@ interface ContractRowProps {
 const ContractRow = ({ contract, openKind, active, busy, copied, onCopy, onOpen, onAction, onAskWithdraw }: ContractRowProps) => {
   const { t } = useTranslation()
 
+  const act = (run: () => void) => (event: MouseEvent) => {
+    event.stopPropagation()
+    run()
+  }
+
   return (
     <article
       data-tone={contractTone(contract)}
@@ -205,7 +210,7 @@ const ContractRow = ({ contract, openKind, active, busy, copied, onCopy, onOpen,
       </TableCell>
 
       {!contract.closed && (
-        <div className={shared.tableActions}>
+        <div className={cx(shared.tableActions, styles.actions)}>
           {active ? (
             <Loader strokeWidth={2.5} aria-hidden="true" className={cx(shared.spinner, styles.actionsWait)} />
           ) : (
@@ -215,22 +220,20 @@ const ContractRow = ({ contract, openKind, active, busy, copied, onCopy, onOpen,
                 disabled={busy}
                 data-active={openKind === "extend" ? "" : undefined}
                 className={cx(shared.rowAction, styles.opened)}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onAction("extend")
-                }}
+                onClick={act(() => onAction("extend"))}
               >
                 {t("files.topup")}
               </button>
               <button
                 type="button"
                 disabled={busy}
-                className={shared.rowDanger}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onAskWithdraw()
-                }}
+                data-active={openKind === "edit" ? "" : undefined}
+                className={cx(shared.rowAction, styles.opened)}
+                onClick={act(() => onAction("edit"))}
               >
+                {t("files.edit")}
+              </button>
+              <button type="button" disabled={busy} className={shared.rowDanger} onClick={act(onAskWithdraw)}>
                 {t("files.withdraw")}
               </button>
             </>
@@ -255,6 +258,9 @@ interface ContractsListProps {
   editing: OpenEditor | null
   renderEditor: (contract: ContractRowData, kind: OpenEditor["kind"]) => ReactNode
   onRetry: () => void
+  onRenotify: () => void
+  notifyStatus: ContractsState["notifyStatus"]
+  onNotify: (contract: string, providers: string[]) => void
   onHideClosed: (value: boolean) => void
   onCopy: (value: string) => void
   onEditingChange: (editor: OpenEditor | null) => void
@@ -275,6 +281,9 @@ export const ContractsList = ({
   editing,
   renderEditor,
   onRetry,
+  onRenotify,
+  notifyStatus,
+  onNotify,
   onHideClosed,
   onCopy,
   onEditingChange,
@@ -329,10 +338,16 @@ export const ContractsList = ({
           tone={payErrorTone(error)}
           className={styles.error}
           action={
-            errorKind === "load" && (
+            errorKind === "load" ? (
               <button type="button" onClick={onRetry}>
                 {t("ui.retry")}
               </button>
+            ) : (
+              errorKind === "notify" && (
+                <button type="button" onClick={onRenotify}>
+                  {t("files.notifyAgain")}
+                </button>
+              )
             )
           }
         >
@@ -411,12 +426,20 @@ export const ContractsList = ({
       )}
 
       <Sheet open={infoContract !== null} title={t("files.details")} onClose={() => setInfoFor(null)}>
-        {infoContract && <ContractDetails contract={infoContract} copied={copied} onCopy={onCopy} />}
+        {infoContract && (
+          <ContractDetails
+            contract={infoContract}
+            copied={copied}
+            onCopy={onCopy}
+            notifyState={notifyStatus?.contract === infoContract.address ? notifyStatus.state : null}
+            onNotify={(providers) => onNotify(infoContract.address, providers)}
+          />
+        )}
       </Sheet>
 
       <Sheet
         open={editing !== null && editingContract !== null}
-        title={t(editing?.kind === "extend" ? "files.topupTitle" : "files.providersTitle")}
+        title={t(editing?.kind === "extend" ? "files.topupTitle" : "files.editTitle")}
         subject={editingContract ? shortenMiddle(editingContract.address, 6, 6) : undefined}
         wide={editing?.kind === "edit"}
         onClose={() => onEditingChange(null)}

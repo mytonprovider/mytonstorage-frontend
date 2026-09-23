@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useTonConnectUI } from "@tonconnect/ui-react"
 import type { BagInfoShort, ContractStatus, StorageContract, WalletTransaction } from "@/types/contract"
 import type { Tone } from "@/types/tone"
-import { failureStatus, fetchBagDetails, sessionEnded } from "./api"
+import { failureStatus, fetchBagDetails, notifyProviders, sessionEnded } from "./api"
 import type { ContractEconomics } from "./contracts-cache"
 import { dropEconomics, getEconomics, getStatuses, peekEconomics, readContractsCache, writeContractsCache } from "./contracts-cache"
 import { HIDE_CLOSED_KEY, readStored, writeStored } from "./local-storage"
@@ -10,7 +10,7 @@ import { forgetPendingFound, readPendingPaid } from "./paid-link"
 import type { TransactionsPage } from "./ton/toncenter"
 import { ChainRequestError, fetchTransactions } from "./ton/toncenter"
 import { sendAndConfirm, walletRefused, type WalletSender } from "./ton/transactions"
-import { CONFIRM_TIMEOUT, payErrorKey } from "./wizard"
+import { CONFIRM_TIMEOUT, payErrorKey } from "./errors"
 
 export const OPCODE_DEPLOY = "0x3dc680ae"
 export const OPCODE_CLOSE = "0x61fff683"
@@ -176,8 +176,14 @@ interface ContractsOptions {
 interface ContractsFailure {
   key: string
   status: number | null
-  kind: "load" | "action"
+  kind: "load" | "action" | "notify"
 }
+
+const notifyFailure = (error: unknown): ContractsFailure => ({
+  key: "errors.notifyFailed",
+  status: failureStatus(error),
+  kind: "notify",
+})
 
 export const loadFailure = (error: unknown): ContractsFailure => ({
   key: "errors.failedToLoadContracts",
@@ -191,22 +197,26 @@ export const actionFailure = (error: unknown): ContractsFailure => ({
   kind: "action",
 })
 
+type ActionResult = ContractsFailure | "refused" | null
+
+type ContractRunner = (contract: string, build: () => Promise<WalletTransaction>, notify?: string[]) => Promise<boolean>
+
 export const runContractAction = (
   lock: { current: string | null },
   sender: WalletSender,
   contract: string,
   build: () => Promise<WalletTransaction>,
-): Promise<ContractsFailure | null> | null => {
+): Promise<ActionResult> | null => {
   if (lock.current !== null) return null
   lock.current = contract
 
-  const settle = async (): Promise<ContractsFailure | null> => {
+  const settle = async (): Promise<ActionResult> => {
     try {
       const transaction = await build()
       const confirmed = await sendAndConfirm(sender, transaction, ACTION_TIMEOUT_MS)
       return confirmed ? null : { key: CONFIRM_TIMEOUT, status: null, kind: "action" }
     } catch (error) {
-      if (walletRefused(error)) return null
+      if (walletRefused(error)) return "refused"
       throw error
     } finally {
       lock.current = null
@@ -227,7 +237,17 @@ export interface ContractsState {
   hideClosed: boolean
   onHideClosed: (value: boolean) => void
   reload: () => void
-  run: (contract: string, build: () => Promise<WalletTransaction>) => Promise<void>
+  run: ContractRunner
+  notify: (contract: string, providers: string[]) => Promise<void>
+  notifyStatus: NotifyStatus | null
+  renotify: () => void
+}
+
+export type NotifyState = "sending" | "sent" | "failed"
+
+interface NotifyStatus {
+  contract: string
+  state: NotifyState
 }
 
 const hydrate = (owner: string): { headLt: string | null; deepLt: string | null; rows: ContractRow[] } => {
@@ -436,13 +456,32 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
 
   const reload = useCallback(() => setAttempt((value) => value + 1), [])
 
-  const run = async (contract: string, build: () => Promise<WalletTransaction>) => {
+  const unnotified = useRef<{ contract: string; providers: string[] } | null>(null)
+  const [notifyStatus, setNotifyStatus] = useState<NotifyStatus | null>(null)
+
+  const notify = async (contract: string, providers: string[]) => {
+    setNotifyStatus({ contract, state: "sending" })
+    try {
+      await notifyProviders(contract, providers)
+      unnotified.current = null
+      setFailure(null)
+      setNotifyStatus({ contract, state: "sent" })
+    } catch (error) {
+      unnotified.current = { contract, providers }
+      setNotifyStatus({ contract, state: "failed" })
+      if (!onUnauthorized(error)) setFailure(notifyFailure(error))
+    }
+  }
+
+  const run: ContractRunner = async (contract, build, providers) => {
     const pending = runContractAction(busyLock, tonConnectUI, contract, build)
-    if (!pending) return
+    if (!pending) return false
     setBusy(contract)
+    let confirmed = false
     try {
       const failure = await pending
-      if (failure) setFailure(failure)
+      if (failure === null) confirmed = true
+      else if (failure !== "refused") setFailure(failure)
     } catch (error) {
       if (!onUnauthorized(error)) setFailure(actionFailure(error))
     } finally {
@@ -452,6 +491,14 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
       if (running.current) void sync(running.current.signal)
       setBusy(null)
     }
+
+    if (confirmed && providers) await notify(contract, providers)
+    return confirmed
+  }
+
+  const renotify = () => {
+    const pending = unnotified.current
+    if (pending) void notify(pending.contract, pending.providers)
   }
 
   const onHideClosed = (value: boolean) => {
@@ -471,5 +518,8 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
     onHideClosed,
     reload,
     run,
+    notify,
+    notifyStatus,
+    renotify,
   }
 }

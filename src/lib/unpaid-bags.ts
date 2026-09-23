@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import type { UserBag } from "@/types/bag"
 import { deleteBag, failureStatus, fetchUnpaidBags, sessionEnded } from "./api"
 import { retryPendingPaid } from "./paid-link"
-import { UNAUTHORIZED, UNPAID_UNKNOWN } from "./wizard"
+import { UNAUTHORIZED, UNPAID_UNKNOWN } from "./errors"
 
 interface UnpaidFailure {
   key: string
