@@ -54,6 +54,7 @@
   },
   "upload": {
     "hint": "Drag files here or use the buttons below",
+    "optional": "optional",
     "files": "Upload file(s)",
     "folder": "Upload folder",
     "max": "Maximum bag size: {{size}}",

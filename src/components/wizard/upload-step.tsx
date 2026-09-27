@@ -342,6 +342,7 @@ export const UploadStep = ({
               <h2 className={shared.tableTitle}>
                 <FileText className={shared.titleIcon} aria-hidden="true" />
                 <span>{t("files.desc")}</span>
+                <span className={styles.optional}>({t("upload.optional")})</span>
               </h2>
             </div>
 

@@ -190,6 +190,11 @@
   pointer-events: none;
 }
 
+.optional {
+  font-weight: 400;
+  color: var(--text-3);
+}
+
 .counterOver {
   composes: inkDanger from "../shared.module.css";
 }
