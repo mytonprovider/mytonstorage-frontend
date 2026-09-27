@@ -29,7 +29,7 @@ export const applyServerDate = (header: string | null): void => {
 }
 
 const SECONDS_IN_HOUR = 3600
-const SECONDS_IN_MINUTE = 60
+export const SECONDS_IN_MINUTE = 60
 const SECONDS_IN_YEAR = 31536000
 
 const pad = (value: number): string => String(value).padStart(2, "0")
@@ -86,6 +86,8 @@ export const formatBytes = (bytes: number | null | undefined): string => {
   const { divisor, unit } = scaleFor(bytes)
   return `${formatScaled(bytes, divisor)} ${unit}`
 }
+
+export const formatBytesOrZero = (bytes: number): string => formatBytes(bytes) || `0 ${BYTE_UNITS[0]}`
 
 export const splitSpace = (bytes: number | null): { value: string; unit: string } => {
   if (bytes == null) return { value: "", unit: "" }

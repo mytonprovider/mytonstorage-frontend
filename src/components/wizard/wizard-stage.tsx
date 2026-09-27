@@ -34,6 +34,7 @@ export const WizardStage = ({ wizard, catalog, copied, onCopy, onOpenProvider, o
           files={data.files}
           description={data.description}
           progress={wizard.progress}
+          stats={wizard.uploadStats}
           error={wizard.uploadError}
           onPick={wizard.addFiles}
           onReplace={wizard.replaceFiles}

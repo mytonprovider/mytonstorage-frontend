@@ -10,7 +10,7 @@ import { nowSeconds, SECONDS_IN_DAY } from "./format"
 import { clearPendingPaid, contractDeployed, markPendingLinked, readPendingPaid, writePendingPaid, type DeployCheck } from "./paid-link"
 import { DEFAULT_PROOF_DAYS, DEFAULT_STORAGE_DAYS, gridDays, storageCost } from "./pricing"
 import { sendAndConfirm, waitForTransaction, walletRefused } from "./ton/transactions"
-import { mergeFiles, totalSize, uploadBag, type UploadHandle } from "./upload"
+import { mergeFiles, totalSize, uploadBag, useUploadStats, type UploadHandle, type UploadProgress } from "./upload"
 
 const BAG_ID_LENGTH = 64
 
@@ -106,6 +106,8 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
   const [paymentHashPending, setPaymentHashPending] = useState(false)
 
   const upload = useRef<UploadHandle | null>(null)
+  const sent = useRef<UploadProgress | null>(null)
+  const uploadStats = useUploadStats(sent, progress !== null)
   const { checking, invalidate, request: requestQuote } = useQuote()
 
   const left = useCountdown(deadline ?? 0)
@@ -209,7 +211,11 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
     const size = totalSize(data.files)
     const count = data.files.length
 
-    const handle = uploadBag(data.files, data.description, setProgress)
+    sent.current = null
+    const handle = uploadBag(data.files, data.description, (current) => {
+      sent.current = current
+      setProgress(Math.round((current.loaded / current.total) * 100))
+    })
     upload.current = handle
 
     handle.promise
@@ -433,6 +439,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
     bagSize,
     filesCount,
     progress,
+    uploadStats,
     deadline,
     expired,
     checking,
