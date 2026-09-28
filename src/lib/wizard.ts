@@ -5,7 +5,7 @@ import type { WalletTransaction } from "@/types/contract"
 import { ApiError, deleteBag, forgetOffers, initContract, markBagPaid, sessionEnded, useQuote } from "./api"
 import { useCountdown } from "./countdown"
 import { scrollToTop } from "./dom"
-import { checkErrorKey, deployFailureKey, OFFERS_INCOMPLETE, payErrorKey, UNAUTHORIZED, UNPAID_UNKNOWN, uploadErrorKey } from "./errors"
+import { checkErrorKey, deployFailureKey, OFFERS_INCOMPLETE, payErrorKey, UNAUTHORIZED, UNPAID_UNKNOWN, uploadErrorKey, uploadFailure, type UploadFailure } from "./errors"
 import { nowSeconds, SECONDS_IN_DAY } from "./format"
 import { clearPendingPaid, contractDeployed, markPendingLinked, readPendingPaid, writePendingPaid, type DeployCheck } from "./paid-link"
 import { DEFAULT_PROOF_DAYS, DEFAULT_STORAGE_DAYS, gridDays, storageCost } from "./pricing"
@@ -100,7 +100,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
   const [deadline, setDeadline] = useState<number | null>(null)
   const [gateBag, setGateBag] = useState<UserBag | null>(null)
   const [sending, setSending] = useState(false)
-  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<UploadFailure | null>(null)
   const [payError, setPayError] = useState<string | null>(null)
   const [paymentHash, setPaymentHash] = useState<string | null>(null)
   const [paymentHashPending, setPaymentHashPending] = useState(false)
@@ -155,7 +155,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
     (error: unknown) => {
       if (!sessionEnded(error)) return false
       dropSession()
-      setUploadError(UNAUTHORIZED)
+      setUploadError(uploadFailure(UNAUTHORIZED))
       signOut()
       return true
     },
@@ -236,7 +236,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
         if (error instanceof DOMException && error.name === "AbortError") return
         if (onUnauthorized(error)) return
         if (error instanceof ApiError && error.detail.includes("unpaid bags")) refreshUnpaid()
-        setUploadError(uploadErrorKey(error))
+        setUploadError(uploadFailure(uploadErrorKey(error), error))
       })
       .finally(() => {
         upload.current = null
@@ -245,7 +245,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
 
   const submitUpload = () => {
     if (!unpaidKnown) {
-      setUploadError(UNPAID_UNKNOWN)
+      setUploadError(uploadFailure(UNPAID_UNKNOWN))
       refreshUnpaid()
       return
     }
@@ -274,7 +274,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
         beginUpload()
       })
       .catch((error: unknown) => {
-        if (!onUnauthorized(error)) setUploadError("errors.uploadFailed")
+        if (!onUnauthorized(error)) setUploadError(uploadFailure("errors.removeFailed", error))
       })
   }
 
@@ -444,7 +444,9 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
     expired,
     checking,
     sending,
-    uploadError,
+    uploadError: uploadError?.key ?? null,
+    uploadErrorStatus: uploadError?.status ?? null,
+    uploadErrorDetail: uploadError?.detail ?? "",
     payError,
     paymentHash,
     paymentHashPending,

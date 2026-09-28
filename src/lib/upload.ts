@@ -82,7 +82,8 @@ export const uploadBag = (
 
     request.addEventListener("load", () => {
       if (request.status < 200 || request.status >= 300) {
-        reject(new ApiError(request.status, "POST", UPLOAD_PATH, errorDetailOf(request.responseText)))
+        const detail = errorDetailOf(request.responseText, request.getResponseHeader("Content-Type"))
+        reject(new ApiError(request.status, "POST", UPLOAD_PATH, detail))
         return
       }
       try {

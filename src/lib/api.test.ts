@@ -62,13 +62,18 @@ describe("sessionEnded", () => {
 
 describe("errorDetailOf", () => {
   it("pulls the error field out of a JSON body and ignores any other shape", () => {
-    expect(errorDetailOf('{"error":"bag not found"}')).toBe("bag not found")
-    expect(errorDetailOf('{"error":42}')).toBe("")
+    expect(errorDetailOf('{"error":"bag not found"}', "application/json")).toBe("bag not found")
+    expect(errorDetailOf('{"error":42}', "application/json")).toBe("")
   })
 
   it("trims a plain-text body and caps it at 300 characters", () => {
-    expect(errorDetailOf("  gateway timeout  ")).toBe("gateway timeout")
-    expect(errorDetailOf("x".repeat(400))).toBe("x".repeat(300))
+    expect(errorDetailOf("  gateway timeout  ", "text/plain; charset=utf-8")).toBe("gateway timeout")
+    expect(errorDetailOf("x".repeat(400), null)).toBe("x".repeat(300))
+  })
+
+  it("drops a proxy's HTML page instead of passing its markup on as the reason", () => {
+    expect(errorDetailOf("<html><title>502 Bad Gateway</title></html>", "text/html")).toBe("")
+    expect(errorDetailOf("size < 1", "text/plain")).toBe("size < 1")
   })
 })
 

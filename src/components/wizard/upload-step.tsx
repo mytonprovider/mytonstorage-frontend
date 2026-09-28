@@ -223,6 +223,8 @@ interface UploadStepProps {
   progress: number | null
   stats: UploadStats | null
   error: string | null
+  errorStatus: number | null
+  errorDetail: string
   onPick: (files: PickedFile[]) => void
   onReplace: (files: PickedFile[]) => void
   onRemove: (index: number) => void
@@ -238,6 +240,8 @@ export const UploadStep = ({
   progress,
   stats,
   error,
+  errorStatus,
+  errorDetail,
   onPick,
   onReplace,
   onRemove,
@@ -431,6 +435,12 @@ export const UploadStep = ({
       {error && (
         <Notice className={styles.notice} tone="red">
           {t(error, { max: MAX_BAG_FILES })}
+          {errorStatus !== null && (
+            <span className={shared.errorCode}>
+              {t("errors.statusCode", { status: errorStatus })}
+              {errorDetail && ` · ${errorDetail}`}
+            </span>
+          )}
         </Notice>
       )}
 
