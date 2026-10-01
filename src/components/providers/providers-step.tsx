@@ -283,7 +283,17 @@ export const ProvidersStep = ({
     const head = catalogRef.current?.firstElementChild
     const row = rowsRef.current?.firstElementChild
     if (!head || !row) return
-    setCatalogWindow(`${head.getBoundingClientRect().height + row.getBoundingClientRect().height * WINDOW_ROWS}px`)
+
+    const measure = () => {
+      const window = head.getBoundingClientRect().height + row.getBoundingClientRect().height * WINDOW_ROWS
+      if (window > 0) setCatalogWindow(`${window}px`)
+    }
+
+    const observer = new ResizeObserver(measure)
+    observer.observe(head)
+    observer.observe(row)
+
+    return () => observer.disconnect()
   }, [page.length])
 
   useEffect(() => {
