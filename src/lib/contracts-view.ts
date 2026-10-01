@@ -1,19 +1,22 @@
 import { contractVerdict, type ContractRow, type ContractVerdict } from "./contracts"
 import { paidDaysLeft } from "./pricing"
 
-export type StatusFilter = Exclude<ContractVerdict, "closed">
+export type StatusFilter = ContractVerdict
 
-export const STATUS_FILTERS: StatusFilter[] = ["stored", "partial", "starting", "lost", "unpaid", "notHired", "noData"]
+export const STATUS_FILTERS: StatusFilter[] = ["stored", "partial", "starting", "lost", "unpaid", "notHired", "noData", "closed"]
 
-export const matchesStatus = (row: ContractRow, status: StatusFilter, now: number): boolean =>
-  contractVerdict(row, now) === status
+export const matchesStatuses = (row: ContractRow, statuses: StatusFilter[], now: number): boolean => {
+  if (!statuses.length) return true
+  const verdict = contractVerdict(row, now)
+  return verdict !== null && statuses.includes(verdict)
+}
 
 export const statusCounts = (rows: ContractRow[], now: number): Record<StatusFilter, number> => {
-  const counts: Record<StatusFilter, number> = { stored: 0, partial: 0, starting: 0, lost: 0, unpaid: 0, notHired: 0, noData: 0 }
+  const counts: Record<StatusFilter, number> = { stored: 0, partial: 0, starting: 0, lost: 0, unpaid: 0, notHired: 0, noData: 0, closed: 0 }
 
   rows.forEach((row) => {
     const verdict = contractVerdict(row, now)
-    if (verdict !== null && verdict !== "closed") counts[verdict] += 1
+    if (verdict !== null) counts[verdict] += 1
   })
 
   return counts
@@ -85,7 +88,7 @@ export const sortContracts = (
 }
 
 export interface ListView {
-  status: StatusFilter | null
+  statuses: StatusFilter[]
   query: string
   field: ContractSortField
   direction: SortDirection
@@ -96,8 +99,8 @@ export const openContracts = (rows: ContractRow[], hideClosed: boolean): Contrac
   rows.filter((row) => !(hideClosed && row.closed))
 
 export const visibleContracts = (rows: ContractRow[], view: ListView, now: number): ContractRow[] => {
-  const kept = openContracts(rows, view.hideClosed).filter(
-    (row) => (view.status === null || matchesStatus(row, view.status, now)) && matchesQuery(row, view.query),
+  const kept = openContracts(rows, view.hideClosed && !view.statuses.includes("closed")).filter(
+    (row) => matchesStatuses(row, view.statuses, now) && matchesQuery(row, view.query),
   )
 
   return sortContracts(kept, view.field, view.direction, now)

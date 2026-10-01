@@ -8,6 +8,8 @@ import styles from "./menu.module.css"
 const GAP = 6
 
 interface MenuProps {
+  labels?: string[]
+  disabled?: boolean
   label: string
   active: boolean
   open: boolean
@@ -16,7 +18,7 @@ interface MenuProps {
   children: ReactNode
 }
 
-export const Menu = ({ label, active, open, onToggle, align = "left", children }: MenuProps) => {
+export const Menu = ({ label, labels, disabled, active, open, onToggle, align = "left", children }: MenuProps) => {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -59,11 +61,23 @@ export const Menu = ({ label, active, open, onToggle, align = "left", children }
         ref={triggerRef}
         type="button"
         aria-expanded={open}
+        disabled={disabled}
         onClick={onToggle}
         data-tone={active ? "accent" : "field"}
         className={styles.trigger}
       >
-        <span title={label} className={shared.ellipsis}>{label}</span>
+        <span className={shared.stack}>
+          <span title={label} className={shared.ellipsis}>
+            {label}
+          </span>
+          {labels && (
+            <span aria-hidden="true" className={shared.stackGhost}>
+              {labels.map((text) => (
+                <span key={text}>{text}</span>
+              ))}
+            </span>
+          )}
+        </span>
         <ChevronDown className={styles.chevron} aria-hidden="true" />
       </button>
       {open && (

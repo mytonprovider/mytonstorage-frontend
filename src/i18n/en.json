@@ -225,6 +225,8 @@
     "topupBounds": "From {{min}} to {{max}} GRAM.",
     "paidUntil": "Paid until",
     "statusAny": "Any status",
+    "statuses_one": "{{count}} status",
+    "statuses_other": "{{count}} statuses",
     "searchPlaceholder": "Contract address, bag ID, description",
     "noMatches": "Nothing found",
     "confirmations": "Checks",

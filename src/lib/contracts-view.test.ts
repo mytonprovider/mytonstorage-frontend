@@ -5,7 +5,7 @@ import {
   STATUS_FILTERS,
   isSortField,
   matchesQuery,
-  matchesStatus,
+  matchesStatuses,
   sortContracts,
   statusCounts,
   visibleContracts,
@@ -54,28 +54,40 @@ const notHired = row({ name: "Ggg", proofs: [] })
 
 const rows = [stored, partial, unpaid, lost, starting, noData, notHired]
 
-describe("matchesStatus", () => {
+describe("matchesStatuses", () => {
   it("names each row by the same verdict the badge shows", () => {
-    expect(matchesStatus(stored, "stored", NOW)).toBe(true)
-    expect(matchesStatus(partial, "partial", NOW)).toBe(true)
-    expect(matchesStatus(unpaid, "unpaid", NOW)).toBe(true)
-    expect(matchesStatus(lost, "lost", NOW)).toBe(true)
-    expect(matchesStatus(starting, "starting", NOW)).toBe(true)
-    expect(matchesStatus(noData, "noData", NOW)).toBe(true)
-    expect(matchesStatus(notHired, "notHired", NOW)).toBe(true)
+    expect(matchesStatuses(stored, ["stored"], NOW)).toBe(true)
+    expect(matchesStatuses(partial, ["partial"], NOW)).toBe(true)
+    expect(matchesStatuses(unpaid, ["unpaid"], NOW)).toBe(true)
+    expect(matchesStatuses(lost, ["lost"], NOW)).toBe(true)
+    expect(matchesStatuses(starting, ["starting"], NOW)).toBe(true)
+    expect(matchesStatuses(noData, ["noData"], NOW)).toBe(true)
+    expect(matchesStatuses(notHired, ["notHired"], NOW)).toBe(true)
+  })
+
+  it("keeps a row matching any of the chosen verdicts, and every row when none is chosen", () => {
+    expect(matchesStatuses(partial, ["unpaid", "partial"], NOW)).toBe(true)
+    expect(matchesStatuses(stored, ["unpaid", "partial"], NOW)).toBe(false)
+    expect(matchesStatuses(stored, [], NOW)).toBe(true)
+  })
+
+  it("keeps a row whose state was never read out of every chosen verdict", () => {
+    const unread = { ...row({ name: "Hhh" }), state: undefined }
+    expect(matchesStatuses(unread, ["noData"], NOW)).toBe(false)
+    expect(matchesStatuses(unread, [], NOW)).toBe(true)
   })
 })
 
 describe("statusCounts", () => {
   it("counts every verdict once and covers the whole list", () => {
     const counts = statusCounts(rows, NOW)
-    expect(counts).toEqual({ stored: 1, partial: 1, starting: 1, lost: 1, unpaid: 1, notHired: 1, noData: 1 })
+    expect(counts).toEqual({ stored: 1, partial: 1, starting: 1, lost: 1, unpaid: 1, notHired: 1, noData: 1, closed: 0 })
     expect(STATUS_FILTERS.reduce((sum, status) => sum + counts[status], 0)).toBe(rows.length)
   })
 
-  it("leaves closed rows and rows whose state was never read out of the counts", () => {
+  it("counts a closed row under its own word and leaves a row whose state was never read out", () => {
     const counts = statusCounts([...rows, { ...lost, closed: true }, { ...unpaid, state: undefined }], NOW)
-    expect(counts).toEqual(statusCounts(rows, NOW))
+    expect(counts).toEqual({ ...statusCounts(rows, NOW), closed: 1 })
   })
 })
 
@@ -164,21 +176,31 @@ describe("sortContracts", () => {
 })
 
 describe("visibleContracts", () => {
-  const view: ListView = { status: null, query: "", field: "createdAt", direction: "desc", hideClosed: true }
+  const view: ListView = { statuses: [], query: "", field: "createdAt", direction: "desc", hideClosed: true }
 
   it("applies the status, the query and the order in one pass", () => {
     const rows = [stored, partial, unpaid, { ...lost, closed: true }]
     expect(visibleContracts(rows, view, NOW)).toHaveLength(3)
-    expect(visibleContracts(rows, { ...view, status: "partial" }, NOW).map((row) => row.address)).toEqual([
+    expect(visibleContracts(rows, { ...view, statuses: ["partial"] }, NOW).map((row) => row.address)).toEqual([
       partial.address,
     ])
     expect(visibleContracts(rows, { ...view, query: "eqccc" }, NOW).map((row) => row.address)).toEqual([unpaid.address])
+    expect(visibleContracts(rows, { ...view, statuses: ["partial", "unpaid"] }, NOW).map((row) => row.address)).toEqual([
+      partial.address,
+      unpaid.address,
+    ])
   })
 
   it("narrows by the status and the query together", () => {
     const rows = [stored, partial, unpaid]
-    expect(visibleContracts(rows, { ...view, status: "partial", query: "eqaaa" }, NOW)).toHaveLength(0)
-    expect(visibleContracts(rows, { ...view, status: "partial", query: "eqbbb" }, NOW)).toHaveLength(1)
+    expect(visibleContracts(rows, { ...view, statuses: ["partial"], query: "eqaaa" }, NOW)).toHaveLength(0)
+    expect(visibleContracts(rows, { ...view, statuses: ["partial"], query: "eqbbb" }, NOW)).toHaveLength(1)
+  })
+
+  it("shows only the closed rows when asked for them, even with the closed ones hidden", () => {
+    const shut = { ...lost, closed: true }
+    const picked = visibleContracts([stored, partial, shut], { ...view, statuses: ["closed"] }, NOW)
+    expect(picked.map((row) => row.address)).toEqual([shut.address])
   })
 
   it("shows closed rows once the owner asks for them", () => {

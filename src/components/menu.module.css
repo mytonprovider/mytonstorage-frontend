@@ -40,6 +40,11 @@
   box-shadow: var(--focus-ring);
 }
 
+.trigger:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .chevron {
   flex: none;
   width: var(--icon-sm);

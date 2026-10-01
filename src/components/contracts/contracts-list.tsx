@@ -101,7 +101,7 @@ export const ContractsList = ({
   const [statusOpen, setStatusOpen] = useState(false)
   const [stored] = useState(storedView)
   const [shownLimit, setShownLimit] = useState(stored.rows || ROW_PORTION)
-  const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null)
+  const [picked, setPicked] = useState<StatusFilter[]>([])
   const [query, setQuery] = useState("")
   const [sortField, setSortField] = useState(stored.field)
   const [sortDirection, setSortDirection] = useState(stored.direction)
@@ -109,14 +109,18 @@ export const ContractsList = ({
   useDismiss(statusOpen, () => setStatusOpen(false))
 
   const statuses = useMemo(() => statusCounts(contracts, nowSeconds()), [contracts])
+  const options = useMemo(
+    () => STATUS_FILTERS.filter((option) => statuses[option] > 0 || picked.includes(option)),
+    [statuses, picked],
+  )
   const visible = useMemo(
     () =>
       visibleContracts(
         contracts,
-        { status: statusFilter, query, field: sortField, direction: sortDirection, hideClosed },
+        { statuses: picked, query, field: sortField, direction: sortDirection, hideClosed },
         nowSeconds(),
       ),
-    [contracts, statusFilter, query, sortField, sortDirection, hideClosed],
+    [contracts, picked, query, sortField, sortDirection, hideClosed],
   )
   const portion = visible.slice(0, shownLimit)
 
@@ -132,10 +136,9 @@ export const ContractsList = ({
   const infoContract = contracts.find((contract) => contract.address === infoFor) ?? null
   const editingContract = contracts.find((contract) => contract.address === editing?.address) ?? null
 
-  const pickStatus = (next: StatusFilter | null) => {
-    setStatusFilter(next)
+  const pickStatus = (option: StatusFilter) => {
+    setPicked((chosen) => (chosen.includes(option) ? chosen.filter((kept) => kept !== option) : [...chosen, option]))
     setShownLimit(ROW_PORTION)
-    setStatusOpen(false)
   }
 
   const search = (next: string) => {
@@ -144,7 +147,7 @@ export const ContractsList = ({
   }
 
   const reset = () => {
-    setStatusFilter(null)
+    setPicked([])
     setQuery("")
     setShownLimit(ROW_PORTION)
   }
@@ -219,7 +222,7 @@ export const ContractsList = ({
         </Notice>
       )}
 
-      {(contracts.length > ROW_PORTION || statusFilter !== null || query.trim() !== "") && (
+      {(contracts.length > ROW_PORTION || picked.length > 0 || query.trim() !== "") && (
         <div className={styles.tools}>
           <SearchField
             value={query}
@@ -228,19 +231,27 @@ export const ContractsList = ({
             className={cx(shared.searchFieldOnPage, styles.search)}
           />
           <Menu
-            label={statusFilter === null ? t("files.statusAny") : t(verdictWord(statusFilter))}
-            active={statusFilter !== null}
+            labels={[t("files.statusAny"), ...STATUS_FILTERS.map((option) => t(verdictWord(option))), t("files.statuses", { count: STATUS_FILTERS.length })]}
+            label={
+              picked.length === 0
+                ? t("files.statusAny")
+                : picked.length === 1
+                  ? t(verdictWord(picked[0]))
+                  : t("files.statuses", { count: picked.length })
+            }
+            active={picked.length > 0}
+            disabled={options.length === 0}
             open={statusOpen}
             onToggle={() => setStatusOpen(!statusOpen)}
           >
-            {STATUS_FILTERS.map((option) => (
+            {options.map((option) => (
               <MenuOption
                 key={option}
                 label={t(verdictWord(option))}
                 count={statuses[option]}
-                selected={statusFilter === option}
-                dimmed={statuses[option] === 0 && statusFilter !== option}
-                onToggle={() => pickStatus(statusFilter === option ? null : option)}
+                selected={picked.includes(option)}
+                dimmed={statuses[option] === 0}
+                onToggle={() => pickStatus(option)}
               />
             ))}
           </Menu>
@@ -249,7 +260,7 @@ export const ContractsList = ({
 
       {!loading && visible.length === 0 ? (
         <div className={shared.emptyState}>
-          {statusFilter !== null || query.trim() !== "" ? (
+          {picked.length > 0 || query.trim() !== "" ? (
             <>
               <p>{t("files.noMatches")}</p>
               <button type="button" onClick={reset} className={cx(shared.textDanger, styles.reset)}>
