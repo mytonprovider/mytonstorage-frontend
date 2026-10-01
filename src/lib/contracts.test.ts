@@ -751,9 +751,9 @@ describe("contractStatus", () => {
     expect(contractStatus(row(undefined), NOW)).toBeNull()
   })
 
-  it("tells a chain that answered nothing from a contract left with nobody to store the bag", () => {
+  it("tells a chain that answered nothing from a contract with nobody hired", () => {
     expect(contractStatus(row(null), NOW)).toEqual({ tone: "gray", word: "status.noData" })
-    expect(contractStatus(row(stateWith(rich)), NOW)).toEqual({ tone: "red", word: "files.statusNone" })
+    expect(contractStatus(row(stateWith(rich)), NOW)).toEqual({ tone: "gray", word: "files.statusNotHired" })
   })
 
   it("gives a provider a day to download before it has to prove anything", () => {
@@ -770,14 +770,6 @@ describe("contractStatus", () => {
     const huge = (proof: number) => ({ ...stateWith(rich, proof), fileSize: 1024 * BYTES_IN_GIB })
     expect(verdictOf(row(huge(0), NOW - 2 * 86400), NOW)).toBe("files.statusStarting")
     expect(verdictOf(row(huge(0), NOW - 3 * 86400), NOW)).toBe("files.statusNone")
-  })
-
-  it("never stretches that window past the period, since the proof falls due with it", () => {
-    const span = 2 * 86400
-    const size = 1024 * BYTES_IN_GIB
-    const huge = { ...state, fileSize: size, balance: 10 * fullBounty(size, rate, span), providers: [provider(0, span)] }
-    expect(verdictOf(row(huge, NOW - span + 3600), NOW)).toBe("files.statusStarting")
-    expect(verdictOf(row(huge, NOW - span - 7200), NOW)).toBe("files.statusNone")
   })
 
   it("counts that wait from the last change of the set, since a change resets the proofs", () => {
@@ -812,6 +804,14 @@ describe("contractStatus", () => {
     const owed = fullBounty(BYTES_IN_GIB, rate, week)
     expect(verdictOf(row(stateWith(owed + CONTRACT_RESERVE - 1, late)), NOW)).toBe("files.statusUnpaid")
     expect(verdictOf(row(stateWith(owed + CONTRACT_RESERVE, late)), NOW)).not.toBe("files.statusUnpaid")
+  })
+
+  it("never stretches that window past the period, since the proof falls due with it", () => {
+    const span = 2 * 86400
+    const size = 1024 * BYTES_IN_GIB
+    const huge = { ...state, fileSize: size, balance: 10 * fullBounty(size, rate, span), providers: [provider(0, span)] }
+    expect(verdictOf(row(huge, NOW - span + 3600), NOW)).toBe("files.statusStarting")
+    expect(verdictOf(row(huge, NOW - span - 7200), NOW)).toBe("files.statusNone")
   })
 
   it("cuts the download window to a day once the catalog checked everyone and confirmed nobody", () => {

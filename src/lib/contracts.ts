@@ -332,7 +332,7 @@ const unpaid = (state: ContractState, hired: number, now: number): boolean => {
   )
 }
 
-export type ContractVerdict = "closed" | "noData" | "unpaid" | "stored" | "partial" | "starting" | "lost"
+export type ContractVerdict = "closed" | "noData" | "unpaid" | "notHired" | "stored" | "partial" | "starting" | "lost"
 
 export const contractVerdict = (
   contract: Pick<ContractRow, "closed" | "state" | "createdAt" | "lastEventAt" | "valid" | "total">,
@@ -343,7 +343,7 @@ export const contractVerdict = (
   const state = contract.state
   if (state === undefined) return null
   if (state === null) return "noData"
-  if (!state.providers.length) return "lost"
+  if (!state.providers.length) return "notHired"
 
   const hired = hiredAt(contract)
   if (unpaid(state, hired, now)) return "unpaid"
@@ -362,6 +362,7 @@ const VERDICT_LOOK: Record<ContractVerdict, { tone: Tone; word: string }> = {
   closed: { tone: "gray", word: "files.closed" },
   noData: { tone: "gray", word: "status.noData" },
   unpaid: { tone: "red", word: "files.statusUnpaid" },
+  notHired: { tone: "gray", word: "files.statusNotHired" },
   stored: { tone: "green", word: "files.statusStored" },
   partial: { tone: "yellow", word: "files.statusPartial" },
   starting: { tone: "orange", word: "files.statusStarting" },

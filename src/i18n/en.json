@@ -179,6 +179,7 @@
     "statusPartial": "Partial",
     "statusStarting": "Downloading",
     "statusUnpaid": "Not paid",
+    "statusNotHired": "No providers",
     "topup": "Extend",
     "withdraw": "Close",
     "closed": "Closed",

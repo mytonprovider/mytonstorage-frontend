@@ -50,8 +50,9 @@ const unpaid = row({ name: "Ccc", proofs: [NOW - WEEK - PROOF_GRACE_SECONDS - 60
 const lost = row({ name: "Ddd", proofs: [NOW - 3 * WEEK], balance: 400 * MIN_BOUNTY })
 const starting = row({ name: "Eee", proofs: [0], createdAt: NOW - 3600, valid: 0, total: 1 })
 const noData = row({ name: "Fff", state: null })
+const notHired = row({ name: "Ggg", proofs: [] })
 
-const rows = [stored, partial, unpaid, lost, starting, noData]
+const rows = [stored, partial, unpaid, lost, starting, noData, notHired]
 
 describe("matchesStatus", () => {
   it("names each row by the same verdict the badge shows", () => {
@@ -61,13 +62,14 @@ describe("matchesStatus", () => {
     expect(matchesStatus(lost, "lost", NOW)).toBe(true)
     expect(matchesStatus(starting, "starting", NOW)).toBe(true)
     expect(matchesStatus(noData, "noData", NOW)).toBe(true)
+    expect(matchesStatus(notHired, "notHired", NOW)).toBe(true)
   })
 })
 
 describe("statusCounts", () => {
   it("counts every verdict once and covers the whole list", () => {
     const counts = statusCounts(rows, NOW)
-    expect(counts).toEqual({ stored: 1, partial: 1, starting: 1, lost: 1, unpaid: 1, noData: 1 })
+    expect(counts).toEqual({ stored: 1, partial: 1, starting: 1, lost: 1, unpaid: 1, notHired: 1, noData: 1 })
     expect(STATUS_FILTERS.reduce((sum, status) => sum + counts[status], 0)).toBe(rows.length)
   })
 
@@ -118,9 +120,12 @@ describe("sortContracts", () => {
   })
 
   it("orders the statuses by how bad they are", () => {
-    expect(names(sortContracts([stored, partial, unpaid], "status", "asc", NOW))).toEqual([
+    expect(names(sortContracts([stored, starting, partial, notHired, unpaid, lost], "status", "asc", NOW))).toEqual([
       unpaid.address,
+      lost.address,
+      notHired.address,
       partial.address,
+      starting.address,
       stored.address,
     ])
   })

@@ -3,13 +3,13 @@ import { paidDaysLeft } from "./pricing"
 
 export type StatusFilter = Exclude<ContractVerdict, "closed">
 
-export const STATUS_FILTERS: StatusFilter[] = ["stored", "partial", "starting", "lost", "unpaid", "noData"]
+export const STATUS_FILTERS: StatusFilter[] = ["stored", "partial", "starting", "lost", "unpaid", "notHired", "noData"]
 
 export const matchesStatus = (row: ContractRow, status: StatusFilter, now: number): boolean =>
   contractVerdict(row, now) === status
 
 export const statusCounts = (rows: ContractRow[], now: number): Record<StatusFilter, number> => {
-  const counts: Record<StatusFilter, number> = { stored: 0, partial: 0, starting: 0, lost: 0, unpaid: 0, noData: 0 }
+  const counts: Record<StatusFilter, number> = { stored: 0, partial: 0, starting: 0, lost: 0, unpaid: 0, notHired: 0, noData: 0 }
 
   rows.forEach((row) => {
     const verdict = contractVerdict(row, now)
@@ -36,11 +36,12 @@ export const isSortField = (value: string): value is ContractSortField => SORT_F
 const HEAVINESS: Record<ContractVerdict, number> = {
   unpaid: 0,
   lost: 1,
-  partial: 2,
-  starting: 3,
-  stored: 4,
-  noData: 5,
-  closed: 6,
+  notHired: 2,
+  partial: 3,
+  starting: 4,
+  stored: 5,
+  noData: 6,
+  closed: 7,
 }
 
 const NO_VALUE = Number.MAX_SAFE_INTEGER

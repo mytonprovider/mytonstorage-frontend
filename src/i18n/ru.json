@@ -185,6 +185,7 @@
     "statusPartial": "Частично",
     "statusStarting": "Скачивается",
     "statusUnpaid": "Не оплачен",
+    "statusNotHired": "Нет набора",
     "topup": "Продлить",
     "withdraw": "Закрыть",
     "closed": "Закрыт",
