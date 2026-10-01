@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useContracts } from "@/lib/contracts"
+import { openContracts } from "@/lib/contracts-view"
 import { useCopyFeedback } from "@/lib/dom"
 import { stubOf, useProviderCatalog } from "@/lib/providers"
 import { useSession, walletExpected } from "@/lib/session"
@@ -8,7 +9,6 @@ import { useTheme } from "@/lib/theme"
 import { useUnpaidBags } from "@/lib/unpaid-bags"
 import { useWizardFlow } from "@/lib/wizard"
 import { BackToTop } from "@/components/back-to-top"
-import { visibleContracts } from "@/components/contracts/contracts-list"
 import { FilesStage } from "@/components/files/files-stage"
 import { Footer } from "@/components/footer"
 import { Header } from "@/components/header"
@@ -47,7 +47,7 @@ export const App = () => {
   })
   const contracts = useContracts({ owner: authorized ? address : "", onUnauthorized: wizard.onUnauthorized })
 
-  const filesShown = unpaid.bags.length + visibleContracts(contracts.list, contracts.hideClosed).length
+  const filesShown = unpaid.bags.length + openContracts(contracts.list, contracts.hideClosed).length
 
   const openProvider = useMemo(() => {
     if (openProviderKey === null) return null

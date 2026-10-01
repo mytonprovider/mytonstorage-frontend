@@ -1,0 +1,103 @@
+import { contractVerdict, type ContractRow, type ContractVerdict } from "./contracts"
+import { paidDaysLeft } from "./pricing"
+
+export type StatusFilter = Exclude<ContractVerdict, "closed">
+
+export const STATUS_FILTERS: StatusFilter[] = ["stored", "partial", "starting", "lost", "unpaid", "noData"]
+
+export const matchesStatus = (row: ContractRow, status: StatusFilter, now: number): boolean =>
+  contractVerdict(row, now) === status
+
+export const statusCounts = (rows: ContractRow[], now: number): Record<StatusFilter, number> => {
+  const counts: Record<StatusFilter, number> = { stored: 0, partial: 0, starting: 0, lost: 0, unpaid: 0, noData: 0 }
+
+  rows.forEach((row) => {
+    const verdict = contractVerdict(row, now)
+    if (verdict !== null && verdict !== "closed") counts[verdict] += 1
+  })
+
+  return counts
+}
+
+export const matchesQuery = (row: ContractRow, query: string): boolean => {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return true
+
+  return [row.address, row.bagId, row.description].some((value) => value.toLowerCase().includes(needle))
+}
+
+const SORT_FIELDS = ["createdAt", "address", "desc", "paidUntil", "size", "checks", "status"] as const
+
+export type ContractSortField = (typeof SORT_FIELDS)[number]
+export type SortDirection = "asc" | "desc"
+
+export const isSortField = (value: string): value is ContractSortField => SORT_FIELDS.some((field) => field === value)
+
+const HEAVINESS: Record<ContractVerdict, number> = {
+  unpaid: 0,
+  lost: 1,
+  partial: 2,
+  starting: 3,
+  stored: 4,
+  noData: 5,
+  closed: 6,
+}
+
+const NO_VALUE = Number.MAX_SAFE_INTEGER
+
+const valueOf = (row: ContractRow, field: ContractSortField, now: number): number | string => {
+  switch (field) {
+    case "createdAt":
+      return row.createdAt
+    case "address":
+      return row.address
+    case "desc":
+      return row.description
+    case "size":
+      return row.size || row.state?.fileSize || 0
+    case "checks":
+      return row.total > 0 ? row.valid / row.total : NO_VALUE
+    case "status": {
+      const verdict = contractVerdict(row, now)
+      return verdict === null ? HEAVINESS.noData : HEAVINESS[verdict]
+    }
+    case "paidUntil": {
+      if (row.closed || !row.state) return NO_VALUE
+      const left = paidDaysLeft(row.state.fileSize, row.state.providers, row.state.balance, now)
+      return left ?? 0
+    }
+  }
+}
+
+export const sortContracts = (
+  rows: ContractRow[],
+  field: ContractSortField,
+  direction: SortDirection,
+  now: number,
+): ContractRow[] => {
+  const sign = direction === "asc" ? 1 : -1
+  return [...rows].sort((a, b) => {
+    const left = valueOf(a, field, now)
+    const right = valueOf(b, field, now)
+    return typeof left === "string" ? left.localeCompare(right as string) * sign : (left - (right as number)) * sign
+  })
+}
+
+export interface ListView {
+  status: StatusFilter | null
+  query: string
+  field: ContractSortField
+  direction: SortDirection
+  hideClosed: boolean
+}
+
+export const openContracts = (rows: ContractRow[], hideClosed: boolean): ContractRow[] =>
+  rows.filter((row) => !(hideClosed && row.closed))
+
+export const visibleContracts = (rows: ContractRow[], view: ListView, now: number): ContractRow[] => {
+  const kept = openContracts(rows, view.hideClosed).filter(
+    (row) => (view.status === null || matchesStatus(row, view.status, now)) && matchesQuery(row, view.query),
+  )
+
+  return sortContracts(kept, view.field, view.direction, now)
+}

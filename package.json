@@ -20,7 +20,9 @@
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@ton/core": "^0.63.1",
     "@tonconnect/ui-react": "^2.3.1",
+    "buffer": "^6.0.3",
     "i18next": "^25.7.2",
     "lucide-react": "^0.454.0",
     "react": "^19.1.0",

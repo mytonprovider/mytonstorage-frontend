@@ -1,247 +1,49 @@
-import { useEffect, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react"
-import { Check, Loader, ScrollText } from "lucide-react"
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react"
+import { Check, RefreshCw, ScrollText } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
+import { verdictWord, type ContractRow as ContractRowData, type ContractsState } from "@/lib/contracts"
 import {
-  LOW_BALANCE_DAYS,
-  contractTone,
-  scanUrl,
-  type ContractRow as ContractRowData,
-  type ContractsState,
-} from "@/lib/contracts"
-import { MIB, SECONDS_IN_DAY, formatBytes, formatDate, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
-import { dailyCost, paidDaysLeft, proofDelays } from "@/lib/pricing"
-import { CONTRACT_ROWS_KEY, readStored, writeStored } from "@/lib/local-storage"
+  STATUS_FILTERS,
+  isSortField,
+  statusCounts,
+  visibleContracts,
+  type ContractSortField,
+  type SortDirection,
+  type StatusFilter,
+} from "@/lib/contracts-view"
+import { nowSeconds, shortenMiddle } from "@/lib/format"
+import { readListView, writeListView } from "@/lib/local-storage"
 import { payErrorTone } from "@/lib/errors"
+import { useDismiss } from "@/lib/dismiss"
+import { COLUMNS, ContractRow, SkeletonRow, type EditorKind } from "./contract-row"
 import { ConfirmSheet } from "../confirm-sheet"
 import { ContractDetails } from "./contract-details"
-import { Hint } from "../hint"
+import { Menu, MenuOption } from "../menu"
 import { Notice } from "../notice"
+import { SearchField } from "../search-field"
 import { Sheet } from "../sheet"
-import { GhostCopy, GhostValue, Ratio, TableCell, TableLead, activateOnKey } from "../table"
+import { SortColumn } from "../sort-column"
 import shared from "../shared.module.css"
 import styles from "./contracts-list.module.css"
 
 const SKELETON_ROWS = 3
 const ROW_PORTION = 10
+const ASC_FIRST: ContractSortField[] = ["status", "paidUntil", "checks", "address", "desc"]
 
-const storedRows = (): number => {
-  const stored = Number(readStored(CONTRACT_ROWS_KEY))
-  return Number.isInteger(stored) && stored > 0 ? Math.ceil(stored / ROW_PORTION) * ROW_PORTION : 0
+const storedView = (): { rows: number; field: ContractSortField; direction: SortDirection } => {
+  const { shown, sort, dir } = readListView()
+
+  return {
+    rows: shown > 0 ? Math.ceil(shown / ROW_PORTION) * ROW_PORTION : 0,
+    field: isSortField(sort) ? sort : "createdAt",
+    direction: dir === "asc" ? "asc" : "desc",
+  }
 }
 
 export interface OpenEditor {
   address: string
-  kind: "edit" | "extend"
-}
-
-export const visibleContracts = (contracts: ContractRowData[], hideClosed: boolean): ContractRowData[] =>
-  contracts.filter((contract) => !(hideClosed && contract.closed))
-
-const WIDEST_ADDRESS = "E".repeat(48)
-const WIDEST_DESC = "archive-2026-01.tar.zst"
-const WIDEST_SIZE = 999.99 * MIB
-
-const useSkeletonSample = (): Record<string, string> => {
-  const { i18n } = useTranslation()
-
-  return {
-    "files.contract": shortenMiddle(WIDEST_ADDRESS, 6, 6),
-    "files.desc": WIDEST_DESC,
-    "files.size": formatBytes(WIDEST_SIZE),
-    "files.paidUntil": formatDate(nowSeconds(), i18n.language),
-  }
-}
-
-const STATUS_WORDS = {
-  green: "files.statusStored",
-  yellow: "status.partial",
-  red: "files.statusNone",
-  orange: "files.statusChecking",
-  gray: "files.statusChecking",
-} as const
-
-const PILL_WORDS = ["files.statusStored", "status.partial", "files.statusNone", "files.statusChecking", "files.closed"]
-
-const StatusPill = ({ wordKey }: { wordKey: string }) => {
-  const { t } = useTranslation()
-
-  return (
-    <span className={shared.badge}>
-      <span className={shared.dot} aria-hidden="true" />
-      <span className={styles.pillStack}>
-        <span className={shared.ellipsis}>{t(wordKey)}</span>
-        <span className={styles.pillGhost} aria-hidden="true">
-          {PILL_WORDS.map((key) => (
-            <span key={key}>{t(key)}</span>
-          ))}
-        </span>
-      </span>
-    </span>
-  )
-}
-
-const SkeletonRow = () => {
-  const { t } = useTranslation()
-  const sample = useSkeletonSample()
-
-  return (
-    <div className={styles.item}>
-      <article aria-hidden="true" className={styles.card}>
-        <span className={shared.tableLead}>
-          <GhostValue sample={sample["files.contract"]} />
-          <GhostCopy />
-        </span>
-
-        <span className={styles.statusCell}>
-          <span className={styles.statusGhost}>
-            <StatusPill wordKey="files.statusStored" />
-          </span>
-        </span>
-
-        {["files.desc", "files.size", "files.paidUntil"].map((label) => (
-          <TableCell key={label} ghost label={t(label)}>
-            <GhostValue sample={sample[label]} />
-          </TableCell>
-        ))}
-
-        <TableCell ghost label={t("files.confirmations")}>
-          <span className={cx(shared.ratio, shared.shape)}>5 / 5</span>
-        </TableCell>
-      </article>
-    </div>
-  )
-}
-
-const PaidUntil = ({ contract }: { contract: ContractRowData }) => {
-  const { t, i18n } = useTranslation()
-  const sample = useSkeletonSample()
-  const label = t("files.paidUntil")
-
-  if (!contract.closed && contract.economics === undefined) {
-    return (
-      <TableCell label={label}>
-        <GhostValue sample={sample["files.paidUntil"]} />
-      </TableCell>
-    )
-  }
-
-  const economics = contract.closed ? null : (contract.economics ?? null)
-  const now = nowSeconds()
-  const paidDays = economics
-    ? paidDaysLeft(
-        economics.fileSize,
-        economics.ratesPerMibDay,
-        economics.spans,
-        economics.balance,
-        proofDelays(economics.spans, economics.lastProofs, now),
-      )
-    : null
-  if (!economics || paidDays === null) return <TableCell label={label} value="" />
-
-  const perDay = dailyCost(economics.fileSize, economics.ratesPerMibDay)
-  const title = `${t("details.balance")}: ${tonLabel(economics.balance)} · ${t("details.perDay")}: ${tonLabel(perDay, 6)}`
-
-  return (
-    <TableCell label={label}>
-      <span title={title} className={cx(shared.tableValue, paidDays < LOW_BALANCE_DAYS && styles.paidLow)}>
-        {formatDate(now + paidDays * SECONDS_IN_DAY, i18n.language)}
-      </span>
-    </TableCell>
-  )
-}
-
-interface ContractRowProps {
-  contract: ContractRowData
-  openKind: OpenEditor["kind"] | null
-  active: boolean
-  busy: boolean
-  copied: string | null
-  onCopy: (value: string) => void
-  onOpen: () => void
-  onAction: (kind: OpenEditor["kind"]) => void
-  onAskWithdraw: () => void
-}
-
-const ContractRow = ({ contract, openKind, active, busy, copied, onCopy, onOpen, onAction, onAskWithdraw }: ContractRowProps) => {
-  const { t } = useTranslation()
-
-  const act = (run: () => void) => (event: MouseEvent) => {
-    event.stopPropagation()
-    run()
-  }
-
-  return (
-    <article
-      data-tone={contractTone(contract)}
-      role="button"
-      tabIndex={0}
-      aria-label={`${t("files.details")} ${shortenMiddle(contract.address, 6, 6)}`}
-      aria-haspopup="dialog"
-      onClick={onOpen}
-      onKeyDown={activateOnKey(onOpen)}
-      className={cx(styles.card, openKind !== null && styles.cardOpen)}
-    >
-      <TableLead
-        shortValue={shortenMiddle(contract.address, 6, 6)}
-        title={contract.address}
-        href={scanUrl(contract.address)}
-        copy={contract.address}
-        copied={copied}
-        onCopy={onCopy}
-      />
-
-      <span className={styles.statusCell}>
-        <StatusPill wordKey={contract.closed ? "files.closed" : STATUS_WORDS[contractTone(contract)]} />
-      </span>
-
-      <TableCell
-        label={t("files.desc")}
-        value={contract.description}
-        title={contract.description || undefined}
-      />
-
-      <TableCell label={t("files.size")} value={formatBytes(contract.size)} />
-
-      <PaidUntil contract={contract} />
-
-      <TableCell label={t("files.confirmations")}>
-        {contract.closed ? null : <Ratio valid={contract.valid} total={contract.total} />}
-      </TableCell>
-
-      {!contract.closed && (
-        <div className={cx(shared.tableActions, styles.actions)}>
-          {active ? (
-            <Loader strokeWidth={2.5} aria-hidden="true" className={cx(shared.spinner, styles.actionsWait)} />
-          ) : (
-            <>
-              <button
-                type="button"
-                disabled={busy}
-                data-active={openKind === "extend" ? "" : undefined}
-                className={cx(shared.rowAction, styles.opened)}
-                onClick={act(() => onAction("extend"))}
-              >
-                {t("files.topup")}
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                data-active={openKind === "edit" ? "" : undefined}
-                className={cx(shared.rowAction, styles.opened)}
-                onClick={act(() => onAction("edit"))}
-              >
-                {t("files.edit")}
-              </button>
-              <button type="button" disabled={busy} className={shared.rowDanger} onClick={act(onAskWithdraw)}>
-                {t("files.withdraw")}
-              </button>
-            </>
-          )}
-        </div>
-      )}
-    </article>
-  )
+  kind: EditorKind
 }
 
 interface ContractsListProps {
@@ -251,13 +53,15 @@ interface ContractsListProps {
   status: number | null
   errorKind: ContractsState["errorKind"]
   hideClosed: boolean
-  hasMore: boolean
   hasUnpaid: boolean
   busy: string | null
   copied: string | null
   editing: OpenEditor | null
   renderEditor: (contract: ContractRowData, kind: OpenEditor["kind"]) => ReactNode
   onRetry: () => void
+  onRefresh: () => void
+  refreshing: boolean
+  onShown: (addresses: string[]) => void
   onRenotify: () => void
   notifyStatus: ContractsState["notifyStatus"]
   onNotify: (contract: string, providers: string[]) => void
@@ -274,13 +78,15 @@ export const ContractsList = ({
   status,
   errorKind,
   hideClosed,
-  hasMore,
   hasUnpaid,
   busy,
   copied,
   editing,
   renderEditor,
   onRetry,
+  onRefresh,
+  refreshing,
+  onShown,
   onRenotify,
   notifyStatus,
   onNotify,
@@ -292,19 +98,70 @@ export const ContractsList = ({
   const { t } = useTranslation()
   const [withdrawFor, setWithdrawFor] = useState<string | null>(null)
   const [infoFor, setInfoFor] = useState<string | null>(null)
-  const [restored] = useState(storedRows)
-  const [shownLimit, setShownLimit] = useState(restored || ROW_PORTION)
+  const [statusOpen, setStatusOpen] = useState(false)
+  const [stored] = useState(storedView)
+  const [shownLimit, setShownLimit] = useState(stored.rows || ROW_PORTION)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null)
+  const [query, setQuery] = useState("")
+  const [sortField, setSortField] = useState(stored.field)
+  const [sortDirection, setSortDirection] = useState(stored.direction)
 
-  const visible = visibleContracts(contracts, hideClosed)
+  useDismiss(statusOpen, () => setStatusOpen(false))
+
+  const statuses = useMemo(() => statusCounts(contracts, nowSeconds()), [contracts])
+  const visible = useMemo(
+    () =>
+      visibleContracts(
+        contracts,
+        { status: statusFilter, query, field: sortField, direction: sortDirection, hideClosed },
+        nowSeconds(),
+      ),
+    [contracts, statusFilter, query, sortField, sortDirection, hideClosed],
+  )
   const portion = visible.slice(0, shownLimit)
 
   useEffect(() => {
-    if (portion.length > 0) writeStored(CONTRACT_ROWS_KEY, String(portion.length))
+    if (portion.length > 0) writeListView({ shown: portion.length })
   }, [portion.length])
 
-  const digging = hasMore && portion.length >= visible.length
+  const shownKey = portion.map((contract) => contract.address).join(" ")
+  useEffect(() => {
+    onShown(shownKey ? shownKey.split(" ") : [])
+  }, [shownKey, onShown])
+
   const infoContract = contracts.find((contract) => contract.address === infoFor) ?? null
   const editingContract = contracts.find((contract) => contract.address === editing?.address) ?? null
+
+  const pickStatus = (next: StatusFilter | null) => {
+    setStatusFilter(next)
+    setShownLimit(ROW_PORTION)
+    setStatusOpen(false)
+  }
+
+  const search = (next: string) => {
+    setQuery(next)
+    setShownLimit(ROW_PORTION)
+  }
+
+  const reset = () => {
+    setStatusFilter(null)
+    setQuery("")
+    setShownLimit(ROW_PORTION)
+  }
+
+  const orderBy = (field: ContractSortField, direction: SortDirection) => {
+    setSortField(field)
+    setSortDirection(direction)
+    setShownLimit(ROW_PORTION)
+    writeListView({ sort: field, dir: direction })
+  }
+
+  const sort = (field: ContractSortField) => {
+    const first: SortDirection = ASC_FIRST.includes(field) ? "asc" : "desc"
+    if (sortField !== field) return orderBy(field, first)
+    if (sortDirection === first) return orderBy(field, first === "asc" ? "desc" : "asc")
+    orderBy("createdAt", "desc")
+  }
 
   const toggleFor = (address: string, kind: OpenEditor["kind"]) => {
     const same = editing !== null && editing.address === address && editing.kind === kind
@@ -319,18 +176,24 @@ export const ContractsList = ({
           <span>{t("files.title")}</span>
         </h2>
         <span className={shared.spacer} />
-        <button
-          type="button"
-          role="checkbox"
-          aria-checked={hideClosed}
-          onClick={() => onHideClosed(!hideClosed)}
-          className={styles.toggle}
-        >
-          <span className={cx(shared.check, hideClosed && shared.checkOn)}>
-            {hideClosed && <Check strokeWidth={3.5} className={shared.checkIcon} aria-hidden="true" />}
-          </span>
-          <span>{t("files.hideClosed")}</span>
-        </button>
+        <div className={styles.headActions}>
+          <button type="button" disabled={refreshing} onClick={onRefresh} className={styles.toggle}>
+            <RefreshCw aria-hidden="true" className={cx(styles.refreshIcon, refreshing && shared.spinner)} />
+            <span>{t("files.refresh")}</span>
+          </button>
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={hideClosed}
+            onClick={() => onHideClosed(!hideClosed)}
+            className={styles.toggle}
+          >
+            <span className={cx(shared.check, hideClosed && shared.checkOn)}>
+              {hideClosed && <Check strokeWidth={3.5} className={shared.checkIcon} aria-hidden="true" />}
+            </span>
+            <span>{t("files.hideClosed")}</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -356,37 +219,77 @@ export const ContractsList = ({
         </Notice>
       )}
 
-      {!loading && !hasMore && visible.length === 0 ? (
+      {(contracts.length > ROW_PORTION || statusFilter !== null || query.trim() !== "") && (
+        <div className={styles.tools}>
+          <SearchField
+            value={query}
+            onChange={search}
+            placeholder={t("files.searchPlaceholder")}
+            className={cx(shared.searchFieldOnPage, styles.search)}
+          />
+          <Menu
+            label={statusFilter === null ? t("files.statusAny") : t(verdictWord(statusFilter))}
+            active={statusFilter !== null}
+            open={statusOpen}
+            onToggle={() => setStatusOpen(!statusOpen)}
+          >
+            {STATUS_FILTERS.map((option) => (
+              <MenuOption
+                key={option}
+                label={t(verdictWord(option))}
+                count={statuses[option]}
+                selected={statusFilter === option}
+                dimmed={statuses[option] === 0 && statusFilter !== option}
+                onToggle={() => pickStatus(statusFilter === option ? null : option)}
+              />
+            ))}
+          </Menu>
+        </div>
+      )}
+
+      {!loading && visible.length === 0 ? (
         <div className={shared.emptyState}>
-          <p>{t("files.empty")}</p>
-          <p className={shared.emptyHint}>{t(hasUnpaid ? "files.emptyUnpaid" : "files.emptyHint")}</p>
+          {statusFilter !== null || query.trim() !== "" ? (
+            <>
+              <p>{t("files.noMatches")}</p>
+              <button type="button" onClick={reset} className={cx(shared.textDanger, styles.reset)}>
+                {t("ui.reset")}
+              </button>
+            </>
+          ) : (
+            <>
+              <p>{t("files.empty")}</p>
+              <p className={shared.emptyHint}>{t(hasUnpaid ? "files.emptyUnpaid" : "files.emptyHint")}</p>
+            </>
+          )}
         </div>
       ) : (
         <div className={styles.list}>
           <div className={styles.scroll}>
             <div className={styles.head}>
-              <span className={shared.tableHeadCell}>{t("files.contract")}</span>
-              <span className={shared.tableHeadCell}>{t("files.status")}</span>
-              <span className={shared.tableHeadCell}>{t("files.desc")}</span>
-              <span className={shared.tableHeadCell}>{t("files.size")}</span>
-              <span className={shared.tableHeadCell}>{t("files.paidUntil")}</span>
-              <span className={shared.tableHeadCell}>
-                <span>{t("files.confirmations")}</span>
-                <Hint text={t("files.confirmationsHint")} />
-              </span>
+              {COLUMNS.map(({ word, field, hint }) => (
+                <SortColumn
+                  key={word}
+                  label={t(word)}
+                  hint={hint && t(hint)}
+                  active={field !== undefined && sortField === field}
+                  direction={sortDirection}
+                  onSort={field && (() => sort(field))}
+                />
+              ))}
               <span />
             </div>
 
             <div className={styles.rows}>
               {loading &&
                 visible.length === 0 &&
-                Array.from({ length: restored || SKELETON_ROWS }, (_, index) => <SkeletonRow key={index} />)}
+                Array.from({ length: stored.rows || SKELETON_ROWS }, (_, index) => <SkeletonRow key={index} />)}
               {portion.map((contract, index) => {
                 const openKind =
                   editing && editing.address === contract.address && !contract.closed ? editing.kind : null
 
                 return (
-                  <div key={contract.address} style={{ "--card-index": index % 10 } as CSSProperties} className={styles.item}>
+                  <div key={contract.address} style={{ "--card-index": index % ROW_PORTION } as CSSProperties} className={styles.item}>
                     <ContractRow
                       contract={contract}
                       openKind={openKind}
@@ -401,24 +304,16 @@ export const ContractsList = ({
                   </div>
                 )
               })}
-
             </div>
           </div>
 
-          {(hasMore || visible.length > portion.length) && (
+          {visible.length > portion.length && (
             <div className={styles.more}>
-              {!hasMore && (
-                <span role="status" className={styles.showing}>
-                  {t("ui.showing", { shown: portion.length, total: visible.length })}
-                </span>
-              )}
-              <button
-                type="button"
-                className={shared.secondary}
-                disabled={digging}
-                onClick={() => setShownLimit((count) => count + ROW_PORTION)}
-              >
-                {t(digging ? "files.lookingForMore" : "files.showMore")}
+              <span role="status" className={styles.showing}>
+                {t("ui.showing", { shown: portion.length, total: visible.length })}
+              </span>
+              <button type="button" className={shared.secondary} onClick={() => setShownLimit((count) => count + ROW_PORTION)}>
+                {t("files.showMore")}
               </button>
             </div>
           )}

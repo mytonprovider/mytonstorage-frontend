@@ -1,5 +1,6 @@
 import type { ProviderOffer } from "@/types/bag"
 import { BYTES_IN_GIB, MIB, SECONDS_IN_DAY } from "./format"
+import type { StorageProvider } from "./ton/storage-data"
 
 export const CONTRACT_RESERVE = 5e6
 export const FEE_GAS = 2e7
@@ -81,15 +82,19 @@ export const storageCost = (offers: ProviderOffer[], storageDays: number, proofD
 export const paidRounds = (cost: number, roundBounties: number, unpriced: number): number =>
   roundBounties > 0 ? Math.floor((cost - CONTRACT_RESERVE - FEE_GAS) / roundBounties) : unpriced
 
-export const dailyCost = (fileSize: number, ratesPerMibDay: number[]): number =>
-  ratesPerMibDay.reduce((sum, rate) => sum + (fileSize * rate) / MIB, 0)
+export const dailyCost = (fileSize: number, providers: Pick<StorageProvider, "ratePerMbDay">[]): number =>
+  providers.reduce((sum, { ratePerMbDay }) => sum + (fileSize * ratePerMbDay) / MIB, 0)
 
-export const proofDelays = (spans: number[], lastProofs: number[], now: number): number[] =>
-  spans.map((span, at) => (lastProofs[at] ? Math.max(0, lastProofs[at] + span - now) : 0))
+const proofDelay = ({ maxSpan, lastProofTime }: Pick<StorageProvider, "maxSpan" | "lastProofTime">, now: number): number =>
+  lastProofTime ? Math.max(0, lastProofTime + maxSpan - now) : 0
 
-const spending = (fileSize: number, ratesPerMibDay: number[], spans: number[], delays: number[] = []) => {
-  const paying = spans
-    .map((span, at) => ({ span, delay: delays[at] ?? 0, bounty: fullBounty(fileSize, ratesPerMibDay[at] ?? 0, span) }))
+const spending = (fileSize: number, providers: Omit<StorageProvider, "pubkey">[], now: number | null = null) => {
+  const paying = providers
+    .map((provider) => ({
+      span: provider.maxSpan,
+      delay: now === null ? 0 : proofDelay(provider, now),
+      bounty: fullBounty(fileSize, provider.ratePerMbDay, provider.maxSpan),
+    }))
     .filter(({ bounty }) => bounty >= MIN_BOUNTY)
 
   const dueAfter = (seconds: number): number =>
@@ -116,12 +121,11 @@ const spending = (fileSize: number, ratesPerMibDay: number[], spans: number[], d
 
 export const paidDaysLeft = (
   fileSize: number,
-  ratesPerMibDay: number[],
-  spans: number[],
+  providers: Omit<StorageProvider, "pubkey">[],
   balance: number,
-  delays: number[] = [],
+  now: number | null = null,
 ): number | null => {
-  const { first, last, round, fastest, spent, dueAfter } = spending(fileSize, ratesPerMibDay, spans, delays)
+  const { first, last, round, fastest, spent, dueAfter } = spending(fileSize, providers, now)
   if (round <= 0) return null
 
   const left = Math.max(0, balance)
@@ -140,34 +144,33 @@ export const paidDaysLeft = (
 
 export const topupForDays = (
   fileSize: number,
-  ratesPerMibDay: number[],
-  spans: number[],
+  providers: Omit<StorageProvider, "pubkey">[],
   balance: number,
   days: number,
-  delays: number[] = [],
+  now: number | null = null,
 ): number => {
-  const { round, spent } = spending(fileSize, ratesPerMibDay, spans, delays)
+  const { round, spent } = spending(fileSize, providers, now)
   if (round <= 0) return 0
 
-  const paid = paidDaysLeft(fileSize, ratesPerMibDay, spans, balance, delays) ?? 0
+  const paid = paidDaysLeft(fileSize, providers, balance, now) ?? 0
   return Math.max(0, spent((paid + days) * SECONDS_IN_DAY - ROUND_EPSILON) - Math.max(0, balance))
 }
 
-export const payoutDays = (fileSize: number, ratesPerMibDay: number[], spans: number[]): number =>
-  spending(fileSize, ratesPerMibDay, spans).round / SECONDS_IN_DAY
+export const payoutDays = (fileSize: number, providers: Omit<StorageProvider, "pubkey">[]): number =>
+  spending(fileSize, providers).round / SECONDS_IN_DAY
 
-export const roundCost = (fileSize: number, ratesPerMibDay: number[], spans: number[]): number =>
-  dailyCost(fileSize, ratesPerMibDay) * roundDays(spans)
+export const roundCost = (fileSize: number, providers: Omit<StorageProvider, "pubkey">[]): number =>
+  dailyCost(fileSize, providers) * roundDays(providers)
 
-export const roundDays = (spans: number[]): number =>
-  spans.length ? Math.min(...spans) / SECONDS_IN_DAY : 0
+export const roundDays = (providers: Pick<StorageProvider, "maxSpan">[]): number =>
+  providers.length ? Math.min(...providers.map(({ maxSpan }) => maxSpan)) / SECONDS_IN_DAY : 0
 
 export const fullBounty = (fileSize: number, ratePerMibDay: number, spanSeconds: number): number =>
   Number((BigInt(fileSize) * BigInt(ratePerMibDay) * BigInt(spanSeconds)) / BigInt(SECONDS_IN_DAY * MIB))
 
-export const restartBalance = (fileSize: number, ratesPerMibDay: number[], spans: number[]): number => {
-  const returning = ratesPerMibDay
-    .map((rate, at) => fullBounty(fileSize, rate, spans[at] ?? 0))
+export const restartBalance = (fileSize: number, providers: Omit<StorageProvider, "pubkey">[]): number => {
+  const returning = providers
+    .map(({ ratePerMbDay, maxSpan }) => fullBounty(fileSize, ratePerMbDay, maxSpan))
     .filter((bounty) => bounty >= MIN_BOUNTY)
 
   return returning.length
@@ -175,12 +178,12 @@ export const restartBalance = (fileSize: number, ratesPerMibDay: number[], spans
     : 0
 }
 
-export const minTopupDays = (fileSize: number, ratesPerMibDay: number[], spans: number[], balance: number): number => {
-  const { round } = spending(fileSize, ratesPerMibDay, spans)
+export const minTopupDays = (fileSize: number, providers: Omit<StorageProvider, "pubkey">[], balance: number): number => {
+  const { round } = spending(fileSize, providers)
   if (round <= 0) return 0
 
-  const paid = paidDaysLeft(fileSize, ratesPerMibDay, spans, balance) ?? 0
-  const covered = paidDaysLeft(fileSize, ratesPerMibDay, spans, restartBalance(fileSize, ratesPerMibDay, spans)) ?? 0
+  const paid = paidDaysLeft(fileSize, providers, balance) ?? 0
+  const covered = paidDaysLeft(fileSize, providers, restartBalance(fileSize, providers)) ?? 0
 
   return Math.max(round / SECONDS_IN_DAY, covered - paid)
 }
@@ -206,34 +209,30 @@ export const quotedBounties = (fileSize: number, spanSeconds: number, offeredRat
 export const updateFee = (bounties: number, added: boolean, balance: number): number =>
   FEE_GAS + Math.max(0, Math.max(added ? MIN_PROVIDER_BALANCE : 0, bounties) - balance)
 
-export const commonSpan = (spans: number[]): number => {
+export const commonSpan = (providers: Pick<StorageProvider, "maxSpan">[]): number => {
   const seen = new Map<number, number>()
-  spans.forEach((span) => seen.set(span, (seen.get(span) ?? 0) + 1))
+  providers.forEach(({ maxSpan }) => seen.set(maxSpan, (seen.get(maxSpan) ?? 0) + 1))
 
-  return [...seen.entries()].reduce((best, [span, count]) => (count > (seen.get(best) ?? 0) ? span : best), spans[0] ?? 0)
+  return [...seen.entries()].reduce((best, [span, count]) => (count > (seen.get(best) ?? 0) ? span : best), providers[0]?.maxSpan ?? 0)
 }
 
-export interface OnchainProviders {
-  pubkeys: string[]
-  ratesPerMibDay: number[]
-  spans: number[]
-  lastProofs?: number[]
-}
+const byPubkey = (providers: StorageProvider[]): Map<string, StorageProvider> =>
+  new Map(providers.map((provider) => [provider.pubkey.toLowerCase(), provider]))
 
 export const providerFate = (
-  onchain: OnchainProviders,
+  providers: StorageProvider[],
   selected: string[],
   spanSeconds: number,
   offers: ProviderOffer[] | null,
 ): Map<string, ProviderFate> => {
-  const attachedAt = new Map(onchain.pubkeys.map((key, at) => [key.toLowerCase(), at]))
+  const attached = byPubkey(providers)
   const offeredRates = offerRates(offers)
   const fates = new Map<string, ProviderFate>()
 
   selected.forEach((key) => {
     const lower = key.toLowerCase()
-    const at = attachedAt.get(lower)
-    if (at === undefined) {
+    const known = attached.get(lower)
+    if (!known) {
       fates.set(lower, "new")
       return
     }
@@ -242,11 +241,10 @@ export const providerFate = (
       fates.set(lower, "unknown")
       return
     }
-    fates.set(lower, rate === onchain.ratesPerMibDay[at] && spanSeconds === onchain.spans[at] ? "kept" : "recreated")
+    fates.set(lower, rate === known.ratePerMbDay && spanSeconds === known.maxSpan ? "kept" : "recreated")
   })
 
-  onchain.pubkeys.forEach((key) => {
-    const lower = key.toLowerCase()
+  attached.forEach((_, lower) => {
     if (!fates.has(lower)) fates.set(lower, "removed")
   })
 
@@ -254,7 +252,7 @@ export const providerFate = (
 }
 
 export const nextPaidDaysLeft = (
-  onchain: OnchainProviders,
+  providers: StorageProvider[],
   selected: string[],
   spanSeconds: number,
   offers: ProviderOffer[] | null,
@@ -263,34 +261,26 @@ export const nextPaidDaysLeft = (
   now: number,
 ): number | null => {
   const offeredRates = offerRates(offers)
-  const attachedAt = new Map(onchain.pubkeys.map((key, at) => [key.toLowerCase(), at]))
-  const chainRates = new Map(onchain.pubkeys.map((key, at) => [key.toLowerCase(), onchain.ratesPerMibDay[at]]))
-  const fates = providerFate(onchain, selected, spanSeconds, offers)
-  const rates = selected.map((key) => offeredRates.get(key.toLowerCase()) ?? chainRates.get(key.toLowerCase()) ?? 0)
-  if (rates.some((rate) => rate <= 0)) return null
+  const attached = byPubkey(providers)
+  const fates = providerFate(providers, selected, spanSeconds, offers)
 
-  const delays = selected.map((key) => {
+  const next = selected.map((key) => {
     const lower = key.toLowerCase()
-    const at = attachedAt.get(lower)
-    const lastProof = at === undefined ? 0 : (onchain.lastProofs?.[at] ?? 0)
-    if (fates.get(lower) !== "kept" || !lastProof) return 0
-
-    return Math.max(0, lastProof + spanSeconds - now)
+    const known = attached.get(lower)
+    const ratePerMbDay = offeredRates.get(lower) ?? known?.ratePerMbDay ?? 0
+    const lastProofTime = known && fates.get(lower) === "kept" ? known.lastProofTime : 0
+    return { ratePerMbDay, maxSpan: spanSeconds, lastProofTime }
   })
+  if (next.some(({ ratePerMbDay }) => ratePerMbDay <= 0)) return null
 
-  return paidDaysLeft(fileSize, rates, selected.map(() => spanSeconds), balance, delays)
+  return paidDaysLeft(fileSize, next, balance, now)
 }
 
-export const unquotedBounties = (
-  fileSize: number,
-  spanSeconds: number,
-  selected: string[],
-  onchain: OnchainProviders,
-): number => {
-  const rates = new Map(onchain.pubkeys.map((key, at) => [key.toLowerCase(), onchain.ratesPerMibDay[at]]))
+export const unquotedBounties = (fileSize: number, spanSeconds: number, selected: string[], providers: StorageProvider[]): number => {
+  const attached = byPubkey(providers)
 
   return selected.reduce(
-    (sum, key) => sum + Math.max(MIN_BOUNTY, fullBounty(fileSize, rates.get(key.toLowerCase()) ?? 0, spanSeconds)),
+    (sum, key) => sum + Math.max(MIN_BOUNTY, fullBounty(fileSize, attached.get(key.toLowerCase())?.ratePerMbDay ?? 0, spanSeconds)),
     0,
   )
 }

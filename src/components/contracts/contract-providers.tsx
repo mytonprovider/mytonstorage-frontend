@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQuote } from "@/lib/api"
 import { useCheckLabel } from "@/lib/check-label"
-import { useContractData, type ContractEconomics } from "@/lib/contracts-cache"
+import { useContractData, type ContractState } from "@/lib/contracts-cache"
 import { formatDate, formatDuration, nowSeconds, SECONDS_IN_DAY, tonLabel } from "@/lib/format"
 import {
   commonSpan,
@@ -58,11 +58,11 @@ export const ContractProviders = ({
   const [pickedDays, setPickedDays] = useState<number | null>(null)
   const [declines, setDeclines] = useState<ProviderDecline[]>([])
   const [quoteError, setQuoteError] = useState<string | null>(null)
-  const [snapshot, setSnapshot] = useState<ContractEconomics | null>(null)
+  const [snapshot, setSnapshot] = useState<ContractState | null>(null)
   const [offers, setOffers] = useState<ProviderOffer[] | null>(null)
   const [checked, setChecked] = useState(false)
 
-  const { economics, statuses, unreadable, offline, retry } = useContractData(contract.address, true)
+  const { state, statuses, unreadable, offline, retry } = useContractData(contract.address, true)
   const now = nowSeconds()
   const checkLabel = useCheckLabel(now)
   const { checking: quoting, invalidate, request: requestQuote } = useQuote()
@@ -75,12 +75,12 @@ export const ContractProviders = ({
   }, [pickedKeys, pickedDays, invalidate])
 
   useEffect(() => {
-    if (economics && pickedKeys === null && pickedDays === null) setSnapshot(economics)
-  }, [economics, pickedKeys, pickedDays])
+    if (state && pickedKeys === null && pickedDays === null) setSnapshot(state)
+  }, [state, pickedKeys, pickedDays])
 
   if (unreadable) return <Notice tone="red">{t("providers.unreadable")}</Notice>
 
-  if (offline && !economics) {
+  if (offline && !state) {
     return (
       <Notice
         tone="red"
@@ -95,7 +95,7 @@ export const ContractProviders = ({
     )
   }
 
-  const base = snapshot ?? economics
+  const base = snapshot ?? state
 
   if (!base) {
     return (
@@ -122,7 +122,8 @@ export const ContractProviders = ({
     )
   }
 
-  const selected = pickedKeys ?? base.pubkeys
+  const basePubkeys = base.providers.map(({ pubkey }) => pubkey)
+  const selected = pickedKeys ?? basePubkeys
 
   const warnOf = (pubkey: string): { short: string; full: string } | undefined => {
     const check = checkLabel(statuses.find((status) => status.provider_pubkey === pubkey))
@@ -130,30 +131,39 @@ export const ContractProviders = ({
     return { short: check.short, full: check.ago ? `${check.long} · ${check.ago}` : check.long }
   }
 
-  const bagId = contract.bagId || base.bagId
+  const bagId = contract.bagId || base.torrentHash
   const touched = pickedDays !== null
-  const contractSpan = commonSpan(base.spans)
+  const contractSpan = commonSpan(base.providers)
   const spanSeconds = touched ? pickedDays * SECONDS_IN_DAY : contractSpan || DEFAULT_PROOF_DAYS * SECONDS_IN_DAY
-  const contractKeys = new Set(base.pubkeys.map((key) => key.toLowerCase()))
+  const contractKeys = new Set(basePubkeys.map((key) => key.toLowerCase()))
   const added = selected.some((key) => !contractKeys.has(key.toLowerCase()))
-  const unchanged = !added && selected.length === base.pubkeys.length && spanSeconds === contractSpan
+  const unchanged = !added && selected.length === basePubkeys.length && spanSeconds === contractSpan
 
-  const fates = providerFate(base, selected, spanSeconds, offers)
+  const fates = providerFate(base.providers, selected, spanSeconds, offers)
   const affected = [...fates.values()].filter((fate) => fate === "new" || fate === "recreated").length
   const recreated = recreateTotal(base.fileSize, spanSeconds, fates, offerRates(offers))
+  const resumesAt = Math.max(
+    0,
+    ...base.providers.map(({ pubkey, lastProofTime, maxSpan }) => (fates.get(pubkey.toLowerCase()) === "recreated" ? lastProofTime + maxSpan : 0)),
+  )
   const pool = bagId
     ? quotedBounties(base.fileSize, spanSeconds, offerRates(offers))
-    : unquotedBounties(base.fileSize, spanSeconds, selected, base)
+    : unquotedBounties(base.fileSize, spanSeconds, selected, base.providers)
   const fee = updateFee(pool, added, base.balance)
   const warning =
     !bagId && !unchanged
       ? t("providers.recreateUnknown")
       : checked && affected > 0
-        ? t("providers.recreateSummary", { count: affected, amount: tonLabel(recreated) })
+        ? [
+            t("providers.recreateSummary", { count: affected, amount: tonLabel(recreated) }),
+            resumesAt > now && t("providers.recreateResumes", { date: formatDate(resumesAt, i18n.language) }),
+          ]
+            .filter(Boolean)
+            .join(". ")
         : undefined
 
   const nextPaidDays = nextPaidDaysLeft(
-    base,
+    base.providers,
     selected,
     spanSeconds,
     offers,

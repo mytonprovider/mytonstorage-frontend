@@ -32,9 +32,9 @@ export const FilesStage = ({
   onRemoveBag,
 }: FilesStageProps) => {
   const [editing, setEditing] = useState<OpenEditor | null>(null)
-  const { reload } = contracts
+  const { refresh } = contracts
 
-  useEffect(() => reload(), [reload])
+  useEffect(() => refresh(), [refresh])
 
   return (
     <div className={styles.files}>
@@ -58,7 +58,6 @@ export const FilesStage = ({
         status={contracts.status}
         errorKind={contracts.errorKind}
         hideClosed={contracts.hideClosed}
-        hasMore={contracts.hasMore}
         hasUnpaid={unpaid.bags.length > 0}
         busy={contracts.busy}
         copied={copied}
@@ -105,6 +104,9 @@ export const FilesStage = ({
           )
         }
         onRetry={contracts.reload}
+        onRefresh={contracts.refresh}
+        refreshing={contracts.refreshing}
+        onShown={contracts.onShown}
         onRenotify={contracts.renotify}
         notifyStatus={contracts.notifyStatus}
         onNotify={(contract, providers) => void contracts.notify(contract, providers)}

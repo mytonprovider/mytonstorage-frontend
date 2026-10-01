@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
-import { PENDING_PAID_KEY } from "./local-storage"
+import { PENDING_KEY } from "./local-storage"
 import { contractDeployed, forgetPendingFound, markPendingLinked, readPendingPaid, retryPendingPaid, writePendingPaid } from "./paid-link"
 
 const { markBagPaid, runGetMethod } = vi.hoisted(() => ({ markBagPaid: vi.fn(), runGetMethod: vi.fn() }))
@@ -78,7 +78,7 @@ describe("retryPendingPaid", () => {
 
     await expect(retryPendingPaid()).resolves.toBe("linked")
     expect(markBagPaid).toHaveBeenCalledWith(BAG, CONTRACT)
-    expect(store.has(PENDING_PAID_KEY)).toBe(false)
+    expect(store.has(PENDING_KEY)).toBe(false)
   })
 
   it("never marks the bag paid while the contract is not deployed", async () => {
@@ -87,27 +87,27 @@ describe("retryPendingPaid", () => {
 
     await expect(retryPendingPaid()).resolves.toBe("kept")
     expect(markBagPaid).not.toHaveBeenCalled()
-    expect(store.has(PENDING_PAID_KEY)).toBe(true)
+    expect(store.has(PENDING_KEY)).toBe(true)
   })
 
   it("gives up on a contract that has not appeared within a day", async () => {
     runGetMethod.mockRejectedValue(refused)
     const at = Date.now() - 25 * 60 * 60 * 1000
-    store.set(PENDING_PAID_KEY, JSON.stringify({ bagId: BAG, contract: CONTRACT, at }))
+    store.set(PENDING_KEY, JSON.stringify({ bagId: BAG, contract: CONTRACT, at }))
 
     await expect(retryPendingPaid()).resolves.toBe("dropped")
     expect(markBagPaid).not.toHaveBeenCalled()
-    expect(store.has(PENDING_PAID_KEY)).toBe(false)
+    expect(store.has(PENDING_KEY)).toBe(false)
   })
 
   it("keeps a day-old record while the chain cannot be asked, instead of losing the link to an outage", async () => {
     runGetMethod.mockRejectedValue(new TypeError("Failed to fetch"))
     const at = Date.now() - 25 * 60 * 60 * 1000
-    store.set(PENDING_PAID_KEY, JSON.stringify({ bagId: BAG, contract: CONTRACT, at }))
+    store.set(PENDING_KEY, JSON.stringify({ bagId: BAG, contract: CONTRACT, at }))
 
     await expect(retryPendingPaid()).resolves.toBe("kept")
     expect(markBagPaid).not.toHaveBeenCalled()
-    expect(store.has(PENDING_PAID_KEY)).toBe(true)
+    expect(store.has(PENDING_KEY)).toBe(true)
   })
 
   it("keeps the record when the link call itself fails, so a later visit retries it", async () => {
@@ -116,21 +116,21 @@ describe("retryPendingPaid", () => {
     writePendingPaid(BAG, CONTRACT)
 
     await expect(retryPendingPaid()).resolves.toBe("kept")
-    expect(store.has(PENDING_PAID_KEY)).toBe(true)
+    expect(store.has(PENDING_KEY)).toBe(true)
   })
 
   it("gives up on a link the server has refused for a day", async () => {
     runGetMethod.mockResolvedValue([])
     markBagPaid.mockRejectedValue(new Error("bag is gone"))
     const at = Date.now() - 25 * 60 * 60 * 1000
-    store.set(PENDING_PAID_KEY, JSON.stringify({ bagId: BAG, contract: CONTRACT, at }))
+    store.set(PENDING_KEY, JSON.stringify({ bagId: BAG, contract: CONTRACT, at }))
 
     await expect(retryPendingPaid()).resolves.toBe("dropped")
-    expect(store.has(PENDING_PAID_KEY)).toBe(false)
+    expect(store.has(PENDING_KEY)).toBe(false)
   })
 
   it("treats a malformed record as no pending payment instead of linking garbage", async () => {
-    store.set(PENDING_PAID_KEY, "{broken")
+    store.set(PENDING_KEY, "{broken")
 
     await expect(retryPendingPaid()).resolves.toBe("none")
     expect(markBagPaid).not.toHaveBeenCalled()
@@ -143,7 +143,7 @@ describe("retryPendingPaid", () => {
     await expect(retryPendingPaid()).resolves.toBe("kept")
     expect(runGetMethod).not.toHaveBeenCalled()
     expect(markBagPaid).not.toHaveBeenCalled()
-    expect(store.has(PENDING_PAID_KEY)).toBe(true)
+    expect(store.has(PENDING_KEY)).toBe(true)
   })
 
   it("gives the same verdict on a browser that refuses to forget, instead of throwing the whole retry away", async () => {
@@ -162,16 +162,16 @@ describe("retryPendingPaid", () => {
 
   it("drops a linked record the scan has not met within a day", async () => {
     const at = Date.now() - 25 * 60 * 60 * 1000
-    store.set(PENDING_PAID_KEY, JSON.stringify({ bagId: BAG, contract: CONTRACT, at, linked: true }))
+    store.set(PENDING_KEY, JSON.stringify({ bagId: BAG, contract: CONTRACT, at, linked: true }))
 
     await expect(retryPendingPaid()).resolves.toBe("dropped")
-    expect(store.has(PENDING_PAID_KEY)).toBe(false)
+    expect(store.has(PENDING_KEY)).toBe(false)
   })
 })
 
 describe("pending paid record", () => {
   it("keeps reading a record written before the row fields existed", () => {
-    store.set(PENDING_PAID_KEY, JSON.stringify({ bagId: BAG, contract: CONTRACT, at: 5 }))
+    store.set(PENDING_KEY, JSON.stringify({ bagId: BAG, contract: CONTRACT, at: 5 }))
 
     expect(readPendingPaid()).toMatchObject({ bagId: BAG, contract: CONTRACT, at: 5, linked: false })
   })
@@ -231,7 +231,7 @@ describe("forgetPendingFound", () => {
     markPendingLinked()
 
     forgetPendingFound(["EQSOMETHING", CONTRACT])
-    expect(store.has(PENDING_PAID_KEY)).toBe(false)
+    expect(store.has(PENDING_KEY)).toBe(false)
   })
 
   it("keeps a linked record the scan has not reached", () => {
@@ -239,13 +239,13 @@ describe("forgetPendingFound", () => {
     markPendingLinked()
 
     forgetPendingFound(["EQSOMETHING"])
-    expect(store.has(PENDING_PAID_KEY)).toBe(true)
+    expect(store.has(PENDING_KEY)).toBe(true)
   })
 
   it("never forgets an unlinked record: the backend link still owes a retry", () => {
     writePendingPaid(BAG, CONTRACT)
 
     forgetPendingFound([CONTRACT])
-    expect(store.has(PENDING_PAID_KEY)).toBe(true)
+    expect(store.has(PENDING_KEY)).toBe(true)
   })
 })
