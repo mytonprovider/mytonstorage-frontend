@@ -1,5 +1,5 @@
-import { useState, type CSSProperties, type MouseEvent, type ReactNode } from "react"
-import { ArrowDown, ArrowUp, Check, Star } from "lucide-react"
+import type { CSSProperties, MouseEvent, ReactNode } from "react"
+import { Check, Star } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
 import { BYTES_IN_GIB, GRAM, SECONDS_IN_DAY, formatDuration, formatNumber, formatPercent, shortenMiddle, splitSpace } from "@/lib/format"
@@ -8,7 +8,7 @@ import { freeSpace, priceInTon, spanAllows, STATUS_KEYS, statusOf, statusPercent
 import type { SortDirection, SortField } from "@/lib/providers"
 import type { Provider } from "@/types/provider"
 import { CopyButton } from "../copy-button"
-import { Hint } from "../hint"
+import { SortColumn } from "../sort-column"
 import { GhostCopy, GhostValue } from "../table"
 import shared from "../shared.module.css"
 import styles from "./provider-row.module.css"
@@ -38,56 +38,18 @@ interface HeaderProps {
 
 export const ProviderHeader = ({ field, direction, onSort }: HeaderProps) => {
   const { t } = useTranslation()
-  const [focused, setFocused] = useState<SortField | null>(null)
 
-  const headCell = (column: Column) => {
-    const label = (
-      <>
-        <span title={t(column.label)} className={shared.ellipsis}>
-          {t(column.label)}
-        </span>
-        {column.hint && <Hint focusable={false} open={focused === column.id} text={t(column.hint)} />}
-      </>
-    )
-
-    if (!onSort) {
-      return (
-        <span key={column.id} className={styles.column}>
-          {label}
-        </span>
-      )
-    }
-
-    const name = t(column.label)
-    const state =
-      field === column.id
-        ? t(direction === "asc" ? "ui.sortedAsc" : "ui.sortedDesc", { label: name })
-        : t("ui.sortColumn", { label: name })
-    const announced = column.hint ? `${state}. ${t(column.hint)}` : state
-
-    return (
-      <button
-        key={column.id}
-        type="button"
-        onClick={() => onSort(column.id)}
-        onFocus={() => setFocused(column.id)}
-        onBlur={() => setFocused(null)}
-        aria-label={announced}
-        className={cx(
-          styles.column,
-          field === column.id && styles.columnActive,
-          column.id === "status" && styles.columnStatus,
-        )}
-      >
-        {label}
-        {field === column.id && direction === "asc" ? (
-          <ArrowUp className={styles.sortIcon} aria-hidden="true" />
-        ) : (
-          <ArrowDown className={cx(styles.sortIcon, field !== column.id && styles.sortIconIdle)} aria-hidden="true" />
-        )}
-      </button>
-    )
-  }
+  const headCell = (column: Column) => (
+    <SortColumn
+      key={column.id}
+      label={t(column.label)}
+      hint={column.hint ? t(column.hint) : undefined}
+      active={field === column.id}
+      direction={direction ?? "desc"}
+      onSort={onSort && (() => onSort(column.id))}
+      className={column.id === "status" ? styles.columnStatus : undefined}
+    />
+  )
 
   return (
     <div className={styles.headerRow}>

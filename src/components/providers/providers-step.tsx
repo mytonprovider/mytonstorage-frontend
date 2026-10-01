@@ -25,6 +25,7 @@ import {
 import type { ProviderDecline } from "@/types/bag"
 import type { Provider } from "@/types/provider"
 import { CatalogToolbar, ProofPeriodRow, daysLabel } from "./catalog-toolbar"
+import { Hint } from "../hint"
 import { Notice } from "../notice"
 import { ProviderHeader, ProviderRow, ProviderSkeleton } from "./provider-row"
 import { SelectedTable } from "./selected-table"
@@ -480,11 +481,14 @@ export const ProvidersStep = ({
           {hasPanel && (
             <details ref={panelRef} className={styles.reveal}>
               <summary className={styles.revealSummary}>
-                <span className={styles.cardIcon}>
-                  <SlidersHorizontal className={styles.cardGlyph} aria-hidden="true" />
+                <span className={shared.pickCardHint}>
+                  <Hint text={t("catalog.panelHint")} />
                 </span>
-                <span className={styles.cardTitle}>{t("catalog.panel")}</span>
-                <span className={styles.cardNote}>{t("catalog.panelNote")}</span>
+                <span className={shared.pickCardIcon}>
+                  <SlidersHorizontal className={shared.pickCardGlyph} aria-hidden="true" />
+                </span>
+                <span className={shared.pickCardTitle}>{t("catalog.panel")}</span>
+                <span className={shared.pickCardNote}>{t("catalog.panelNote")}</span>
               </summary>
               {panelBody(false)}
             </details>
