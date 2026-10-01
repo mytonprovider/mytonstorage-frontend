@@ -7,7 +7,7 @@ import type { ContractState } from "./contracts-cache"
 import { CONTRACT_RESERVE, MIN_BOUNTY, fullBounty } from "./pricing"
 import type { StorageProvider } from "./ton/storage-data"
 import { getStatuses, knownStateHash, peekState, putStates, readContractsCache, refreshState, stateOf, writeContractsCache } from "./contracts-cache"
-import { nowSeconds } from "./format"
+import { MIB, nowSeconds } from "./format"
 import { readListView, writeListView } from "./local-storage"
 import { forgetPendingFound, readPendingPaid } from "./paid-link"
 import { ADDRESS_BATCH, ChainRequestError, fetchAccountStates, fetchMessages, type MessagesPage, type MessagesQuery } from "./ton/toncenter"
@@ -306,15 +306,20 @@ export const countChecks = (
 export const PROOF_GRACE_SECONDS = 3600
 const START_WINDOW_SECONDS = 86_400
 const LATE_PROOF_SHARE = 0.1
+const PICKUP_SECONDS = 7200
+const FETCH_BYTES_PER_SECOND = 5 * MIB
 
 export const hiredAt = (contract: Pick<ContractRow, "createdAt" | "lastEventAt">): number => contract.lastEventAt ?? contract.createdAt
 
 const proofGrace = (maxSpan: number): number => Math.max(PROOF_GRACE_SECONDS, Math.round(maxSpan * LATE_PROOF_SHARE))
 
-export const proofDue = ({ lastProofTime, maxSpan }: StorageProvider, hired: number, abandoned = false): number =>
+const fetchWindow = (fileSize: number, maxSpan: number): number =>
+  Math.min(PICKUP_SECONDS + Math.round(fileSize / FETCH_BYTES_PER_SECOND), maxSpan)
+
+export const proofDue = ({ lastProofTime, maxSpan }: StorageProvider, hired: number, fileSize: number, abandoned = false): number =>
   lastProofTime > 0
     ? lastProofTime + maxSpan + proofGrace(maxSpan)
-    : hired + (abandoned ? START_WINDOW_SECONDS : Math.max(START_WINDOW_SECONDS, maxSpan + proofGrace(maxSpan)))
+    : hired + (abandoned ? START_WINDOW_SECONDS : Math.max(START_WINDOW_SECONDS, fetchWindow(fileSize, maxSpan)))
 
 const payDue = ({ lastProofTime, maxSpan }: StorageProvider, hired: number): number =>
   (lastProofTime > 0 ? lastProofTime : hired) + maxSpan + PROOF_GRACE_SECONDS
@@ -344,7 +349,7 @@ export const contractVerdict = (
   if (unpaid(state, hired, now)) return "unpaid"
 
   const abandoned = contract.total > 0 && contract.valid === 0
-  const inTime = state.providers.filter((provider) => now <= proofDue(provider, hired, abandoned))
+  const inTime = state.providers.filter((provider) => now <= proofDue(provider, hired, state.fileSize, abandoned))
   const proven = inTime.filter(({ lastProofTime }) => lastProofTime > 0).length
 
   if (proven === state.providers.length) return "stored"

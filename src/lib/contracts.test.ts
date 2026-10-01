@@ -761,8 +761,23 @@ describe("contractStatus", () => {
     expect(verdictOf(row(hourly(rich, 0), NOW - 86400 - 60), NOW)).toBe("files.statusNone")
   })
 
-  it("waits a whole period out when the period is longer than that day", () => {
-    expect(verdictOf(row(stateWith(rich, 0), NOW - 2 * 86400), NOW)).toBe("files.statusStarting")
+  it("gives a day from the hire whatever the period: the first proof follows the download, not the period", () => {
+    expect(verdictOf(row(stateWith(rich, 0), NOW - 86400 + 60), NOW)).toBe("files.statusStarting")
+    expect(verdictOf(row(stateWith(rich, 0), NOW - 2 * 86400), NOW)).toBe("files.statusNone")
+  })
+
+  it("stretches that window for a bag nobody could fetch in a day, up to its period", () => {
+    const huge = (proof: number) => ({ ...stateWith(rich, proof), fileSize: 1024 * BYTES_IN_GIB })
+    expect(verdictOf(row(huge(0), NOW - 2 * 86400), NOW)).toBe("files.statusStarting")
+    expect(verdictOf(row(huge(0), NOW - 3 * 86400), NOW)).toBe("files.statusNone")
+  })
+
+  it("never stretches that window past the period, since the proof falls due with it", () => {
+    const span = 2 * 86400
+    const size = 1024 * BYTES_IN_GIB
+    const huge = { ...state, fileSize: size, balance: 10 * fullBounty(size, rate, span), providers: [provider(0, span)] }
+    expect(verdictOf(row(huge, NOW - span + 3600), NOW)).toBe("files.statusStarting")
+    expect(verdictOf(row(huge, NOW - span - 7200), NOW)).toBe("files.statusNone")
   })
 
   it("counts that wait from the last change of the set, since a change resets the proofs", () => {
@@ -801,7 +816,8 @@ describe("contractStatus", () => {
 
   it("cuts the download window to a day once the catalog checked everyone and confirmed nobody", () => {
     const fresh = NOW - 2 * 86400
-    const checked = { ...row(stateWith(rich, 0), fresh), valid: 0, total: 3 }
+    const huge = { ...stateWith(rich, 0), fileSize: 1024 * BYTES_IN_GIB }
+    const checked = { ...row(huge, fresh), valid: 0, total: 3 }
     expect(contractStatus(checked, NOW)?.word).toBe("files.statusNone")
     expect(contractStatus({ ...checked, valid: 1 }, NOW)?.word).toBe("files.statusStarting")
     expect(contractStatus({ ...checked, valid: 0, total: 0 }, NOW)?.word).toBe("files.statusStarting")

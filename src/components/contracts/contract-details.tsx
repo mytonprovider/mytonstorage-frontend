@@ -36,7 +36,7 @@ export const ContractDetails = ({ contract, copied, onCopy, notifyState, onNotif
   const checks = statuses.length > 0 ? countChecks(statuses, contract.address) : { valid: contract.valid, total: contract.total }
   const statusByKey = new Map(statuses.map((status) => [status.provider_pubkey, status]))
   const hired = hiredAt(contract)
-  const behind = state ? state.providers.filter((provider) => !provider.lastProofTime || now > proofDue(provider, hired)) : []
+  const behind = state ? state.providers.filter((provider) => !provider.lastProofTime || now > proofDue(provider, hired, state.fileSize)) : []
   const holding = behind.filter(({ pubkey }) => statusByKey.get(pubkey)?.reason === 0).length
   const silent = behind.filter(({ pubkey }) => statusByKey.get(pubkey)?.reason !== 0)
   const bagId = contract.bagId || state?.torrentHash || ""
