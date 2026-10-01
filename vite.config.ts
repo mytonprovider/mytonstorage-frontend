@@ -5,8 +5,6 @@ import react from "@vitejs/plugin-react-swc"
 import { defineConfig, loadEnv } from "vite"
 import tsconfigPaths from "vite-tsconfig-paths"
 
-const UPLOAD_REQUEST_TIMEOUT_MS = 30 * 60 * 1000
-
 const backgroundOf = (selector: string): string => {
   const tokens = readFileSync("src/styles/tokens.css", "utf8")
   const found = /--bg:\s*(#[0-9a-f]{3,8})/i.exec(tokens.slice(tokens.indexOf(selector)))
@@ -66,7 +64,7 @@ export default defineConfig(({ mode }) => {
       {
         name: "upload-request-timeout",
         configureServer: (server) => {
-          if (server.httpServer instanceof Server) server.httpServer.requestTimeout = UPLOAD_REQUEST_TIMEOUT_MS
+          if (server.httpServer instanceof Server) server.httpServer.requestTimeout = 0
         },
       },
       {

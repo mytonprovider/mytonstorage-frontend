@@ -4,7 +4,6 @@ import { API_URL, ApiError, errorDetailOf, unpaidBagsOf } from "./api"
 import { SECONDS_IN_MINUTE } from "./format"
 
 const UPLOAD_PATH = "/api/v1/files"
-const UPLOAD_TIMEOUT_MS = 30 * 60 * 1000
 const SEGMENT_BYTES = 255
 const RATE_WINDOW_MS = 5000
 const RATE_WARMUP_MS = 2000
@@ -94,11 +93,9 @@ export const uploadBag = (
     })
 
     request.addEventListener("error", () => reject(new ApiError(0, "POST", UPLOAD_PATH)))
-    request.addEventListener("timeout", () => reject(new ApiError(0, "POST", UPLOAD_PATH)))
     request.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")))
 
     request.open("POST", `${API_URL}${UPLOAD_PATH}`)
-    request.timeout = UPLOAD_TIMEOUT_MS
     request.withCredentials = true
     request.send(formOf(files, description))
   })
