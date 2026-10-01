@@ -2,7 +2,7 @@ import { FileText, Loader, Server, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { gatewayUrl } from "@/lib/api"
 import { useCheckLabel } from "@/lib/check-label"
-import { contractStatus, countChecks, hiredAt, paymentTone, proofDue, scanUrl, type ContractRow, type NotifyState } from "@/lib/contracts"
+import { contractStatus, contractVerdict, countChecks, hiredAt, paymentTone, proofDue, scanUrl, type ContractRow, type NotifyState } from "@/lib/contracts"
 import { useContractData, type ContractState } from "@/lib/contracts-cache"
 import { GHOST_TON, SECONDS_IN_DAY, formatBytes, formatDate, formatDateTime, formatDuration, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
 import { PROOF_STEPS, dailyCost, paidDaysLeft } from "@/lib/pricing"
@@ -51,7 +51,9 @@ export const ContractDetails = ({ contract, copied, onCopy, notifyState, onNotif
     return low === high ? low : `${low} – ${high}`
   }
 
-  const status = contractStatus({ ...contract, valid: checks.valid, total: checks.total, state }, now)
+  const shaped = { ...contract, valid: checks.valid, total: checks.total, state }
+  const status = contractStatus(shaped, now)
+  const unfunded = contractVerdict(shaped, now) === "unpaid" || (paidDays !== null && paidDays <= 0)
   const stateWord = t(status?.word ?? "status.noData")
 
   return (
@@ -223,12 +225,13 @@ export const ContractDetails = ({ contract, copied, onCopy, notifyState, onNotif
             </Notice>
           )}
 
-          {silent.length > 0 && notifyState === "sent" ? (
-            <Notice tone="green" className={styles.paymentAlert}>
-              {t("files.notified")}
-            </Notice>
-          ) : (
-            silent.length > 0 && (
+          {silent.length > 0 &&
+            !unfunded &&
+            (notifyState === "sent" ? (
+              <Notice tone="green" className={styles.paymentAlert}>
+                {t("files.notified")}
+              </Notice>
+            ) : (
               <Notice
                 tone={notifyState === "failed" ? "red" : "yellow"}
                 className={styles.paymentAlert}
@@ -243,8 +246,7 @@ export const ContractDetails = ({ contract, copied, onCopy, notifyState, onNotif
                   ? t("errors.notifyFailed")
                   : t(silent.some(({ lastProofTime }) => lastProofTime > 0) ? "files.stalled" : "files.unproven", { count: silent.length })}
               </Notice>
-            )
-          )}
+            ))}
         </SheetSection>
       )}
     </div>
