@@ -120,13 +120,13 @@
   "strategy": {
     "reliable": "Most reliable",
     "reliableNote": "Best by rating and uptime",
-    "reliableHint": "Takes providers running for over 30 days and ranks them by uptime and rating. Providers below 50% uptime are left out of the automatic pick.",
+    "reliableHint": "Takes providers proven over time and ranks them by uptime and rating.",
     "cheap": "Cheapest",
     "cheapNote": "Lowest price among the reliable ones",
-    "cheapHint": "Ranks by price per gigabyte per day — among the same providers with at least 50% uptime.",
+    "cheapHint": "Takes the same reliable providers and ranks them by price per gigabyte per day.",
     "countries": "Different countries",
     "countriesNote": "One best per country",
-    "countriesHint": "Takes the best provider from each country. If there are fewer countries than providers needed, the rest are filled in."
+    "countriesHint": "Takes the best provider from each country. If there are fewer countries, the rest are filled by reliability."
   },
   "table": {
     "key": "Public key",
