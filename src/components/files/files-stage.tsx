@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { topupContract, updateContract, withdrawContract } from "@/lib/api"
 import type { ContractsState } from "@/lib/contracts"
 import type { ProviderCatalog } from "@/lib/providers"
@@ -32,9 +32,6 @@ export const FilesStage = ({
   onRemoveBag,
 }: FilesStageProps) => {
   const [editing, setEditing] = useState<OpenEditor | null>(null)
-  const { refresh } = contracts
-
-  useEffect(() => refresh(), [refresh])
 
   return (
     <div className={styles.files}>
