@@ -6,9 +6,11 @@ import { StrictMode } from "react"
 import ReactDOM from "react-dom/client"
 import { TonConnectUIProvider } from "@tonconnect/ui-react"
 import { initI18n } from "@/i18n"
+import { migrateStored } from "@/lib/local-storage"
 import { App } from "@/app"
 
 initI18n()
+migrateStored()
 
 const manifestUrl =
   import.meta.env.VITE_TONCONNECT_MANIFEST_URL ||

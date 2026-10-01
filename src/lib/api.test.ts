@@ -49,9 +49,15 @@ describe("failureStatus", () => {
 })
 
 describe("sessionEnded", () => {
-  it("reads the ended session off the response code alone", () => {
+  it("reads the ended session off the response code", () => {
     expect(sessionEnded(new ApiError(401, "POST", "/api/v1/files/unpaid"))).toBe(true)
     expect(sessionEnded(new ApiError(403, "POST", "/api/v1/files/unpaid"))).toBe(false)
+  })
+
+  it("takes the one text the backend sends with 500 when the address is gone", () => {
+    expect(sessionEnded(new ApiError(500, "POST", "/api/v1/files/unpaid", "relogin required"))).toBe(true)
+    expect(sessionEnded(new ApiError(500, "POST", "/api/v1/files/unpaid", "internal server error"))).toBe(false)
+    expect(sessionEnded(new ApiError(400, "POST", "/api/v1/files/unpaid", "relogin required"))).toBe(false)
   })
 
   it("says nothing ended when the backend never answered", () => {
@@ -62,13 +68,18 @@ describe("sessionEnded", () => {
 
 describe("errorDetailOf", () => {
   it("pulls the error field out of a JSON body and ignores any other shape", () => {
-    expect(errorDetailOf('{"error":"bag not found"}')).toBe("bag not found")
-    expect(errorDetailOf('{"error":42}')).toBe("")
+    expect(errorDetailOf('{"error":"bag not found"}', "application/json")).toBe("bag not found")
+    expect(errorDetailOf('{"error":42}', "application/json")).toBe("")
   })
 
   it("trims a plain-text body and caps it at 300 characters", () => {
-    expect(errorDetailOf("  gateway timeout  ")).toBe("gateway timeout")
-    expect(errorDetailOf("x".repeat(400))).toBe("x".repeat(300))
+    expect(errorDetailOf("  gateway timeout  ", "text/plain; charset=utf-8")).toBe("gateway timeout")
+    expect(errorDetailOf("x".repeat(400), null)).toBe("x".repeat(300))
+  })
+
+  it("drops a proxy's HTML page instead of passing its markup on as the reason", () => {
+    expect(errorDetailOf("<html><title>502 Bad Gateway</title></html>", "text/html")).toBe("")
+    expect(errorDetailOf("size < 1", "text/plain")).toBe("size < 1")
   })
 })
 

@@ -190,6 +190,11 @@
   pointer-events: none;
 }
 
+.optional {
+  font-weight: 400;
+  color: var(--text-3);
+}
+
 .counterOver {
   composes: inkDanger from "../shared.module.css";
 }
@@ -201,9 +206,25 @@
   margin-top: var(--space-7);
 }
 
+.progressHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
 .progressNote {
+  min-width: 0;
   color: var(--text-2);
   font-size: var(--font-sm);
+}
+
+.progressAmount {
+  flex: none;
+  color: var(--text-2);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .progressRow {
@@ -229,6 +250,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+.progressMeta {
+  color: var(--text-3);
+  font-size: var(--font-xs);
+  font-variant-numeric: tabular-nums;
+}
+
 .progressFill {
   display: block;
   height: 100%;
@@ -237,19 +264,10 @@
   transition: width var(--dur-base) ease;
 }
 
-.spinner {
-  composes: spinner from "../shared.module.css";
-}
-
 .submit {
   display: flex;
-  align-items: center;
-  gap: var(--space-5);
+  justify-content: flex-end;
   margin-top: var(--space-7);
-}
-
-.progress + .submit {
-  margin-top: var(--space-5);
 }
 
 .notice {
@@ -281,9 +299,5 @@
   .submit {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .submit > span {
-    display: none;
   }
 }

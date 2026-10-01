@@ -55,6 +55,10 @@
   composes: inkDanger from "./shared.module.css";
 }
 
+.warn {
+  composes: inkWarn from "./shared.module.css";
+}
+
 .copy.copy {
   border-radius: var(--radius-sm);
 }

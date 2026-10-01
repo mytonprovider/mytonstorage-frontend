@@ -9,7 +9,8 @@
 }
 
 .ghostValue {
-  composes: shape from "./shared.module.css";
+  composes: shape ellipsis from "./shared.module.css";
+  line-height: var(--line-control);
   color: transparent;
 }
 

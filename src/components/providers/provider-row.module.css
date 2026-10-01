@@ -42,42 +42,14 @@
   }
 }
 
-.column {
-  display: inline-flex;
-  user-select: none;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-  height: var(--line-control);
-  font-size: var(--font-base);
-  font-weight: 400;
-  color: var(--text-3);
-  text-align: left;
-}
-
 @media (hover: hover) {
   .column:hover {
     color: var(--text-2);
   }
 }
 
-.columnActive {
-  color: var(--accent-text);
-}
-
 .columnStatus {
   padding-left: calc(var(--space-3) + var(--space-2));
-}
-
-.sortIconIdle {
-  composes: invisible from "../shared.module.css";
-}
-
-.sortIcon {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
-  flex: none;
-  color: var(--accent);
 }
 
 .card {

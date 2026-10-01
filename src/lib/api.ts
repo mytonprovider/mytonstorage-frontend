@@ -28,11 +28,17 @@ export class ApiError extends Error {
 
 export const failureStatus = (error: unknown): number | null => (error instanceof ApiError ? error.status : null)
 
-export const sessionEnded = (error: unknown): boolean => error instanceof ApiError && error.status === 401
+export const failureDetail = (error: unknown): string => (error instanceof ApiError ? error.detail : "")
+
+const RELOGIN_REQUIRED = "relogin required"
+
+export const sessionEnded = (error: unknown): boolean =>
+  error instanceof ApiError && (error.status === 401 || (error.status === 500 && error.detail === RELOGIN_REQUIRED))
 
 const DETAIL_LIMIT = 300
 
-export const errorDetailOf = (raw: string): string => {
+export const errorDetailOf = (raw: string, contentType: string | null): string => {
+  if (contentType?.includes("text/html")) return ""
   try {
     const parsed: unknown = JSON.parse(raw)
     const detail = asRecord(parsed).error
@@ -93,7 +99,7 @@ const send = async (base: string, path: string, options: RequestOptions): Promis
 
   if (!response.ok) {
     const raw = await response.text().catch(() => "")
-    throw new ApiError(response.status, method, path, errorDetailOf(raw))
+    throw new ApiError(response.status, method, path, errorDetailOf(raw, response.headers.get("content-type")))
   }
   if (response.status === 204) return null
 

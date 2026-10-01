@@ -3,7 +3,7 @@ import { TonConnectUIError, UserRejectsError } from "@tonconnect/ui-react"
 import en from "@/i18n/en.json"
 import { ApiError } from "./api"
 import { writePendingPaid } from "./paid-link"
-import { UNAUTHORIZED, checkErrorKey, deployFailureKey, payErrorKey, payErrorTone, uploadErrorKey } from "./errors"
+import { UNAUTHORIZED, checkErrorKey, deployFailureKey, payErrorKey, payErrorTone, uploadErrorKey, uploadFailure } from "./errors"
 import {
   EMPTY_WIZARD,
   allAccepted,
@@ -280,6 +280,32 @@ describe("uploadErrorKey", () => {
 
     expect(uploadErrorKey(refused)).toBe(payErrorKey(refused))
     expect(line(uploadErrorKey(refused))).toBe(en.errors.rateLimited)
+  })
+
+  it("names what the server did when it gives no reason: no answer, its own failure, a rejected request", () => {
+    const failed = (status: number, detail = "") => uploadErrorKey(new ApiError(status, "POST", "/api/v1/files", detail))
+
+    expect(line(failed(502))).toBe(en.errors.uploadNoResponse)
+    expect(line(failed(504))).toBe(en.errors.uploadNoResponse)
+    expect(line(failed(500))).toBe(en.errors.serverError)
+    expect(line(failed(400, "invalid multipart"))).toBe(en.errors.requestRejected)
+    expect(failed(418)).toBe("errors.uploadFailed")
+  })
+
+  it("carries the status and adds the server's own words only where our line names no reason", () => {
+    const rejected = new ApiError(400, "POST", "/api/v1/files", "invalid multipart")
+    const limited = new ApiError(429, "POST", "/api/v1/files", "too many requests, please try again later")
+    const dropped = new ApiError(0, "POST", "/api/v1/files")
+
+    expect(uploadFailure(uploadErrorKey(rejected), rejected)).toEqual({ key: "errors.requestRejected", status: 400, detail: "invalid multipart" })
+    expect(uploadFailure(uploadErrorKey(limited), limited)).toEqual({ key: "errors.rateLimited", status: 429, detail: "" })
+    expect(uploadFailure(uploadErrorKey(dropped), dropped)).toEqual({ key: "errors.offline", status: null, detail: "" })
+    expect(uploadFailure(UNAUTHORIZED)).toEqual({ key: UNAUTHORIZED, status: null, detail: "" })
+  })
+
+  it("keeps the known rejections ahead of the plain one", () => {
+    expect(uploadErrorKey(new ApiError(400, "POST", "/api/v1/files", "you have unpaid bags"))).toBe("errors.hasUnpaid")
+    expect(uploadErrorKey(new ApiError(400, "POST", "/api/v1/files", "invalid filename"))).toBe("errors.badNames")
   })
 })
 

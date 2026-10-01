@@ -1,11 +1,11 @@
-import { useRef, useState, type ChangeEvent } from "react"
-import { File as FileIcon, Files, FileText, Folder, Loader, Upload, X } from "lucide-react"
+import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import { File as FileIcon, Files, FileText, Folder, Upload, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
 import { onScrollNearBottom } from "@/lib/dom"
-import { formatBytes, formatBytesFloor, splitFileName } from "@/lib/format"
+import { formatBytes, formatBytesFloor, formatBytesOrZero, formatCountdown, formatDuration, splitFileName } from "@/lib/format"
 import { MAX_BAG_BYTES, MAX_BAG_FILES, MAX_DESCRIPTION } from "@/lib/pricing"
-import { hasFolder, mergeFiles, pickedFrom, rootsOf, totalSize, validatePicked } from "@/lib/upload"
+import { hasFolder, mergeFiles, pickedFrom, rootsOf, roundedLeft, totalSize, validatePicked, type UploadStats } from "@/lib/upload"
 import type { PickedFile } from "@/types/bag"
 import { IconButton } from "../icon-button"
 import { Notice } from "../notice"
@@ -221,7 +221,10 @@ interface UploadStepProps {
   files: PickedFile[]
   description: string
   progress: number | null
+  stats: UploadStats | null
   error: string | null
+  errorStatus: number | null
+  errorDetail: string
   onPick: (files: PickedFile[]) => void
   onReplace: (files: PickedFile[]) => void
   onRemove: (index: number) => void
@@ -235,7 +238,10 @@ export const UploadStep = ({
   files,
   description,
   progress,
+  stats,
   error,
+  errorStatus,
+  errorDetail,
   onPick,
   onReplace,
   onRemove,
@@ -249,10 +255,18 @@ export const UploadStep = ({
   const [pickError, setPickError] = useState<{ errorKey: string, names?: string[] } | null>(null)
 
   const descriptionLength = [...description].length
-  const tooLarge = totalSize(files) > MAX_BAG_BYTES
+  const size = totalSize(files)
+  const tooLarge = size > MAX_BAG_BYTES
   const tooMany = files.length > MAX_BAG_FILES
   const folderMode = hasFolder(files)
   const uploading = progress !== null
+  const assembling = progress === 100
+  const sentBytes = stats?.total ? (stats.loaded / stats.total) * size : 0
+  const cancelRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (uploading) cancelRef.current?.focus({ preventScroll: true })
+  }, [uploading])
 
   const acceptPicked = (picked: PickedFile[]) => {
     if (uploading) return
@@ -342,6 +356,7 @@ export const UploadStep = ({
               <h2 className={shared.tableTitle}>
                 <FileText className={shared.titleIcon} aria-hidden="true" />
                 <span>{t("files.desc")}</span>
+                <span className={styles.optional}>({t("upload.optional")})</span>
               </h2>
             </div>
 
@@ -361,44 +376,58 @@ export const UploadStep = ({
               </span>
             </div>
 
-            <div aria-hidden={!uploading} className={cx(styles.progress, !uploading && shared.invisible)}>
-              <span className={styles.progressNote}>
-                {t(progress === 100 ? "upload.assembling" : "upload.sending")}
-              </span>
-              <span className={styles.progressRow}>
-                <span
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={progress ?? 0}
-                  className={styles.progressTrack}
-                >
-                  <span style={{ width: `${progress ?? 0}%` }} className={styles.progressFill} />
-                </span>
-                <span className={styles.progressValue}>{progress ?? 0}%</span>
-              </span>
-            </div>
+            {uploading ? (
+              <>
+                <div className={styles.progress}>
+                  <span className={styles.progressHead}>
+                    <span className={styles.progressNote}>{t(assembling ? "upload.assembling" : "upload.sending")}</span>
+                    <span className={styles.progressAmount}>
+                      {assembling
+                        ? formatBytes(size)
+                        : sentBytes > 0 && t("upload.amount", { loaded: formatBytes(sentBytes), total: formatBytes(size) })}
+                    </span>
+                  </span>
+                  <span className={styles.progressRow}>
+                    <span
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={progress}
+                      className={styles.progressTrack}
+                    >
+                      <span style={{ width: `${progress}%` }} className={styles.progressFill} />
+                    </span>
+                    <span className={styles.progressValue}>{progress}%</span>
+                  </span>
+                  <span className={styles.progressMeta}>
+                    {[
+                      !assembling && stats?.speed != null && t("upload.perSecond", { value: formatBytesOrZero(stats.speed) }),
+                      !assembling && stats?.left != null && t("upload.left", { time: formatDuration(roundedLeft(stats.left), t) }),
+                      t("upload.elapsed", { time: formatCountdown(stats?.elapsed ?? 0) }),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </div>
 
-            <div className={styles.submit}>
-              <button
-                type="button"
-                tabIndex={uploading ? undefined : -1}
-                onClick={onCancel}
-                className={cx(shared.secondary, !uploading && shared.invisible)}
-              >
-                {t("ui.cancel")}
-              </button>
-              <span className={shared.spacer} />
-              <button
-                type="button"
-                onClick={onSubmit}
-                disabled={uploading || tooLarge || tooMany || descriptionLength > MAX_DESCRIPTION}
-                className={shared.primary}
-              >
-                {uploading && <Loader strokeWidth={2.5} aria-hidden="true" className={styles.spinner} />}
-                <span>{t("upload.submit")}</span>
-              </button>
-            </div>
+                <div className={styles.submit}>
+                  <button ref={cancelRef} type="button" onClick={onCancel} className={shared.secondary}>
+                    {t("ui.cancel")}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className={styles.submit}>
+                <button
+                  type="button"
+                  onClick={onSubmit}
+                  disabled={tooLarge || tooMany || descriptionLength > MAX_DESCRIPTION}
+                  className={shared.primary}
+                >
+                  {t("upload.submit")}
+                </button>
+              </div>
+            )}
           </section>
         </>
       )}
@@ -406,6 +435,12 @@ export const UploadStep = ({
       {error && (
         <Notice className={styles.notice} tone="red">
           {t(error, { max: MAX_BAG_FILES })}
+          {errorStatus !== null && (
+            <span className={shared.errorCode}>
+              {t("errors.statusCode", { status: errorStatus })}
+              {errorDetail && ` · ${errorDetail}`}
+            </span>
+          )}
         </Notice>
       )}
 

@@ -24,7 +24,7 @@ import {
   minTopupDays,
   paidDaysLeft,
   payoutDays,
-  proofDelays,
+ 
   restartBalance,
   roundDays,
   topupForDays,
@@ -47,39 +47,27 @@ interface ExtendFormProps {
 
 export const ExtendForm = ({ address, onSubmit }: ExtendFormProps) => {
   const { t, i18n } = useTranslation()
-  const { economics, unreadable, offline, retry } = useContractData(address)
+  const { state, unreadable, offline, retry } = useContractData(address)
   const [pickedDays, setPickedDays] = useState<number | null>(null)
   const [amount, setAmount] = useState("0.5")
 
-  const perDay = economics ? dailyCost(economics.fileSize, economics.ratesPerMibDay) : 0
-  const perRoundDays = economics ? roundDays(economics.spans) : 0
-  const payout = economics ? payoutDays(economics.fileSize, economics.ratesPerMibDay, economics.spans) : 0
+  const perDay = state ? dailyCost(state.fileSize, state.providers) : 0
+  const perRoundDays = state ? roundDays(state.providers) : 0
+  const payout = state ? payoutDays(state.fileSize, state.providers) : 0
   const priced = perDay > 0 && payout > 0
-  const restart = economics ? restartBalance(economics.fileSize, economics.ratesPerMibDay, economics.spans) : 0
-  const missing = economics ? Math.max(0, restart - economics.balance) : 0
+  const restart = state ? restartBalance(state.fileSize, state.providers) : 0
+  const missing = state ? Math.max(0, restart - state.balance) : 0
   const now = nowSeconds()
-  const delays = economics ? proofDelays(economics.spans, economics.lastProofs, now) : []
   const stepDays = payout || perRoundDays || MIN_STORAGE_DAYS
-  const floorDays = economics
-    ? Math.max(MIN_STORAGE_DAYS, Math.ceil(minTopupDays(economics.fileSize, economics.ratesPerMibDay, economics.spans, economics.balance)))
+  const floorDays = state
+    ? Math.max(MIN_STORAGE_DAYS, Math.ceil(minTopupDays(state.fileSize, state.providers, state.balance)))
     : MIN_STORAGE_DAYS
   const days = gridDays(pickedDays ?? DEFAULT_TARGET_DAYS, stepDays, floorDays)
-  const topup = economics
-    ? ceilShown(
-        Math.max(
-          topupForDays(economics.fileSize, economics.ratesPerMibDay, economics.spans, economics.balance, days, delays),
-          missing,
-        ),
-      )
-    : 0
+  const topup = state ? ceilShown(Math.max(topupForDays(state.fileSize, state.providers, state.balance, days, now), missing)) : 0
   const cost = topup + FEE_TOPUP
-  const newBalance = economics ? economics.balance + cost : 0
-  const paidDays = economics
-    ? paidDaysLeft(economics.fileSize, economics.ratesPerMibDay, economics.spans, economics.balance, delays)
-    : null
-  const newPaidDays = economics
-    ? paidDaysLeft(economics.fileSize, economics.ratesPerMibDay, economics.spans, newBalance, delays)
-    : null
+  const newBalance = state ? state.balance + cost : 0
+  const paidDays = state ? paidDaysLeft(state.fileSize, state.providers, state.balance, now) : null
+  const newPaidDays = state ? paidDaysLeft(state.fileSize, state.providers, newBalance, now) : null
   const addedLabel =
     paidDays === null || newPaidDays === null ? "" : formatDuration((newPaidDays - paidDays) * SECONDS_IN_DAY, t)
   const manualTon = Number(amount.replace(",", "."))
@@ -102,7 +90,7 @@ export const ExtendForm = ({ address, onSubmit }: ExtendFormProps) => {
     )
   }
 
-  if (unreadable || (economics && !priced)) {
+  if (unreadable || (state && !priced)) {
     return (
       <div className={styles.form}>
         <Notice tone="red">{t("files.topupUnknown")}</Notice>
@@ -135,7 +123,7 @@ export const ExtendForm = ({ address, onSubmit }: ExtendFormProps) => {
     )
   }
 
-  if (!economics) {
+  if (!state) {
     return (
       <div className={styles.form}>
         <div aria-hidden="true" className={styles.ghostBody}>

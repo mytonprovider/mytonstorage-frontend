@@ -39,6 +39,12 @@ import {
   updateFee,
 } from "./pricing"
 import { base, cheapDutch, offerOf, partial, secondGerman } from "./fixtures"
+import type { StorageProvider } from "./ton/storage-data"
+
+const keysOf = (providers: StorageProvider[]): string[] => providers.map(({ pubkey }) => pubkey)
+
+const attached = (rates: number[], spans: number[], lastProofs: number[] = [], pubkeys: string[] = []): StorageProvider[] =>
+  rates.map((ratePerMbDay, at) => ({ pubkey: pubkeys[at] ?? `p${at}`, ratePerMbDay, maxSpan: spans[at] ?? 0, lastProofTime: lastProofs[at] ?? 0 }))
 
 const GIB = 1024 ** 3
 
@@ -176,15 +182,15 @@ describe("gridDays", () => {
 
 describe("dailyCost", () => {
   it("charges every provider for the whole bag per day", () => {
-    expect(dailyCost(MIB, [100, 200])).toBe(300)
+    expect(dailyCost(MIB, attached([100, 200], []))).toBe(300)
   })
 
   it("scales with the size of the bag", () => {
-    expect(dailyCost(10 * MIB, [100])).toBe(1000)
+    expect(dailyCost(10 * MIB, attached([100], []))).toBe(1000)
   })
 
   it("is free while no provider is attached", () => {
-    expect(dailyCost(MIB, [])).toBe(0)
+    expect(dailyCost(MIB, attached([], []))).toBe(0)
   })
 })
 
@@ -194,68 +200,69 @@ describe("paidDaysLeft", () => {
   const perProof = 50_003_968
 
   it("names the check the balance can no longer pay, not the last one it paid", () => {
-    expect(paidDaysLeft(GIB, [rate], [week], perProof)).toBe(7)
-    expect(paidDaysLeft(GIB, [rate], [week], 2 * perProof)).toBe(14)
-    expect(paidDaysLeft(GIB, [rate], [week], 3.5 * perProof)).toBe(21)
+    expect(paidDaysLeft(GIB, attached([rate], [week]), perProof)).toBe(7)
+    expect(paidDaysLeft(GIB, attached([rate], [week]), 2 * perProof)).toBe(14)
+    expect(paidDaysLeft(GIB, attached([rate], [week]), 3.5 * perProof)).toBe(21)
   })
 
   it("keeps the date on a whole check, a part of a bounty buying nothing", () => {
-    expect(paidDaysLeft(GIB, [rate], [week], 3 * perProof - 1)).toBe(14)
-    expect(paidDaysLeft(GIB, [rate], [week], 2 * perProof - 1)).toBe(7)
+    expect(paidDaysLeft(GIB, attached([rate], [week]), 3 * perProof - 1)).toBe(14)
+    expect(paidDaysLeft(GIB, attached([rate], [week]), 2 * perProof - 1)).toBe(7)
   })
 
   it("spends the whole balance, without the intake threshold the daemon never checks mid-flight", () => {
-    expect(paidDaysLeft(GIB, [rate], [week], 4 * perProof)).toBe(28)
-    expect(paidDaysLeft(GIB, [rate], [week], 4 * perProof - MIN_PROVIDER_BALANCE)).toBe(14)
+    expect(paidDaysLeft(GIB, attached([rate], [week]), 4 * perProof)).toBe(28)
+    expect(paidDaysLeft(GIB, attached([rate], [week]), 4 * perProof - MIN_PROVIDER_BALANCE)).toBe(14)
   })
 
   it("counts the boundary round in full, since the chain already kept its reserve out of the balance", () => {
-    expect(paidDaysLeft(GIB, [rate], [week], 3 * perProof)).toBe(21)
-    expect(paidDaysLeft(GIB, [rate], [week], 3 * perProof - CONTRACT_RESERVE)).toBe(14)
+    expect(paidDaysLeft(GIB, attached([rate], [week]), 3 * perProof)).toBe(21)
+    expect(paidDaysLeft(GIB, attached([rate], [week]), 3 * perProof - CONTRACT_RESERVE)).toBe(14)
   })
 
   it("pays a long-span provider its whole bounty inside the horizon, not its daily share of it", () => {
     const quarter = 90 * SECONDS_IN_DAY
     const rates = [rate, 543]
     const spans = [week, quarter]
-    const balance = 4 * roundCost(GIB, rates, spans)
+    const balance = 4 * roundCost(GIB, attached(rates, spans))
 
     expect(fullBounty(GIB, 543, quarter)).toBe(50_042_880)
     expect(balance).toBe(215_584_768)
-    expect(paidDaysLeft(GIB, rates, spans, balance)).toBe(21)
+    expect(paidDaysLeft(GIB, attached(rates, spans), balance)).toBe(21)
   })
 
   it("steps the horizon by the shortest span in the set, not by the longest", () => {
-    expect(paidDaysLeft(GIB, [rate, rate], [week, 2 * week], 400_031_744)).toBe(28)
+    expect(paidDaysLeft(GIB, attached([rate, rate], [week, 2 * week]), 400_031_744)).toBe(28)
   })
 
   it("spends nothing on a provider the daemon drops before it ever proves", () => {
     expect(fullBounty(GIB, 1, week)).toBeLessThan(MIN_BOUNTY)
-    expect(paidDaysLeft(GIB, [rate, 1], [week, week], 3 * perProof)).toBe(21)
-    expect(paidDaysLeft(GIB, [rate, 1], [week, SECONDS_IN_DAY], 3 * perProof)).toBe(21)
+    expect(paidDaysLeft(GIB, attached([rate, 1], [week, week]), 3 * perProof)).toBe(21)
+    expect(paidDaysLeft(GIB, attached([rate, 1], [week, SECONDS_IN_DAY]), 3 * perProof)).toBe(21)
   })
 
   it("names no date at all where no provider is left to take money from the balance", () => {
-    expect(paidDaysLeft(GIB, [rate], [], 1e9)).toBe(null)
-    expect(paidDaysLeft(GIB, [0], [week], 1e9)).toBe(null)
-    expect(paidDaysLeft(GIB, [1], [week], 1e9)).toBe(null)
+    expect(paidDaysLeft(GIB, attached([rate], []), 1e9)).toBe(null)
+    expect(paidDaysLeft(GIB, attached([0], [week]), 1e9)).toBe(null)
+    expect(paidDaysLeft(GIB, attached([1], [week]), 1e9)).toBe(null)
   })
 
   it("names today where the balance falls short of the very first proof", () => {
-    expect(paidDaysLeft(GIB, [rate], [week], perProof - 1)).toBe(0)
+    expect(paidDaysLeft(GIB, attached([rate], [week]), perProof - 1)).toBe(0)
   })
 
   it("counts from the proof already made, not from now", () => {
-    const halfway = [Math.round(week / 2)]
+    const now = 1_790_000_000
+    const halfway = attached([rate], [week], [now - Math.round(week / 2)])
 
-    expect(paidDaysLeft(GIB, [rate], [week], perProof, halfway)).toBe(10.5)
-    expect(paidDaysLeft(GIB, [rate], [week], 2 * perProof, halfway)).toBe(17.5)
-    expect(paidDaysLeft(GIB, [rate], [week], perProof - 1, halfway)).toBe(3.5)
+    expect(paidDaysLeft(GIB, halfway, perProof, now)).toBe(10.5)
+    expect(paidDaysLeft(GIB, halfway, 2 * perProof, now)).toBe(17.5)
+    expect(paidDaysLeft(GIB, halfway, perProof - 1, now)).toBe(3.5)
   })
 
   it("answers on a balance too large for the search to walk step by step", () => {
-    expect(paidDaysLeft(GIB, [rate], [week], 1e18)).toBeGreaterThan(0)
-    expect(paidDaysLeft(GIB, [rate], [4294967295], 1e18)).toBeGreaterThan(0)
+    expect(paidDaysLeft(GIB, attached([rate], [week]), 1e18)).toBeGreaterThan(0)
+    expect(paidDaysLeft(GIB, attached([rate], [4294967295]), 1e18)).toBeGreaterThan(0)
   })
 })
 
@@ -265,20 +272,20 @@ describe("topupForDays", () => {
   const perProof = 50_003_968
 
   it("asks for every bounty the contract pays out by the day it names", () => {
-    expect(topupForDays(GIB, [rate], [week], 0, 7)).toBe(perProof)
-    expect(topupForDays(GIB, [rate], [week], 2 * perProof, 7)).toBe(perProof)
+    expect(topupForDays(GIB, attached([rate], [week]), 0, 7)).toBe(perProof)
+    expect(topupForDays(GIB, attached([rate], [week]), 2 * perProof, 7)).toBe(perProof)
   })
 
   it("rounds the target up to the next check, since the date stands still between two proofs", () => {
-    expect(topupForDays(GIB, [rate], [week], 0, 1)).toBe(topupForDays(GIB, [rate], [week], 0, 7))
-    expect(topupForDays(GIB, [rate], [week], 0, 8)).toBe(2 * perProof)
+    expect(topupForDays(GIB, attached([rate], [week]), 0, 1)).toBe(topupForDays(GIB, attached([rate], [week]), 0, 7))
+    expect(topupForDays(GIB, attached([rate], [week]), 0, 8)).toBe(2 * perProof)
   })
 
   it("carries the paid-until date at least as far as the slider asked", () => {
     for (const days of [1, 7, 8, 30, 100, 365]) {
-      const cost = topupForDays(GIB, [rate], [week], 3 * perProof, days)
+      const cost = topupForDays(GIB, attached([rate], [week]), 3 * perProof, days)
 
-      expect(paidDaysLeft(GIB, [rate], [week], 3 * perProof + cost)).toBeGreaterThanOrEqual(21 + days)
+      expect(paidDaysLeft(GIB, attached([rate], [week]), 3 * perProof + cost)).toBeGreaterThanOrEqual(21 + days)
     }
   })
 
@@ -287,7 +294,7 @@ describe("topupForDays", () => {
     let asked = 0
 
     for (let days = 1; days <= MAX_STORAGE_DAYS; days += 1) {
-      const cost = topupForDays(GIB, [rate, 543], spans, 3 * perProof, days)
+      const cost = topupForDays(GIB, attached([rate, 543], spans), 3 * perProof, days)
 
       expect(cost).toBeGreaterThanOrEqual(asked)
       asked = cost
@@ -295,7 +302,7 @@ describe("topupForDays", () => {
   })
 
   it("asks nothing where no provider takes money at all", () => {
-    expect(topupForDays(GIB, [1], [week], 0, 30)).toBe(0)
+    expect(topupForDays(GIB, attached([1], [week]), 0, 30)).toBe(0)
   })
 
   it("buys exactly the rounds asked for on a span the chain rounds to a fraction of a day", () => {
@@ -303,10 +310,10 @@ describe("topupForDays", () => {
     const rate = 60_000
     const bounty = fullBounty(GIB, rate, odd)
     const asked = (10 * odd) / SECONDS_IN_DAY
-    const cost = topupForDays(GIB, [rate], [odd], 0, asked)
+    const cost = topupForDays(GIB, attached([rate], [odd]), 0, asked)
 
     expect(cost).toBe(10 * bounty)
-    expect(paidDaysLeft(GIB, [rate], [odd], cost)).toBe(asked)
+    expect(paidDaysLeft(GIB, attached([rate], [odd]), cost)).toBe(asked)
   })
 })
 
@@ -316,27 +323,27 @@ describe("payoutDays", () => {
   const rate = 6976
 
   it("counts the round the contract actually pays, skipping a provider dropped for a low bounty", () => {
-    expect(payoutDays(GIB, [rate, rate], [week, quarter])).toBe(7)
-    expect(payoutDays(GIB, [1, rate], [week, quarter])).toBe(90)
+    expect(payoutDays(GIB, attached([rate, rate], [week, quarter]))).toBe(7)
+    expect(payoutDays(GIB, attached([1, rate], [week, quarter]))).toBe(90)
   })
 
   it("moves the paid-until date by exactly the step the slider stands on", () => {
     const rates = [1, rate]
     const spans = [week, quarter]
-    const step = payoutDays(GIB, rates, spans)
+    const step = payoutDays(GIB, attached(rates, spans))
     const balance = 3 * fullBounty(GIB, rate, quarter)
-    const paid = paidDaysLeft(GIB, rates, spans, balance) ?? 0
+    const paid = paidDaysLeft(GIB, attached(rates, spans), balance) ?? 0
 
     for (const stops of [1, 2, 4]) {
       const days = gridDays(stops * step, step)
-      const cost = topupForDays(GIB, rates, spans, balance, days)
+      const cost = topupForDays(GIB, attached(rates, spans), balance, days)
 
-      expect(paidDaysLeft(GIB, rates, spans, balance + cost)).toBe(paid + days)
+      expect(paidDaysLeft(GIB, attached(rates, spans), balance + cost)).toBe(paid + days)
     }
   })
 
   it("leaves nothing to pay out where every bounty sits under the floor", () => {
-    expect(payoutDays(GIB, [1], [week])).toBe(0)
+    expect(payoutDays(GIB, attached([1], [week]))).toBe(0)
   })
 })
 
@@ -344,15 +351,15 @@ describe("roundCost", () => {
   const day = 86400
 
   it("prices one proof round of every attached provider", () => {
-    expect(roundCost(MIB, [100, 200], [7 * day, 7 * day])).toBe(2100)
+    expect(roundCost(MIB, attached([100, 200], [7 * day, 7 * day]))).toBe(2100)
   })
 
   it("bills the daily rate of every provider for the shortest span the round lasts", () => {
-    expect(roundCost(MIB, [100, 100], [7 * day, 14 * day])).toBe(1400)
+    expect(roundCost(MIB, attached([100, 100], [7 * day, 14 * day]))).toBe(1400)
   })
 
   it("prices the demo round by the chain's real burn rate, not each provider's own span", () => {
-    expect(roundCost(812 * MIB, [200, 210, 150], [7 * day, 7 * day, 14 * day])).toBe(3_183_040)
+    expect(roundCost(812 * MIB, attached([200, 210, 150], [7 * day, 7 * day, 14 * day]))).toBe(3_183_040)
   })
 })
 
@@ -360,11 +367,11 @@ describe("roundDays", () => {
   const day = 86400
 
   it("takes the shortest span so the promise holds for every provider", () => {
-    expect(roundDays([14 * day, 7 * day])).toBe(7)
+    expect(roundDays(attached([14 * day, 7 * day].map(() => 0), [14 * day, 7 * day]))).toBe(7)
   })
 
   it("reports zero for a contract with no providers", () => {
-    expect(roundDays([])).toBe(0)
+    expect(roundDays(attached([].map(() => 0), []))).toBe(0)
   })
 })
 
@@ -375,17 +382,17 @@ describe("the bounty the storage contract pays per proof", () => {
 
   it("matches muldiv(file_size * rate_per_mb_day, span, 86400 * 1024 * 1024)", () => {
     expect(fullBounty(GIB, rate, span)).toBe(perProof)
-    expect(roundCost(GIB, [rate], [span])).toBe(perProof)
+    expect(roundCost(GIB, attached([rate], [span]))).toBe(perProof)
   })
 
   it("accrues that same bounty spread over the days of the span", () => {
-    expect(dailyCost(GIB, [rate])).toBe(perProof / 7)
-    expect(dailyCost(GIB, [rate]) * roundDays([span])).toBe(roundCost(GIB, [rate], [span]))
+    expect(dailyCost(GIB, attached([rate], []))).toBe(perProof / 7)
+    expect(dailyCost(GIB, attached([rate], [])) * roundDays(attached([span].map(() => 0), [span]))).toBe(roundCost(GIB, attached([rate], [span])))
   })
 
   it("divides by a binary MiB, never by a decimal MB", () => {
-    expect(dailyCost(MIB, [rate])).toBe(rate)
-    expect(dailyCost(1e6, [rate])).toBeLessThan(rate)
+    expect(dailyCost(MIB, attached([rate], []))).toBe(rate)
+    expect(dailyCost(1e6, attached([rate], []))).toBeLessThan(rate)
   })
 
   it("clears the 0.05 TON minimum bounty a provider quotes for", () => {
@@ -479,8 +486,10 @@ describe("paidRounds", () => {
         const shown = paidRounds(cost, roundQuote(offers), 0) * proofDays
         const real = paidDaysLeft(
           GIB,
-          Array.from({ length: count }, () => rate),
-          Array.from({ length: count }, () => span),
+          attached(
+            Array.from({ length: count }, () => rate),
+            Array.from({ length: count }, () => span),
+          ),
           cost - CONTRACT_RESERVE - FEE_GAS,
         )
 
@@ -503,31 +512,27 @@ describe("paidRounds", () => {
 describe("nextPaidDaysLeft", () => {
   const week = 7 * SECONDS_IN_DAY
   const rate = 20_000
-  const contract = {
-    pubkeys: [base.pubkey, cheapDutch.pubkey],
-    ratesPerMibDay: [rate, rate],
-    spans: [week, 2 * week],
-  }
+  const contract = attached([rate, rate], [week, 2 * week], [], [base.pubkey, cheapDutch.pubkey])
   const offers = [offerOf(0, rate, base.pubkey), offerOf(0, rate, cheapDutch.pubkey)]
   const balance = 10 * fullBounty(GIB, rate, 2 * week)
 
   it("puts the whole set on the span being sent, since a survivor is one that already matched it", () => {
-    expect(nextPaidDaysLeft(contract, contract.pubkeys, 2 * week, offers, GIB, balance, 0)).toBe(
-      paidDaysLeft(GIB, [rate, rate], [2 * week, 2 * week], balance),
+    expect(nextPaidDaysLeft(contract, keysOf(contract), 2 * week, offers, GIB, balance, 0)).toBe(
+      paidDaysLeft(GIB, attached([rate, rate], [2 * week, 2 * week]), balance),
     )
   })
 
   it("shortens the date once another provider joins the same balance", () => {
-    const grown = [...contract.pubkeys, partial.pubkey]
+    const grown = [...keysOf(contract), partial.pubkey]
     const withNew = [...offers, offerOf(0, rate, partial.pubkey)]
-    const before = nextPaidDaysLeft(contract, contract.pubkeys, 2 * week, offers, GIB, balance, 0) ?? 0
+    const before = nextPaidDaysLeft(contract, keysOf(contract), 2 * week, offers, GIB, balance, 0) ?? 0
 
     expect(nextPaidDaysLeft(contract, grown, 2 * week, withNew, GIB, balance, 0) ?? 0).toBeLessThan(before)
   })
 
   it("falls back to the rate already on chain where the quote says nothing", () => {
-    expect(nextPaidDaysLeft(contract, contract.pubkeys, 2 * week, null, GIB, balance, 0)).toBe(
-      paidDaysLeft(GIB, [rate, rate], [2 * week, 2 * week], balance),
+    expect(nextPaidDaysLeft(contract, keysOf(contract), 2 * week, null, GIB, balance, 0)).toBe(
+      paidDaysLeft(GIB, attached([rate, rate], [2 * week, 2 * week]), balance),
     )
   })
 
@@ -540,7 +545,7 @@ describe("nextPaidDaysLeft", () => {
     const only = [cheapDutch.pubkey]
     const kept = [offerOf(0, rate, cheapDutch.pubkey)]
     const raised = [offerOf(0, rate * 2, cheapDutch.pubkey)]
-    const phased = { ...contract, lastProofs: [0, now - week] }
+    const phased = contract.map((provider, at) => ({ ...provider, lastProofTime: [0, now - week][at] }))
 
     const untouched = nextPaidDaysLeft(phased, only, 2 * week, kept, GIB, balance, now)
     const unproven = nextPaidDaysLeft(contract, only, 2 * week, kept, GIB, balance, now)
@@ -550,7 +555,7 @@ describe("nextPaidDaysLeft", () => {
   })
 
   it("refuses a date while one of the set is still unpriced, rather than counting it as free", () => {
-    const grown = [...contract.pubkeys, partial.pubkey]
+    const grown = [...keysOf(contract), partial.pubkey]
 
     expect(nextPaidDaysLeft(contract, grown, 2 * week, offers, GIB, balance, 0)).toBeNull()
   })
@@ -558,11 +563,7 @@ describe("nextPaidDaysLeft", () => {
 
 describe("providerFate", () => {
   const week = 7 * SECONDS_IN_DAY
-  const contract = {
-    pubkeys: [base.pubkey, cheapDutch.pubkey, secondGerman.pubkey],
-    ratesPerMibDay: [200, 210, 150],
-    spans: [week, week, 2 * week],
-  }
+  const contract = attached([200, 210, 150], [week, week, 2 * week], [], [base.pubkey, cheapDutch.pubkey, secondGerman.pubkey])
 
   it("tells new and removed rows apart before any quote", () => {
     const fates = providerFate(contract, [base.pubkey, partial.pubkey], week, null)
@@ -575,7 +576,7 @@ describe("providerFate", () => {
 
   it("keeps only the provider whose offered rate and sent span both match the chain", () => {
     const offers = [offerOf(0, 200, base.pubkey), offerOf(0, 210, cheapDutch.pubkey), offerOf(0, 150, secondGerman.pubkey)]
-    const fates = providerFate(contract, contract.pubkeys, 2 * week, offers)
+    const fates = providerFate(contract, keysOf(contract), 2 * week, offers)
 
     expect(fates.get(secondGerman.pubkey)).toBe("kept")
     expect(fates.get(base.pubkey)).toBe("recreated")
@@ -583,9 +584,9 @@ describe("providerFate", () => {
   })
 
   it("recreates every shorter-span provider when an untouched save sends max(spans) to all", () => {
-    const untouched = Math.max(...contract.spans)
+    const untouched = Math.max(...contract.map(({ maxSpan }) => maxSpan))
     const offers = [offerOf(0, 200, base.pubkey), offerOf(0, 210, cheapDutch.pubkey), offerOf(0, 150, secondGerman.pubkey)]
-    const fates = providerFate(contract, contract.pubkeys, untouched, offers)
+    const fates = providerFate(contract, keysOf(contract), untouched, offers)
 
     expect(untouched).toBe(2 * week)
     expect(fates.get(base.pubkey)).toBe("recreated")
@@ -613,15 +614,11 @@ describe("providerFate", () => {
 
 describe("recreateTotal", () => {
   const week = 7 * SECONDS_IN_DAY
-  const contract = {
-    pubkeys: [base.pubkey, cheapDutch.pubkey, secondGerman.pubkey],
-    ratesPerMibDay: [200, 210, 150],
-    spans: [week, week, 2 * week],
-  }
+  const contract = attached([200, 210, 150], [week, week, 2 * week], [], [base.pubkey, cheapDutch.pubkey, secondGerman.pubkey])
   const offers = [offerOf(0, 200, base.pubkey), offerOf(0, 210, cheapDutch.pubkey), offerOf(0, 150, secondGerman.pubkey)]
 
   it("tops up the full new-period bounty of every recreated provider and none of a kept one", () => {
-    const fates = providerFate(contract, contract.pubkeys, 2 * week, offers)
+    const fates = providerFate(contract, keysOf(contract), 2 * week, offers)
 
     expect(recreateTotal(812 * MIB, 2 * week, fates, offerRates(offers))).toBe(2_273_600 + 2_387_280)
   })
@@ -652,12 +649,8 @@ describe("quotedBounties", () => {
   })
 
   it("outgrows the bounties of the recreated rows alone by the round of the untouched one", () => {
-    const contract = {
-      pubkeys: [base.pubkey, cheapDutch.pubkey, secondGerman.pubkey],
-      ratesPerMibDay: [200, 210, 150],
-      spans: [week, week, 2 * week],
-    }
-    const fates = providerFate(contract, contract.pubkeys, 2 * week, offers)
+    const contract = attached([200, 210, 150], [week, week, 2 * week], [], [base.pubkey, cheapDutch.pubkey, secondGerman.pubkey])
+    const fates = providerFate(contract, keysOf(contract), 2 * week, offers)
 
     expect(quotedBounties(812 * MIB, 2 * week, offerRates(offers))).toBe(
       recreateTotal(812 * MIB, 2 * week, fates, offerRates(offers)) + 1_705_200,
@@ -671,14 +664,14 @@ describe("quotedBounties", () => {
 
 describe("commonSpan", () => {
   it("takes the period most of the contract already lives on", () => {
-    expect(commonSpan([604800, 604800, 1209600])).toBe(604800)
-    expect(commonSpan([1209600, 604800, 604800])).toBe(604800)
+    expect(commonSpan(attached([604800, 604800, 1209600].map(() => 0), [604800, 604800, 1209600]))).toBe(604800)
+    expect(commonSpan(attached([1209600, 604800, 604800].map(() => 0), [1209600, 604800, 604800]))).toBe(604800)
   })
 
   it("keeps the first one where nothing prevails, and survives an empty contract", () => {
-    expect(commonSpan([604800, 1209600])).toBe(604800)
-    expect(commonSpan([1209600, 604800])).toBe(1209600)
-    expect(commonSpan([])).toBe(0)
+    expect(commonSpan(attached([604800, 1209600].map(() => 0), [604800, 1209600]))).toBe(604800)
+    expect(commonSpan(attached([1209600, 604800].map(() => 0), [1209600, 604800]))).toBe(1209600)
+    expect(commonSpan(attached([].map(() => 0), []))).toBe(0)
   })
 })
 
@@ -707,14 +700,10 @@ describe("updateFee", () => {
 
 describe("unquotedBounties", () => {
   const week = 7 * SECONDS_IN_DAY
-  const contract = {
-    pubkeys: [base.pubkey, cheapDutch.pubkey, secondGerman.pubkey],
-    ratesPerMibDay: [200, 210, 150],
-    spans: [week, week, 2 * week],
-  }
+  const contract = attached([200, 210, 150], [week, week, 2 * week], [], [base.pubkey, cheapDutch.pubkey, secondGerman.pubkey])
 
   it("prices a set with no quote at the minimum bounty a provider signs up for", () => {
-    expect(unquotedBounties(812 * MIB, 2 * week, contract.pubkeys, contract)).toBe(3 * MIN_BOUNTY)
+    expect(unquotedBounties(812 * MIB, 2 * week, keysOf(contract), contract)).toBe(3 * MIN_BOUNTY)
     expect(fullBounty(812 * MIB, 210, 2 * week)).toBeLessThan(MIN_BOUNTY)
   })
 
@@ -735,29 +724,29 @@ describe("restartBalance", () => {
   const week = 7 * SECONDS_IN_DAY
 
   it("asks nothing of the three demo providers, none of them coming back at any balance", () => {
-    expect(restartBalance(812 * MIB, [200, 210, 150], [week, week, 2 * week])).toBe(0)
+    expect(restartBalance(812 * MIB, attached([200, 210, 150], [week, week, 2 * week]))).toBe(0)
   })
 
   it("counts only the providers the daemon takes back, never lifting a cheap one to the minimum", () => {
-    expect(restartBalance(GIB, [20_000, 1], [week, week])).toBe(fullBounty(GIB, 20_000, week))
+    expect(restartBalance(GIB, attached([20_000, 1], [week, week]))).toBe(fullBounty(GIB, 20_000, week))
   })
 
   it("charges the bounty itself once the chain rate outgrows the minimum", () => {
-    expect(restartBalance(MAX_BAG_BYTES, [200, 200, 200], [150 * SECONDS_IN_DAY, 150 * SECONDS_IN_DAY, 150 * SECONDS_IN_DAY])).toBe(368_640_000)
+    expect(restartBalance(MAX_BAG_BYTES, attached([200, 200, 200], [150 * SECONDS_IN_DAY, 150 * SECONDS_IN_DAY, 150 * SECONDS_IN_DAY]))).toBe(368_640_000)
   })
 
   it("holds the intake threshold for a single provider whose bounty stays under it", () => {
     expect(fullBounty(GIB, 6976, week)).toBeLessThan(MIN_PROVIDER_BALANCE)
-    expect(restartBalance(GIB, [6976], [week])).toBe(MIN_PROVIDER_BALANCE)
+    expect(restartBalance(GIB, attached([6976], [week]))).toBe(MIN_PROVIDER_BALANCE)
   })
 
   it("asks nothing for a contract the chain shows with no provider left", () => {
-    expect(restartBalance(812 * MIB, [], [])).toBe(0)
+    expect(restartBalance(812 * MIB, attached([], []))).toBe(0)
   })
 
   it("bills each provider for its own span, unlike the round the shortest span measures", () => {
-    expect(restartBalance(812 * MIB, [20_000, 20_000], [week, 2 * week])).toBe(341_040_000)
-    expect(roundCost(812 * MIB, [20_000, 20_000], [week, 2 * week])).toBe(227_360_000)
+    expect(restartBalance(812 * MIB, attached([20_000, 20_000], [week, 2 * week]))).toBe(341_040_000)
+    expect(roundCost(812 * MIB, attached([20_000, 20_000], [week, 2 * week]))).toBe(227_360_000)
   })
 })
 
@@ -766,35 +755,35 @@ describe("minTopupDays", () => {
   const week = 7 * SECONDS_IN_DAY
 
   it("starts the slider one check period ahead — the shortest move the date can make", () => {
-    expect(minTopupDays(GIB, [rate], [week], 0)).toBe(7)
-    expect(minTopupDays(GIB, [rate, rate], [week, 2 * week], 0)).toBe(7)
-    expect(minTopupDays(GIB, [rate, 543], [2 * week, 90 * SECONDS_IN_DAY], 0)).toBe(14)
+    expect(minTopupDays(GIB, attached([rate], [week]), 0)).toBe(7)
+    expect(minTopupDays(GIB, attached([rate, rate], [week, 2 * week]), 0)).toBe(7)
+    expect(minTopupDays(GIB, attached([rate, 543], [2 * week, 90 * SECONDS_IN_DAY]), 0)).toBe(14)
   })
 
   it("names the shortest move that carries the date past the restart threshold", () => {
     for (const balance of [0, MIN_BOUNTY, 3 * MIN_PROVIDER_BALANCE]) {
-      const restart = restartBalance(GIB, [rate], [week])
-      const days = minTopupDays(GIB, [rate], [week], balance)
-      const covered = paidDaysLeft(GIB, [rate], [week], restart) ?? 0
-      const paid = paidDaysLeft(GIB, [rate], [week], balance) ?? 0
+      const restart = restartBalance(GIB, attached([rate], [week]))
+      const days = minTopupDays(GIB, attached([rate], [week]), balance)
+      const covered = paidDaysLeft(GIB, attached([rate], [week]), restart) ?? 0
+      const paid = paidDaysLeft(GIB, attached([rate], [week]), balance) ?? 0
 
       expect(paid + days).toBeGreaterThanOrEqual(covered)
     }
   })
 
   it("has no minimum where no provider comes back at any balance", () => {
-    expect(minTopupDays(GIB, [1], [week], 0)).toBe(0)
+    expect(minTopupDays(GIB, attached([1], [week]), 0)).toBe(0)
   })
 })
 
 describe("the top-up a contract is extended with", () => {
   const printed = (nanotons: number): number => Number(tonLabel(nanotons, SHOWN_DIGITS).slice(0, -GRAM.length))
   const week = 7 * SECONDS_IN_DAY
-  const demoRound = roundCost(812 * MIB, [200, 210, 150], [week, week, 2 * week])
+  const demoRound = roundCost(812 * MIB, attached([200, 210, 150], [week, week, 2 * week]))
 
   it("fills the printed total with the printed top-up and the printed fee, on every day the slider offers", () => {
     for (let days = 7; days <= MAX_STORAGE_DAYS; days += 1) {
-      const topup = ceilShown(topupForDays(GIB, [20_000, 200], [week, week], 10_000_000, days))
+      const topup = ceilShown(topupForDays(GIB, attached([20_000, 200], [week, week]), 10_000_000, days))
 
       expect(printed(topup) + printed(FEE_TOPUP)).toBeCloseTo(printed(topup + FEE_TOPUP), 6)
     }
@@ -806,7 +795,7 @@ describe("the top-up a contract is extended with", () => {
   })
 
   it("asks the emptied demo contract for no restart round at all, its bounties being below the minimum", () => {
-    const missing = restartBalance(812 * MIB, [200, 210, 150], [week, week, 2 * week]) - 90_000_000
+    const missing = restartBalance(812 * MIB, attached([200, 210, 150], [week, week, 2 * week])) - 90_000_000
 
     expect(missing).toBeLessThan(0)
   })
@@ -814,8 +803,8 @@ describe("the top-up a contract is extended with", () => {
   it("still funds the restart of a set the daemon does take back", () => {
     const rates = [20_000, 200]
     const spans = [week, week]
-    const restart = restartBalance(GIB, rates, spans)
-    const round = roundCost(GIB, rates, spans)
+    const restart = restartBalance(GIB, attached(rates, spans))
+    const round = roundCost(GIB, attached(rates, spans))
     const missing = restart - 10_000_000
     const rounds = Math.ceil(missing / round)
 

@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react"
-import { CalendarCheck, Search, SlidersHorizontal, X } from "lucide-react"
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react"
+import { CalendarCheck, SlidersHorizontal } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
 import { useDismiss } from "@/lib/dismiss"
@@ -7,10 +7,10 @@ import { formatNumber, type Translate } from "@/lib/format"
 import { PROOF_PRESETS, PROOF_STEPS, nearestProofDays } from "@/lib/pricing"
 import { bounds, countMatching, hasFilters, priceInTon, type ProviderFilters } from "@/lib/providers"
 import type { Provider } from "@/types/provider"
-import { IconButton } from "../icon-button"
 import { Menu, MenuOption, RangeMenuBody } from "../menu"
 import { Hint } from "../hint"
 import { Range } from "../range"
+import { SearchField } from "../search-field"
 import shared from "../shared.module.css"
 import styles from "./providers-step.module.css"
 
@@ -98,7 +98,6 @@ export const CatalogToolbar = ({
   proofDays,
 }: CatalogToolbarProps) => {
   const { t } = useTranslation()
-  const searchRef = useRef<HTMLInputElement>(null)
   const [openMenu, setOpenMenu] = useState<MenuId | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
@@ -144,32 +143,7 @@ export const CatalogToolbar = ({
 
   return (
     <div className={cx(styles.toolbar, bare && styles.toolbarBare)}>
-      <div className={styles.search}>
-        <Search aria-hidden="true" className={styles.searchIcon} />
-        <input
-          ref={searchRef}
-          type="text"
-          autoComplete="off"
-          value={query}
-          placeholder={t("ui.search")}
-          aria-label={t("ui.search")}
-          onChange={(event) => onQuery(event.target.value)}
-          className={styles.searchInput}
-        />
-        {query && (
-          <IconButton
-            size="sm"
-            label={t("ui.clear")}
-            onClick={() => {
-              onQuery("")
-              searchRef.current?.focus()
-            }}
-            className={styles.clear}
-          >
-            <X aria-hidden="true" className={styles.smIcon} />
-          </IconButton>
-        )}
-      </div>
+      <SearchField value={query} onChange={onQuery} className={styles.search} />
 
       <button
         type="button"

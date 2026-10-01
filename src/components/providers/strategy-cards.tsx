@@ -1,7 +1,8 @@
 import { Globe, ShieldCheck, Tag, type LucideIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { cx } from "@/lib/cx"
 import type { Diversity, PickCriterion } from "@/lib/providers"
+import { PickCard } from "../pick-card"
+import shared from "../shared.module.css"
 import styles from "./providers-step.module.css"
 
 export type Strategy = "reliable" | "cheap" | "countries"
@@ -30,26 +31,18 @@ export const StrategyCards = ({ strategy, onPick }: StrategyCardsProps) => {
 
   return (
     <div role="radiogroup" aria-label={t("catalog.stepTitle")} className={styles.group}>
-      {STRATEGIES.map((option) => {
-        const active = strategy === option
-        const Icon = ICONS[option]
-        return (
-          <button
-            key={option}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            onClick={() => onPick(option)}
-            className={cx(styles.card, active && styles.cardOn)}
-          >
-            <span className={styles.cardIcon}>
-              <Icon className={styles.cardGlyph} aria-hidden="true" />
-            </span>
-            <span className={styles.cardTitle}>{t(`strategy.${option}`)}</span>
-            <span className={styles.cardNote}>{t(`strategy.${option}Note`)}</span>
-          </button>
-        )
-      })}
+      {STRATEGIES.map((option) => (
+        <PickCard
+          key={option}
+          icon={ICONS[option]}
+          title={t(`strategy.${option}`)}
+          note={t(`strategy.${option}Note`)}
+          hint={t(`strategy.${option}Hint`)}
+          active={strategy === option}
+          className={shared.pickCardRow}
+          onPick={() => onPick(option)}
+        />
+      ))}
     </div>
   )
 }

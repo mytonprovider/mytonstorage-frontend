@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import type { PickedFile } from "@/types/bag"
-import { safeName, uploadBag, validatePicked } from "./upload"
+import { roundedLeft, safeName, uploadBag, uploadStatsOf, validatePicked } from "./upload"
 
 describe("safeName", () => {
   it("drops the segments the backend rejects the whole request for", () => {
@@ -114,5 +114,41 @@ describe("validatePicked", () => {
   it("lets a tab-bearing name through untouched", () => {
     expect(validatePicked([picked("a\tb.txt", "x")])).toBeNull()
     expect(safeName("a\tb.txt")).toBe("a\tb.txt")
+  })
+})
+
+describe("uploadStatsOf", () => {
+  it("holds speed and time left back until the socket buffer burst has passed", () => {
+    const stats = uploadStatsOf([{ at: 0, loaded: 0, total: 1000 }, { at: 1000, loaded: 400, total: 1000 }], 0)
+
+    expect(stats).toEqual({ loaded: 400, total: 1000, elapsed: 1, speed: null, left: null })
+  })
+
+  it("measures speed across the window rather than since the start", () => {
+    const stats = uploadStatsOf([{ at: 3000, loaded: 300, total: 1800 }, { at: 8000, loaded: 800, total: 1800 }], 0)
+
+    expect(stats.speed).toBe(100)
+    expect(stats.left).toBe(10)
+    expect(stats.elapsed).toBe(8)
+  })
+
+  it("keeps a stalled upload's time left unknown instead of endless", () => {
+    const stats = uploadStatsOf([{ at: 3000, loaded: 500, total: 1000 }, { at: 8000, loaded: 500, total: 1000 }], 0)
+
+    expect(stats.speed).toBe(0)
+    expect(stats.left).toBeNull()
+  })
+})
+
+describe("roundedLeft", () => {
+  it("counts the last minute in five-second steps", () => {
+    expect(roundedLeft(0.4)).toBe(5)
+    expect(roundedLeft(42)).toBe(45)
+    expect(roundedLeft(59)).toBe(60)
+  })
+
+  it("rounds longer waits up to whole minutes", () => {
+    expect(roundedLeft(61)).toBe(120)
+    expect(roundedLeft(3601)).toBe(3660)
   })
 })

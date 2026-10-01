@@ -1,7 +1,7 @@
 import type { ApiProvider, Provider } from "@/types/provider"
 import type { ProviderOffer } from "@/types/bag"
 import { toProvider } from "./api"
-import type { ContractEconomics } from "./contracts-cache"
+import type { ContractState } from "./contracts-cache"
 import type { Translate } from "./format"
 import { MIB, NANO, SECONDS_IN_DAY } from "./format"
 
@@ -80,14 +80,11 @@ export const spaceless: Provider = toProvider({
 
 export const providers: Provider[] = [base, cheapDutch, secondGerman, partial, offline, narrowSpan, spaceless]
 
-export const economics: ContractEconomics = {
-  bagId: "0000000000000000000000000000000000000000000000000000000000000001",
+export const state: ContractState = {
+  torrentHash: "0000000000000000000000000000000000000000000000000000000000000001",
   fileSize: MIB,
   balance: 2 * NANO,
-  ratesPerMibDay: [300],
-  pubkeys: [base.pubkey],
-  spans: [7 * SECONDS_IN_DAY],
-  lastProofs: [1785540000],
+  providers: [{ pubkey: base.pubkey, ratePerMbDay: 300, maxSpan: 7 * SECONDS_IN_DAY, lastProofTime: 1785540000 }],
 }
 
 export const offerOf = (pricePerProof: number, pricePerMb = 0, key = base.pubkey): ProviderOffer => ({

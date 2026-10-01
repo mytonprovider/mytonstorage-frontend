@@ -1,4 +1,4 @@
-import { ApiError } from "./api"
+import { ApiError, failureDetail, failureStatus } from "./api"
 import type { DeployCheck } from "./paid-link"
 import { walletRefused } from "./ton/transactions"
 
@@ -43,5 +43,22 @@ export const uploadErrorKey = (error: unknown): string => {
   if (error.status === 413) return "errors.uploadTooLarge"
   if (error.status === 503) return "errors.serverFull"
   if (error.status === 429) return "errors.rateLimited"
+  if (error.status === 502 || error.status === 504) return "errors.uploadNoResponse"
+  if (error.status === 500) return "errors.serverError"
+  if (error.status === 400) return "errors.requestRejected"
   return "errors.uploadFailed"
 }
+
+const REASONLESS_KEYS = new Set(["errors.uploadFailed", "errors.serverError", "errors.requestRejected", "errors.removeFailed"])
+
+export interface UploadFailure {
+  key: string
+  status: number | null
+  detail: string
+}
+
+export const uploadFailure = (key: string, error?: unknown): UploadFailure => ({
+  key,
+  status: failureStatus(error) || null,
+  detail: REASONLESS_KEYS.has(key) ? failureDetail(error) : "",
+})

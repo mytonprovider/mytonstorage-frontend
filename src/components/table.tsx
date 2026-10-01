@@ -60,7 +60,7 @@ interface TableCellProps {
 
 export const TableCell = ({ label, value, title, ghost, children }: TableCellProps) => (
   <div className={shared.tableCell}>
-    <span className={cx(shared.tableLabel, ghost && shared.ghost)}>{label}</span>
+    <span className={shared.tableLabel}>{label}</span>
     {children ?? (
       <span title={title} className={cx(shared.tableValue, ghost && shared.shape)}>
         {value}
@@ -72,7 +72,7 @@ export const TableCell = ({ label, value, title, ghost, children }: TableCellPro
 export const Ratio = ({ valid, total }: { valid: number; total: number }) => {
   const { t } = useTranslation()
 
-  if (total === 0) return <span className={shared.ratio}>{t("status.noChecksYet")}</span>
+  if (total === 0) return <span className={shared.ratioText}>{t("status.noChecksYet")}</span>
 
   return (
     <span className={shared.ratio}>
