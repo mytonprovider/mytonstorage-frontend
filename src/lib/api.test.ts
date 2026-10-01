@@ -49,9 +49,15 @@ describe("failureStatus", () => {
 })
 
 describe("sessionEnded", () => {
-  it("reads the ended session off the response code alone", () => {
+  it("reads the ended session off the response code", () => {
     expect(sessionEnded(new ApiError(401, "POST", "/api/v1/files/unpaid"))).toBe(true)
     expect(sessionEnded(new ApiError(403, "POST", "/api/v1/files/unpaid"))).toBe(false)
+  })
+
+  it("takes the one text the backend sends with 500 when the address is gone", () => {
+    expect(sessionEnded(new ApiError(500, "POST", "/api/v1/files/unpaid", "relogin required"))).toBe(true)
+    expect(sessionEnded(new ApiError(500, "POST", "/api/v1/files/unpaid", "internal server error"))).toBe(false)
+    expect(sessionEnded(new ApiError(400, "POST", "/api/v1/files/unpaid", "relogin required"))).toBe(false)
   })
 
   it("says nothing ended when the backend never answered", () => {

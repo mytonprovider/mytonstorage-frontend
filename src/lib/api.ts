@@ -30,7 +30,10 @@ export const failureStatus = (error: unknown): number | null => (error instanceo
 
 export const failureDetail = (error: unknown): string => (error instanceof ApiError ? error.detail : "")
 
-export const sessionEnded = (error: unknown): boolean => error instanceof ApiError && error.status === 401
+const RELOGIN_REQUIRED = "relogin required"
+
+export const sessionEnded = (error: unknown): boolean =>
+  error instanceof ApiError && (error.status === 401 || (error.status === 500 && error.detail === RELOGIN_REQUIRED))
 
 const DETAIL_LIMIT = 300
 
