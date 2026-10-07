@@ -268,6 +268,13 @@ export const ContractsList = ({
                 {t("ui.reset")}
               </button>
             </>
+          ) : contracts.length > 0 ? (
+            <>
+              <p>{t("files.noActive")}</p>
+              <button type="button" onClick={() => onHideClosed(false)} className={cx(shared.textAccent, styles.reset)}>
+                {t("files.showClosed")}
+              </button>
+            </>
           ) : (
             <>
               <p>{t("files.empty")}</p>

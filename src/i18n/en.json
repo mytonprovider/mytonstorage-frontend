@@ -186,6 +186,8 @@
     "withdraw": "Close",
     "closed": "Closed",
     "hideClosed": "Hide closed",
+    "noActive": "No active contracts",
+    "showClosed": "Show closed",
     "refresh": "Refresh",
     "showMore": "Show more",
     "empty": "No storage contracts found",

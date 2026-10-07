@@ -2,7 +2,7 @@ import { FileText, Loader, Server, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { gatewayUrl } from "@/lib/api"
 import { useCheckLabel } from "@/lib/check-label"
-import { contractStatus, contractVerdict, countChecks, hiredAt, paymentTone, proofDue, scanUrl, type ContractRow, type NotifyState } from "@/lib/contracts"
+import { contractStatus, contractVerdict, countChecks, hiredAt, paymentTone, proofDue, scanUrl, shownChecks, type ContractRow, type NotifyState } from "@/lib/contracts"
 import { useContractData, type ContractState } from "@/lib/contracts-cache"
 import { cx } from "@/lib/cx"
 import { GHOST_TON, SECONDS_IN_DAY, formatBytes, formatDate, formatDateTime, formatDuration, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
@@ -20,7 +20,7 @@ const MIDDLE_PROOF_DAYS = PROOF_STEPS[Math.floor(PROOF_STEPS.length / 2)]
 const HEAD_KEYS = ["table.key", "details.priceDay", "details.span", "files.status", "details.check", "details.lastProof", "details.nextProof"]
 
 interface ContractDetailsProps {
-  contract: StorageContract & Pick<ContractRow, "lastEventAt">
+  contract: StorageContract & Pick<ContractRow, "lastEventAt" | "pending" | "stored">
   copied: string | null
   onCopy: (value: string) => void
   notifyState: NotifyState | null
@@ -34,7 +34,8 @@ export const ContractDetails = ({ contract, copied, onCopy, notifyState, onNotif
   const now = nowSeconds()
   const checkLabel = useCheckLabel(now)
 
-  const checks = statuses.length > 0 ? countChecks(statuses, contract.address) : { valid: contract.valid, total: contract.total }
+  const checks = statuses.length > 0 ? countChecks(statuses, contract.address) : { valid: contract.valid, total: contract.total, pending: contract.pending, stored: contract.stored }
+  const shown = shownChecks({ ...checks, state }) ?? { valid: checks.valid, total: checks.total }
   const statusByKey = new Map(statuses.map((status) => [status.provider_pubkey, status]))
   const hired = hiredAt(contract)
   const behind = state ? state.providers.filter((provider) => now > proofDue(provider, hired, state.fileSize)) : []
@@ -61,18 +62,18 @@ export const ContractDetails = ({ contract, copied, onCopy, notifyState, onNotif
     <div className={styles.body}>
       <section data-tone={status?.tone} className={styles.statusCard}>
         <div className={styles.bar}>
-          <span style={{ flexGrow: checks.valid }} className={styles.barFill} />
-          <span style={{ flexGrow: checks.total - checks.valid }} />
+          <span style={{ flexGrow: shown.valid }} className={styles.barFill} />
+          <span style={{ flexGrow: shown.total - shown.valid }} />
         </div>
         <div className={styles.statusBody}>
           <span className={styles.statusWord}>
             <span className={shared.dot} aria-hidden="true" />
             {stateWord}
           </span>
-          {!contract.closed && checks.total > 0 && (
+          {!contract.closed && shown.total > 0 && (
             <span className={styles.checksRow}>
               <span className={styles.checksLabel}>{t("details.checksOf")}</span>
-              <Ratio valid={checks.valid} total={checks.total} />
+              <Ratio valid={shown.valid} total={shown.total} />
             </span>
           )}
         </div>

@@ -3,7 +3,7 @@ import { CircleX, Loader, Pencil, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { gatewayUrl } from "@/lib/api"
 import { cx } from "@/lib/cx"
-import { VERDICT_WORDS, contractStatus, paymentTone, scanUrl, type ContractRow as ContractRowData } from "@/lib/contracts"
+import { VERDICT_WORDS, contractStatus, paymentTone, scanUrl, shownChecks, type ContractRow as ContractRowData } from "@/lib/contracts"
 import type { ContractSortField } from "@/lib/contracts-view"
 import { MIB, SECONDS_IN_DAY, formatBytes, formatDate, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
 import { dailyCost, paidDaysLeft } from "@/lib/pricing"
@@ -169,6 +169,7 @@ export const ContractRow = ({ contract, index, openKind, active, busy, copied, o
   const { t } = useTranslation()
   const sample = useSkeletonSample()
   const status = contractStatus(contract, nowSeconds())
+  const checks = shownChecks(contract)
 
   const act = (run: () => void) => (event: MouseEvent) => {
     event.stopPropagation()
@@ -244,11 +245,7 @@ export const ContractRow = ({ contract, index, openKind, active, busy, copied, o
       )}
 
       <TableCell label={t("files.confirmations")}>
-        {contract.closed ? null : contract.pending === undefined ? (
-          <GhostRatio />
-        ) : (
-          <Ratio valid={contract.valid} total={contract.total} />
-        )}
+        {contract.closed ? null : checks === null ? <GhostRatio /> : <Ratio valid={checks.valid} total={checks.total} />}
       </TableCell>
 
       <PaidUntil contract={contract} />

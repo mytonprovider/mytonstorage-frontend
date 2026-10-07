@@ -205,6 +205,22 @@ describe("paidDaysLeft", () => {
     expect(paidDaysLeft(GIB, attached([rate], [week]), 3.5 * perProof)).toBe(21)
   })
 
+  it("dates a lapsed contract by the check its balance could not pay, not by today", () => {
+    const now = 1_790_200_000
+    const lateByThreeDays = attached([rate], [week], [now - 10 * SECONDS_IN_DAY])
+
+    expect(paidDaysLeft(GIB, lateByThreeDays, perProof - 1, now)).toBe(-3)
+    expect(paidDaysLeft(GIB, lateByThreeDays, perProof, now)).toBe(7)
+  })
+
+  it("walks the overdue checks in due order until the balance runs out", () => {
+    const now = 1_790_200_000
+    const late = attached([rate, rate], [week, week], [now - 11 * SECONDS_IN_DAY, now - 10 * SECONDS_IN_DAY])
+
+    expect(paidDaysLeft(GIB, late, 0, now)).toBe(-4)
+    expect(paidDaysLeft(GIB, late, perProof, now)).toBe(-3)
+  })
+
   it("keeps the date on a whole check, a part of a bounty buying nothing", () => {
     expect(paidDaysLeft(GIB, attached([rate], [week]), 3 * perProof - 1)).toBe(14)
     expect(paidDaysLeft(GIB, attached([rate], [week]), 2 * perProof - 1)).toBe(7)
@@ -279,6 +295,13 @@ describe("topupForDays", () => {
   it("rounds the target up to the next check, since the date stands still between two proofs", () => {
     expect(topupForDays(GIB, attached([rate], [week]), 0, 1)).toBe(topupForDays(GIB, attached([rate], [week]), 0, 7))
     expect(topupForDays(GIB, attached([rate], [week]), 0, 8)).toBe(2 * perProof)
+  })
+
+  it("counts the extension from today once the contract has lapsed, so no day comes free", () => {
+    const now = 1_790_200_000
+    const lapsed = attached([rate], [week], [now - 10 * SECONDS_IN_DAY])
+
+    expect(topupForDays(GIB, lapsed, perProof / 2, 1, now)).toBe(perProof / 2)
   })
 
   it("carries the paid-until date at least as far as the slider asked", () => {

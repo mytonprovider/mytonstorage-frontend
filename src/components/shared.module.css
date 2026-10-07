@@ -44,8 +44,16 @@
   color: var(--tone-green-text);
 }
 
+.inkAccent.inkAccent {
+  color: var(--accent-text);
+}
+
 .textDanger {
   composes: textAction inkDanger;
+}
+
+.textAccent {
+  composes: textAction inkAccent;
 }
 
 .primary {
@@ -785,6 +793,10 @@
 
 .textDanger:active:not(:disabled) {
   background: color-mix(in srgb, var(--tone-red-text) 16%, transparent);
+}
+
+.textAccent:active:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-text) 16%, transparent);
 }
 
 .primary:active:not(:disabled) {

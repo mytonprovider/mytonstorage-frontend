@@ -1,4 +1,4 @@
-import { contractVerdict, type ContractRow, type ContractVerdict } from "./contracts"
+import { contractVerdict, shownChecks, type ContractRow, type ContractVerdict } from "./contracts"
 import { paidDaysLeft } from "./pricing"
 
 export type StatusFilter = ContractVerdict
@@ -61,8 +61,10 @@ const valueOf = (row: ContractRow, field: ContractSortField, now: number): numbe
       return row.description
     case "size":
       return row.size || row.state?.fileSize || 0
-    case "checks":
-      return row.total > 0 ? row.valid / row.total : NO_VALUE
+    case "checks": {
+      const checks = shownChecks(row) ?? row
+      return checks.total > 0 ? checks.valid / checks.total : NO_VALUE
+    }
     case "status": {
       const verdict = contractVerdict(row, now)
       return verdict === null ? HEAVINESS.noData : HEAVINESS[verdict]

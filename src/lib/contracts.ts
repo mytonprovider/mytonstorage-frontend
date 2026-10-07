@@ -5,6 +5,7 @@ import type { Tone } from "@/types/tone"
 import { failureStatus, fetchBagDetails, notifyProviders, sessionEnded } from "./api"
 import type { ContractState } from "./contracts-cache"
 import { CONTRACT_RESERVE, MIN_BOUNTY, fullBounty } from "./pricing"
+import { pubkeyFrom } from "./providers"
 import type { StorageProvider } from "./ton/storage-data"
 import { getStatuses, knownStateHash, peekState, putStates, readContractsCache, refreshState, stateOf, writeContractsCache } from "./contracts-cache"
 import { MIB, nowSeconds } from "./format"
@@ -33,8 +34,15 @@ const lastOf = (contract: ScannedContract): number => contract.lastEventAt ?? co
 export interface ContractRow extends StorageContract {
   lastEventAt?: number
   pending?: number
+  stored?: string[]
   enriched?: boolean
   state?: ContractState | null
+}
+
+const withState = (row: ContractRow, state: ContractState | null | undefined, now: number): ContractRow => {
+  const funded = state !== null && state !== undefined && state.balance > CONTRACT_RESERVE
+  if (!row.closed || !funded) return { ...row, state }
+  return { ...row, state, closed: false, lastEventAt: Math.max(lastOf(row), now) }
 }
 
 export const mergeRows = (rows: ContractRow[], scanned: ScannedContract[]): ContractRow[] => {
@@ -58,7 +66,7 @@ export const mergeRows = (rows: ContractRow[], scanned: ScannedContract[]): Cont
       ...known,
       createdAt: Math.min(known.createdAt, event.createdAt),
       lastEventAt: Math.max(lastOf(known), lastOf(event)),
-      closed: known.closed || event.closed,
+      closed: lastOf(event) >= lastOf(known) ? event.closed : known.closed,
     })
   })
 
@@ -153,9 +161,10 @@ export const findClosed = (owner: string, cursor: string | null, options: SweepO
 interface StatesIo {
   fetchStates?: typeof fetchAccountStates
   signal?: AbortSignal
+  now?: number
 }
 
-export const refreshStates = async (rows: ContractRow[], { fetchStates = fetchAccountStates, signal }: StatesIo = {}): Promise<ContractRow[]> => {
+export const refreshStates = async (rows: ContractRow[], { fetchStates = fetchAccountStates, signal, now = nowSeconds() }: StatesIo = {}): Promise<ContractRow[]> => {
   if (!rows.length) return rows
 
   const firstRead = rows.every((row) => knownStateHash(row.address) === undefined)
@@ -182,7 +191,7 @@ export const refreshStates = async (rows: ContractRow[], { fetchStates = fetchAc
     if (!account) return [{ ...row, state: peekState(row.address) ?? null }]
     if (account.codeHash !== STORAGE_CODE_HASH && !row.closed) return []
     const state = peekState(row.address) ?? null
-    return [{ ...row, state, bagId: row.bagId || state?.torrentHash || "", size: row.size || state?.fileSize || 0 }]
+    return [withState({ ...row, bagId: row.bagId || state?.torrentHash || "", size: row.size || state?.fileSize || 0 }, state, now)]
   })
 }
 
@@ -278,7 +287,7 @@ export const runPass = async (owner: string, cursors: Cursors, start: ContractRo
 
   const seen = new Set(found.found.map((contract) => contract.address))
   const wanted = focus ? new Set(focus) : null
-  const rest = rows.filter((row) => !seen.has(row.address) && !(row.closed && row.state) && (!wanted || wanted.has(row.address))).map((row) => row.address)
+  const rest = rows.filter((row) => !seen.has(row.address) && (!wanted || wanted.has(row.address))).map((row) => row.address)
   for (let at = 0; at < rest.length; at += ADDRESS_BATCH) {
     await drawn
     if (signal.aborted) return cursors
@@ -291,16 +300,30 @@ export const runPass = async (owner: string, cursors: Cursors, start: ContractRo
 
 export const checkRan = (status: ContractStatus): status is ContractStatus & { reason: number } => status.reason !== null
 
+const keyOf = (pubkey: string): string => pubkeyFrom(pubkey) ?? pubkey
+
 export const countChecks = (
   statuses: ContractStatus[],
   address: string,
-): { valid: number; total: number; pending: number } => {
+): { valid: number; total: number; pending: number; stored: string[] } => {
   const own = statuses.filter((status) => status.address === address)
+  const stored = own.filter((status) => status.reason === 0).map((status) => keyOf(status.provider_pubkey))
   return {
-    valid: own.filter((status) => status.reason === 0).length,
+    valid: stored.length,
     total: own.length,
     pending: own.filter((status) => !checkRan(status)).length,
+    stored,
   }
+}
+
+export const shownChecks = (
+  contract: Pick<ContractRow, "valid" | "total" | "pending" | "stored" | "state">,
+): { valid: number; total: number } | null => {
+  if (contract.pending === undefined || contract.state === undefined) return null
+  if (contract.state === null) return { valid: contract.valid, total: contract.total }
+
+  const hired = new Set(contract.state.providers.map((provider) => keyOf(provider.pubkey)))
+  return { valid: (contract.stored ?? []).filter((key) => hired.has(keyOf(key))).length, total: hired.size }
 }
 
 export const PROOF_GRACE_SECONDS = 3600
@@ -486,7 +509,7 @@ const hydrate = (owner: string): { cursors: Cursors; rows: ContractRow[] } => {
   return {
     cursors: { headLt: cache?.headLt ?? null, closedLt: cache?.closedLt ?? null },
     rows: withPending(
-      (cache?.rows ?? []).map((row) => ({ ...row, state: peekState(row.address) })),
+      (cache?.rows ?? []).map((row) => withState(row, peekState(row.address), nowSeconds())),
       owner,
     ),
   }

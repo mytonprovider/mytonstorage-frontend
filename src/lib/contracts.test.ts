@@ -21,6 +21,7 @@ import {
   paymentTone,
   LOW_BALANCE_DAYS,
   countChecks,
+  shownChecks,
   discover,
   findClosed,
   loadFailure,
@@ -210,6 +211,19 @@ describe("refreshStates", () => {
     expect(rows.map((contract) => contract.address)).toEqual(["EQC"])
   })
 
+  it("reopens a closed row once its account holds more than the reserve, and keeps one left at the reserve closed", async () => {
+    const fetchStates = vi.fn((): Promise<AccountStates> =>
+      Promise.resolve({ accounts: [account("EQA", { balance: CONTRACT_RESERVE + 1, dataBoc: BOC }), account("EQB", { balance: CONTRACT_RESERVE, dataBoc: BOC })], friendly: {} }),
+    )
+
+    const rows = await refreshStates([row("EQA", { closed: true }), row("EQB", { closed: true })], { fetchStates, now: NOW })
+
+    expect(rows.map((contract) => [contract.address, contract.closed, contract.lastEventAt])).toEqual([
+      ["EQA", false, NOW],
+      ["EQB", true, undefined],
+    ])
+  })
+
   it("fills the bag and the size from the state it just read", async () => {
     putState("EQA", "hash-1", state)
 
@@ -284,7 +298,11 @@ describe("runPass", () => {
   })
 
   it("closes a contract from a terminated message seen before its deploy page, and moves both cursors only at the end", async () => {
-    const { shown, io: deps } = io([pageOf([message({ source: "0:2", destination: OWNER, createdLt: "5", createdAt: NOW - 3600 })]), deploys(["0:1", "0:2"])])
+    const { shown, io: deps } = io([pageOf([message({ source: "0:2", destination: OWNER, createdLt: "5", createdAt: NOW - 3600 })]), deploys(["0:1", "0:2"])], {
+      fetchStates: vi.fn((addresses: string[], withData: boolean): Promise<AccountStates> =>
+        Promise.resolve({ accounts: addresses.map((address) => account(address, { ...(address === "0:2" ? { balance: CONTRACT_RESERVE } : {}), dataBoc: withData ? BOC : null })), friendly: {} }),
+      ),
+    })
 
     const cursors = await runPass(OWNER, { headLt: null, closedLt: null }, [], deps)
 
@@ -292,14 +310,15 @@ describe("runPass", () => {
     expect(cursors).toEqual({ headLt: "100", closedLt: "5" })
   })
 
-  it("refreshes the cached rows the pages did not mention, in batches, skipping closed ones already read", async () => {
-    putState("0:9", "hash-1", state)
-    const { calls, io: deps } = io([pageOf([]), pageOf([])])
+  it("refreshes every cached row the pages did not mention, closed ones included, and asks the backend only about the open ones", async () => {
+    putState("0:9", "hash-1", { ...state, balance: CONTRACT_RESERVE })
+    const { calls, shown, io: deps } = io([pageOf([]), pageOf([])])
     const cached = [row("0:8", { enriched: true }), row("0:9", { closed: true, enriched: true, state })]
 
     await runPass(OWNER, { headLt: "50", closedLt: "5" }, cached, deps)
 
-    expect(calls).toEqual(["closed", "deploys", "states:1", "bags:0", "checks:1"])
+    expect(calls).toEqual(["closed", "deploys", "states:2", "states:1", "bags:0", "checks:1"])
+    expect(shown.at(-1)?.find((contract) => contract.address === "0:9")?.closed).toBe(true)
   })
 
   it("refreshes only the rows on screen when asked to focus, leaving the rest to the full sweep", async () => {
@@ -369,9 +388,14 @@ describe("mergeRows", () => {
     expect(merged[0]).toMatchObject({ closed: true, createdAt: 100, lastEventAt: 200 })
   })
 
-  it("never reopens a closed row from a later deploy sweep", () => {
-    const merged = mergeRows([row("EQA", { closed: true })], [{ address: "EQA", createdAt: 100, closed: false }])
-    expect(merged[0].closed).toBe(true)
+  it("reopens a closed row when the owner's next provider change comes after the termination", () => {
+    const merged = mergeRows([row("EQA", { closed: true, lastEventAt: 200 })], [{ address: "EQA", createdAt: 100, closed: false, lastEventAt: 300 }])
+    expect(merged[0]).toMatchObject({ closed: false, createdAt: 100, lastEventAt: 300 })
+  })
+
+  it("keeps a row closed when the deploy sweep only brings events older than the termination", () => {
+    const merged = mergeRows([row("EQA", { closed: true, lastEventAt: 200 })], [{ address: "EQA", createdAt: 100, closed: false }])
+    expect(merged[0]).toMatchObject({ closed: true, lastEventAt: 200 })
   })
 
   it("gives a brand-new address empty enrichment to fill later", () => {
@@ -521,16 +545,37 @@ describe("countChecks", () => {
   ]
 
   it("counts only the checks belonging to the given contract", () => {
-    expect(countChecks(statuses, "EQA")).toEqual({ valid: 1, total: 2, pending: 0 })
+    expect(countChecks(statuses, "EQA")).toEqual({ valid: 1, total: 2, pending: 0, stored: ["a"] })
   })
 
   it("reports an unchecked contract as zero of zero", () => {
-    expect(countChecks(statuses, "EQC")).toEqual({ valid: 0, total: 0, pending: 0 })
+    expect(countChecks(statuses, "EQC")).toEqual({ valid: 0, total: 0, pending: 0, stored: [] })
   })
 
   it("counts a check that has not run yet in the denominator and names it pending", () => {
     const pending: ContractStatus = { address: "EQA", provider_pubkey: "d", reason: null, reason_timestamp: null }
-    expect(countChecks([...statuses, pending], "EQA")).toEqual({ valid: 1, total: 3, pending: 1 })
+    expect(countChecks([...statuses, pending], "EQA")).toEqual({ valid: 1, total: 3, pending: 1, stored: ["a"] })
+  })
+})
+
+describe("shownChecks", () => {
+  const key = (seed: string) => seed.repeat(64).slice(0, 64)
+  const provider = (pubkey: string) => ({ pubkey, ratePerMbDay: 1, maxSpan: 86400, lastProofTime: 0 })
+  const state = { torrentHash: "", fileSize: 1, balance: 1, providers: ["a", "b", "c", "d", "e", "f"].map((seed) => provider(key(seed))) }
+
+  it("counts the backend confirmations against every provider the chain holds, not against the rows the backend returned", () => {
+    expect(shownChecks({ valid: 2, total: 2, pending: 0, stored: [key("a"), key("b")], state })).toEqual({ valid: 2, total: 6 })
+  })
+
+  it("does not count a confirmation for a provider the contract no longer hires, whatever case the backend wrote the key in", () => {
+    const narrow = { ...state, providers: [provider(key("a"))] }
+    expect(shownChecks({ valid: 2, total: 2, pending: 0, stored: [key("A").toUpperCase(), key("z")], state: narrow })).toEqual({ valid: 1, total: 1 })
+  })
+
+  it("shows nothing until both the backend and the chain have answered, and the backend rows alone when the chain has no account", () => {
+    expect(shownChecks({ valid: 2, total: 2, pending: 0, stored: [], state: undefined })).toBe(null)
+    expect(shownChecks({ valid: 2, total: 2, pending: undefined, stored: [], state })).toBe(null)
+    expect(shownChecks({ valid: 2, total: 3, pending: 0, stored: [], state: null })).toEqual({ valid: 2, total: 3 })
   })
 })
 
