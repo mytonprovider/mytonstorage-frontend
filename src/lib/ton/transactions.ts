@@ -1,4 +1,5 @@
 import { TonConnectError, UserRejectsError } from "@tonconnect/ui-react"
+import { beginCell, Cell, loadMessage, storeMessage } from "@ton/core"
 import type { WalletTransaction } from "@/types/contract"
 import { nowSeconds, sleep } from "../format"
 import { toRawAddress } from "./ton-address"
@@ -6,7 +7,6 @@ import { fetchTransactions, type ChainTransaction } from "./toncenter"
 
 const VALID_FOR_SECONDS = 300
 const POLL_INTERVAL_MS = 5000
-const BASE64_HASH = /^[A-Za-z0-9+/_-]{43}=$/
 
 export interface WalletSender {
   account?: { address: string } | null
@@ -23,12 +23,22 @@ export const fromSender = (source: string | null | undefined, wallet: string | n
   return sender !== null && sender === toRawAddress(wallet)
 }
 
-const hashInHex = (hash: string | null | undefined): string | null => {
-  if (!hash || !BASE64_HASH.test(hash)) return null
+export const normalizedExternalHash = (boc: string): string | null => {
+  try {
+    const message = loadMessage(Cell.fromBase64(boc).beginParse())
+    if (message.info.type !== "external-in") return null
 
-  const raw = atob(hash.replace(/-/g, "+").replace(/_/g, "/"))
-  return Array.from(raw, (char) => char.charCodeAt(0).toString(16).padStart(2, "0")).join("")
+    const normalized = { ...message, init: null, info: { ...message.info, src: undefined, importFee: 0n } }
+    return beginCell().store(storeMessage(normalized, { forceRef: true })).endCell().hash().toString("hex")
+  } catch {
+    return null
+  }
 }
+
+const bocOf = (result: unknown): string | null =>
+  typeof result === "object" && result !== null && typeof (result as { boc?: unknown }).boc === "string"
+    ? (result as { boc: string }).boc
+    : null
 
 const seenOnChain = async (
   contract: string,
@@ -67,14 +77,6 @@ const pollUntil = async (
   return null
 }
 
-export const waitForTransaction = async (
-  contract: string,
-  since: number,
-  wallet: string | null | undefined,
-  timeoutMs: number,
-): Promise<string | null> =>
-  hashInHex((await pollUntil(contract, since, wallet, timeoutMs, AbortSignal.timeout(timeoutMs)))?.hash)
-
 const messageOf = (transaction: WalletTransaction) => ({
   address: transaction.address,
   amount: BigInt(Math.round(transaction.amount)).toString(),
@@ -86,6 +88,7 @@ export const sendAndConfirm = async (
   sender: WalletSender,
   transaction: WalletTransaction,
   timeoutMs: number,
+  onSent?: (boc: string) => void,
 ): Promise<boolean> => {
   const since = nowSeconds()
   const wallet = sender.account?.address
@@ -98,7 +101,11 @@ export const sendAndConfirm = async (
       messages: [messageOf(transaction)],
     })
     .then(
-      () => true,
+      (result) => {
+        const boc = bocOf(result)
+        if (boc) onSent?.(boc)
+        return true
+      },
       (error: unknown) => {
         if (error instanceof TonConnectError) throw error
         return false

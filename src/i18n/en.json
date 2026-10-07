@@ -145,8 +145,7 @@
     "send": "Pay",
     "days": "d",
     "floorNote": "No shorter than the check period — {{days}} d.",
-    "total": "Total due",
-    "payNote": "Providers will start downloading the files once the payment is confirmed"
+    "total": "Total due"
   },
   "presets": {
     "1w": "1 week",
@@ -161,7 +160,10 @@
     "5m": "5 months"
   },
   "done": {
-    "deployed": "Contract deployed — providers need time to download the files. The status is in the My files tab.",
+    "title": "Contract deployed",
+    "nextStored": "Your files are now being stored on TON Storage",
+    "nextProviders": "Providers need some time to download and distribute your files",
+    "nextTrack": "You can track the storage status in the My files tab above",
     "finish": "Finish",
     "bag": "Bag",
     "tx": "Transaction",
@@ -235,7 +237,7 @@
   },
   "filters": {
     "title": "Filters",
-    "proofNote": "How often a provider proves it still stores the bag",
+    "proofNote": "How often the provider proves it still stores the files",
     "ratingUnit": "rating",
     "priceUnit": "GRAM / 200 GB · mo",
     "proofRare": "Long check periods reduce blockchain fees but increase the risk: a provider may stop storing the bag between infrequent checks. For safety, set the period to {{days}} days or less.",

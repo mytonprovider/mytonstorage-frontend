@@ -1,4 +1,4 @@
-import { Hourglass, Loader, Wallet } from "lucide-react"
+import { Hourglass, Loader } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { formatDate, formatDuration, nowSeconds, SECONDS_IN_DAY, SHOWN_DIGITS, tonLabel } from "@/lib/format"
 import {
@@ -70,16 +70,9 @@ export const PeriodStep = ({
         <GridRange label={t("steps.period")} stepDays={proofDays} days={shownDays} onChange={onDays} />
 
         {minDays > MIN_STORAGE_DAYS && <p className={styles.note}>{t("period.floorNote", { days: minDays })}</p>}
-      </div>
 
-      <div className={styles.payHeading}>
-        <h2 className={shared.tableTitle}>
-          <Wallet className={shared.titleIcon} aria-hidden="true" />
-          <span>{t("details.payment")}</span>
-        </h2>
-      </div>
+        <div className={styles.divider} />
 
-      <div className={styles.box}>
         <div className={styles.fields}>
           <div className={styles.total}>
             <span>{t("period.total")}</span>
@@ -88,8 +81,7 @@ export const PeriodStep = ({
               {tonLabel(cost, SHOWN_DIGITS)}
             </span>
           </div>
-          <SheetField label={t("files.paidUntil")} value={formatDate(paidUntil, i18n.language)} />
-          <p className={styles.fieldNote}>{t("period.payNote")}</p>
+          <SheetField label={t("files.topupNewUntil")} value={formatDate(paidUntil, i18n.language)} />
         </div>
       </div>
 
