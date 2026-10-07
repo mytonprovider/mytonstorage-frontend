@@ -37,7 +37,6 @@
 .trigger:focus-visible {
   outline: none;
   border-color: var(--accent);
-  box-shadow: var(--focus-ring);
 }
 
 .trigger:disabled {
@@ -101,7 +100,7 @@
 
 @media (hover: hover) {
   .option:not([aria-disabled="true"]):hover {
-    background: var(--surface-2);
+    background: color-mix(in srgb, var(--text) 10%, transparent);
   }
 }
 

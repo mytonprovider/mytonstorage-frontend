@@ -1,1 +1,1 @@
-export type Tone = "gray" | "green" | "yellow" | "red" | "orange"
+export type Tone = "gray" | "green" | "yellow" | "red"

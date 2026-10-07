@@ -49,8 +49,10 @@ a {
   text-decoration: none;
 }
 
-a:hover {
-  text-decoration: underline;
+@media (hover: hover) {
+  a:hover {
+    text-decoration: underline;
+  }
 }
 
 button {
@@ -88,7 +90,6 @@ input:not([type="range"]):not([type="checkbox"]):not([type="file"]):focus-visibl
 textarea:focus-visible {
   outline: none;
   border-color: var(--accent);
-  box-shadow: var(--focus-ring);
 }
 
 * {

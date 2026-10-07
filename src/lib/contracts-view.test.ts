@@ -112,7 +112,7 @@ describe("matchesQuery", () => {
 
 describe("isSortField", () => {
   it("accepts every column the list can order by and refuses anything else", () => {
-    expect(["createdAt", "address", "desc", "paidUntil", "size", "checks", "status"].every(isSortField)).toBe(true)
+    expect(["createdAt", "address", "bagId", "desc", "paidUntil", "size", "checks", "status"].every(isSortField)).toBe(true)
     expect(isSortField("")).toBe(false)
     expect(isSortField("bogus")).toBe(false)
   })
@@ -153,10 +153,12 @@ describe("sortContracts", () => {
     ])
   })
 
-  it("compares the address and the description as words in both directions", () => {
-    const named = row({ name: "Bbb", description: "archive.zip" })
+  it("compares the address, the bag id and the description as words in both directions", () => {
+    const named = row({ name: "Bbb", description: "archive.zip", bagId: "a".repeat(64) })
     expect(names(sortContracts([named, stored], "address", "asc", NOW))).toEqual([stored.address, named.address])
     expect(names(sortContracts([stored, named], "address", "desc", NOW))).toEqual([named.address, stored.address])
+    expect(names(sortContracts([stored, named], "bagId", "asc", NOW))).toEqual([named.address, stored.address])
+    expect(names(sortContracts([named, stored], "bagId", "desc", NOW))).toEqual([stored.address, named.address])
     expect(sortContracts([stored, named], "desc", "asc", NOW).map((contract) => contract.description)).toEqual([
       "archive.zip",
       "backup.tar",

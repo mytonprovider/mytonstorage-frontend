@@ -2,7 +2,6 @@ import { Globe, ShieldCheck, Tag, type LucideIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import type { Diversity, PickCriterion } from "@/lib/providers"
 import { PickCard } from "../pick-card"
-import shared from "../shared.module.css"
 import styles from "./providers-step.module.css"
 
 export type Strategy = "reliable" | "cheap" | "countries"
@@ -39,7 +38,6 @@ export const StrategyCards = ({ strategy, onPick }: StrategyCardsProps) => {
           note={t(`strategy.${option}Note`)}
           hint={t(`strategy.${option}Hint`)}
           active={strategy === option}
-          className={shared.pickCardRow}
           onPick={() => onPick(option)}
         />
       ))}

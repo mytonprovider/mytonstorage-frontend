@@ -22,9 +22,11 @@
   color: var(--text);
 }
 
-.brand:hover {
-  text-decoration: none;
-  color: var(--text);
+@media (hover: hover) {
+  .brand:hover {
+    text-decoration: none;
+    color: var(--text);
+  }
 }
 
 .logo {

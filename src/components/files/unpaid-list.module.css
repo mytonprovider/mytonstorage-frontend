@@ -11,20 +11,33 @@
 }
 
 .list {
-  --table-min: 840px;
-  --table-cols: minmax(0, 1.19fr) minmax(0, 1.2fr) minmax(0, 0.55fr) minmax(0, 0.96fr) minmax(0, 1.7fr);
+  --table-cols: max-content fit-content(32ch) max-content max-content max-content;
+}
+
+.scroll {
+  composes: tableGrid from "../shared.module.css";
+}
+
+@media (max-width: 1119px) {
+  .scroll.scroll {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .head {
   composes: tableCardHead from "../shared.module.css";
 }
 
+.frame {
+  composes: tableFrame tableSubgrid from "../shared.module.css";
+}
+
 .rows {
-  composes: tableCards from "../shared.module.css";
+  composes: stackedRows from "../shared.module.css";
 }
 
 .card {
-  composes: tableRow tableCard cardAppear from "../shared.module.css";
+  composes: tableRow cardAppear from "../shared.module.css";
 }
 
 .timer {

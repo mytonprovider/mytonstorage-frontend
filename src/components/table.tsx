@@ -1,9 +1,40 @@
-import type { KeyboardEvent, ReactNode } from "react"
+import type { CSSProperties, KeyboardEvent, ReactNode, Ref, UIEventHandler } from "react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
 import { CopyButton } from "./copy-button"
 import shared from "./shared.module.css"
 import styles from "./table.module.css"
+
+interface TablePartProps {
+  className?: string
+  style?: CSSProperties
+  children: ReactNode
+}
+
+export const TableScroll = ({ className, style, children, ref, onScroll }: TablePartProps & {
+  ref?: Ref<HTMLDivElement>
+  onScroll?: UIEventHandler<HTMLDivElement>
+}) => (
+  <div ref={ref} style={style} onScroll={onScroll} className={cx(shared.tableScroll, className)}>
+    {children}
+  </div>
+)
+
+export const TableFrame = ({ className, style, children }: TablePartProps) => (
+  <div style={style} className={cx(shared.tableFrame, className)}>
+    {children}
+  </div>
+)
+
+export const TableHead = ({ className, children }: TablePartProps) => (
+  <div className={cx(shared.tableHead, className)}>{children}</div>
+)
+
+export const TableRows = ({ className, style, children, ref }: TablePartProps & { ref?: Ref<HTMLDivElement> }) => (
+  <div ref={ref} style={style} className={cx(shared.tableRows, className)}>
+    {children}
+  </div>
+)
 
 export const activateOnKey =
   (activate: () => void) =>
@@ -21,10 +52,11 @@ interface TableLeadProps {
   href?: string
   copy: string
   copied: string | null
+  copyOnWide?: boolean
   onCopy: (value: string) => void
 }
 
-export const TableLead = ({ shortValue, title, upper, href, copy, copied, onCopy }: TableLeadProps) => {
+export const TableLead = ({ shortValue, title, upper, href, copy, copied, copyOnWide, onCopy }: TableLeadProps) => {
   const { t } = useTranslation()
 
   return (
@@ -45,7 +77,13 @@ export const TableLead = ({ shortValue, title, upper, href, copy, copied, onCopy
           {shortValue}
         </span>
       )}
-      <CopyButton value={copy} copied={copied === copy} onCopy={onCopy} label={`${t("ui.copy")} ${shortValue}`} />
+      <CopyButton
+        value={copy}
+        copied={copied === copy}
+        onCopy={onCopy}
+        label={`${t("ui.copy")} ${shortValue}`}
+        className={cx(copyOnWide && styles.copyOnWide)}
+      />
     </span>
   )
 }
@@ -55,12 +93,13 @@ interface TableCellProps {
   value?: string
   title?: string
   ghost?: boolean
+  labelClassName?: string
   children?: ReactNode
 }
 
-export const TableCell = ({ label, value, title, ghost, children }: TableCellProps) => (
+export const TableCell = ({ label, value, title, ghost, labelClassName, children }: TableCellProps) => (
   <div className={shared.tableCell}>
-    <span className={shared.tableLabel}>{label}</span>
+    <span className={cx(ghost ? shared.tableLabelGhost : shared.tableLabel, labelClassName)}>{label}</span>
     {children ?? (
       <span title={title} className={cx(shared.tableValue, ghost && shared.shape)}>
         {value}
@@ -69,24 +108,34 @@ export const TableCell = ({ label, value, title, ghost, children }: TableCellPro
   </div>
 )
 
-export const Ratio = ({ valid, total }: { valid: number; total: number }) => {
+export const Ratio = ({ valid, total, tone }: { valid: number; total: number; tone?: string }) => {
   const { t } = useTranslation()
 
-  if (total === 0) return <span className={shared.ratioText}>{t("status.noChecksYet")}</span>
+  if (total === 0) return <span className={shared.ratioNone}>{t("status.noChecksYet")}</span>
 
   return (
     <span className={shared.ratio}>
-      <span className={shared.valid}>{valid}</span>
+      <span data-tone={tone ?? (valid === total ? "green" : valid * 2 > total ? "yellow" : "red")} className={shared.ratioValid}>
+        {valid}
+      </span>
       <span className={shared.slash}>/</span>
-      <span className={shared.total}>{total}</span>
+      <span className={shared.ratioTotal}>{total}</span>
     </span>
   )
 }
 
-export const GhostValue = ({ sample }: { sample: string }) => (
-  <span aria-hidden="true" className={styles.ghostValue}>
+export const GhostValue = ({ sample, mono, vary }: { sample: string; mono?: boolean; vary?: boolean }) => (
+  <span aria-hidden="true" className={cx(styles.ghostValue, mono && shared.tableMono, vary && styles.ghostVary)}>
     {sample}
   </span>
 )
 
-export const GhostCopy = () => <span className={styles.ghostCopy} />
+export const GhostGlyph = () => <span aria-hidden="true" className={styles.ghostIcon} />
+
+export const GhostIcon = ({ size = "xs" }: { size?: "xs" | "sm" }) => (
+  <span aria-hidden="true" className={cx(styles.ghostBox, styles[size])}>
+    <GhostGlyph />
+  </span>
+)
+
+export const GhostCopy = () => <GhostIcon />

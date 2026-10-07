@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef } from "react"
-import type { MouseEvent } from "react"
+import { useCallback, useEffect, useId, useRef } from "react"
+import type { MouseEvent, ReactNode } from "react"
+import { CircleHelp } from "lucide-react"
+import { cx } from "@/lib/cx"
 import { clampToViewport } from "@/lib/dom"
 import shared from "./shared.module.css"
 
@@ -9,9 +11,12 @@ interface HintProps {
   text: string
   focusable?: boolean
   open?: boolean
+  className?: string
+  children?: ReactNode
 }
 
-export const Hint = ({ text, focusable = true, open }: HintProps) => {
+export const Hint = ({ text, focusable = true, open, className, children }: HintProps) => {
+  const id = useId()
   const wrapRef = useRef<HTMLSpanElement>(null)
   const popRef = useRef<HTMLSpanElement>(null)
 
@@ -49,17 +54,18 @@ export const Hint = ({ text, focusable = true, open }: HintProps) => {
     <span
       ref={wrapRef}
       tabIndex={focusable ? 0 : undefined}
-      aria-label={focusable ? text : undefined}
+      aria-label={focusable && !children ? text : undefined}
+      aria-describedby={children ? id : undefined}
       aria-hidden={focusable ? undefined : true}
       onMouseEnter={show}
       onMouseLeave={hide}
       onFocus={show}
       onBlur={hide}
       onClick={tap}
-      className={shared.hint}
+      className={cx(children ? shared.hintLabel : shared.hint, className)}
     >
-      <span aria-hidden="true" className={shared.hintGlyph}>?</span>
-      <span ref={popRef} popover="auto" className={shared.hintPop}>
+      {children ?? <CircleHelp aria-hidden="true" className={shared.hintIcon} />}
+      <span id={children ? id : undefined} ref={popRef} role="tooltip" popover="auto" className={shared.hintPop}>
         {text}
       </span>
     </span>

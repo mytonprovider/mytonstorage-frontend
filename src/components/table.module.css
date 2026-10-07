@@ -14,22 +14,48 @@
   color: transparent;
 }
 
-.ghostCopy {
-  composes: ghost from "./shared.module.css";
-  display: inline-block;
+.ghostVary {
+  transform-origin: left center;
+  transform: scaleX(var(--shape-k, 1));
+}
+
+.ghostBox {
+  display: grid;
+  place-items: center;
   flex: none;
+}
+
+.xs {
   width: var(--control-xs);
   height: var(--control-xs);
+}
+
+.sm {
+  width: var(--control-sm);
+  height: var(--control-sm);
+}
+
+.ghostIcon {
+  composes: ghost from "./shared.module.css";
+  flex: none;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   border-radius: var(--radius-pill);
+}
+
+.sm .ghostIcon {
+  width: var(--icon-control);
+  height: var(--icon-control);
 }
 
 @media (pointer: coarse) {
   .leadLink {
     min-height: var(--control-input);
   }
+}
 
-  .ghostCopy {
-    width: var(--control-input);
-    height: var(--control-input);
+@media (max-width: 539px) {
+  .copyOnWide {
+    display: none;
   }
 }

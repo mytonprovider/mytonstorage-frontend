@@ -26,10 +26,8 @@
 }
 
 .headActions {
-  display: flex;
+  composes: headingActions from "../shared.module.css";
   flex: 1;
-  align-items: center;
-  gap: var(--space-3);
 }
 
 .sectionCount {
@@ -73,9 +71,11 @@
   color: var(--text-2);
 }
 
-.stepperButton:hover:not(:disabled) {
-  background: var(--surface-2);
-  color: var(--text);
+@media (hover: hover) {
+  .stepperButton:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--text) 10%, transparent);
+    color: var(--text);
+  }
 }
 
 .stepperButton:focus-visible {
@@ -126,7 +126,7 @@
 }
 
 .revealSummary {
-  composes: pickCard pickCardRow from "../shared.module.css";
+  composes: pickCard from "../shared.module.css";
   cursor: pointer;
   list-style: none;
 }
@@ -191,6 +191,7 @@
 }
 
 .panel {
+  --field-fill: var(--bg);
   background: var(--panel-bg, var(--surface));
 }
 
@@ -276,47 +277,65 @@
 }
 
 .panelNote {
-  margin: var(--space-4) var(--pad-pill) 0;
-}
-
-.panelNote:last-child {
-  margin-bottom: var(--space-4);
+  margin: var(--space-4) var(--pad-pill);
 }
 
 .scrollX {
-  composes: tableScroll from "../shared.module.css";
-  display: grid;
+  composes: tableScroll tableGrid from "../shared.module.css";
+  --table-cols: var(--control-md) repeat(8, max-content);
+  column-gap: var(--space-3);
 }
 
 .catalog {
   composes: scrollX;
-  max-height: var(--catalog-window);
-  overflow-y: auto;
 }
 
-.catalog > :first-child {
-  position: sticky;
-  top: 0;
-  z-index: 2;
+.scroll {
+  composes: tableSubgrid from "../shared.module.css";
+}
+
+@media (min-width: 1120px) {
+  .catalog {
+    padding-right: var(--catalog-gutter, 0px);
+  }
+
+  .catalog > :first-child {
+    margin-right: calc(-1 * var(--catalog-gutter, 0px));
+    padding-right: calc(var(--space-4) + var(--catalog-gutter, 0px));
+  }
+
+  .scroll {
+    max-height: var(--catalog-window);
+    margin-right: calc(-1 * var(--catalog-gutter, 0px));
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 1119px) {
+  .catalog {
+    max-height: calc(var(--catalog-window) + var(--catalog-head));
+    overflow-y: auto;
+  }
 }
 
 @media (min-width: 540px) {
-  .scrollX {
-    scrollbar-gutter: stable;
-  }
-
-  .catalog {
+  .catalog,
+  .scroll {
     overscroll-behavior: contain;
   }
 }
 
-.scroll {
-  min-width: max-content;
+.rows {
+  composes: tableRows from "../shared.module.css";
 }
 
-.rows {
-  display: flex;
-  flex-direction: column;
+.selRows {
+  composes: rows;
+}
+
+.selRows > :last-child::after {
+  border-bottom-left-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
 }
 
 .emptyReset {
@@ -326,19 +345,8 @@
 .showing {
   display: block;
   margin: var(--space-4) var(--pad-pill);
-  color: var(--text-3);
+  color: var(--text-2);
   font-size: var(--font-base);
-}
-
-.quietNote {
-  display: block;
-  color: var(--text-3);
-  font-size: var(--font-base);
-}
-
-.selPanel {
-  composes: tablePanel from "../shared.module.css";
-  border: 1px solid transparent;
 }
 
 .selState {

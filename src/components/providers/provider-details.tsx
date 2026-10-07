@@ -235,7 +235,7 @@ export const ProviderDetails = ({ provider, unlisted = false, catalogReady = tru
         <div className={styles.statusBody}>
           <div className={styles.statusMain}>
             <div className={styles.statusHead}>
-              <span className={shared.dotStrong} aria-hidden="true" />
+              <span className={shared.dot} aria-hidden="true" />
               <span className={styles.statusLabel}>{t(`status.${status.key}`)}</span>
               {total > 0 && <span className={styles.statusRatio}>{formatPercent((valid / total) * 100)}</span>}
             </div>
@@ -248,7 +248,7 @@ export const ProviderDetails = ({ provider, unlisted = false, catalogReady = tru
             <div className={styles.checks}>
               <div className={styles.checksRow}>
                 <span className={styles.checksLabel}>{t("provider.filesAvailable")}</span>
-                <Ratio valid={valid} total={total} />
+                <Ratio valid={valid} total={total} tone={status.tone} />
               </div>
               <button
                 type="button"
@@ -265,7 +265,7 @@ export const ProviderDetails = ({ provider, unlisted = false, catalogReady = tru
           <div className={styles.legend}>
             {stats.map((stat) => (
               <div key={stat.reason} data-tone={stat.reason === 0 ? "green" : toneOf(stat.reason)} className={styles.legendRow}>
-                <span className={shared.dotStrong} aria-hidden="true" />
+                <span className={shared.dot} aria-hidden="true" />
                 <span className={styles.legendLabel}>{describe(stat.reason)}</span>
                 <span className={shared.spacer} />
                 <span className={styles.legendMeta}>

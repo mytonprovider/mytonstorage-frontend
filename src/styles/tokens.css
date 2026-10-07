@@ -2,11 +2,21 @@
   color-scheme: light;
 
   --bg: #ffffff;
-  --surface: #eef0f2;
-  --surface-2: #e3e6e9;
-  --surface-3: #d7dbdf;
+  --surface: #f6f7f8;
+  --surface-2: #eef0f2;
+  --surface-3: #e3e6e9;
+  --surface-4: #d7dbdf;
 
-  --border: #d8dbdf;
+  --field-fill: var(--surface);
+
+  --row-bg: var(--surface-2);
+  --row-alt: var(--bg);
+  --row-deep: var(--surface-3);
+  --row-hover: color-mix(in srgb, var(--accent) 6%, var(--surface-3));
+  --row-picked: color-mix(in srgb, var(--accent) 22%, var(--bg));
+  --row-picked-hover: color-mix(in srgb, var(--accent) 28%, var(--bg));
+
+  --border: #dfe2e6;
   --border-strong: #c2c7cd;
   --border-control: #828992;
 
@@ -26,26 +36,23 @@
   --btn-danger: #c81e1e;
   --btn-danger-hover: #a81717;
 
-  --tone-gray: #98b2bf;
-  --tone-gray-weak: #f0f3f6;
-  --tone-gray-text: #5f6d74;
-  --tone-gray-ring: #808f97;
-  --tone-green: #47c58a;
-  --tone-green-weak: #ecf8f2;
-  --tone-green-text: #1f7b50;
-  --tone-green-ring: #2e9f6a;
-  --tone-yellow: #e5a10a;
-  --tone-yellow-weak: #fdf4e3;
-  --tone-yellow-text: #876722;
-  --tone-yellow-ring: #ad8732;
-  --tone-red: #ed6767;
-  --tone-red-weak: #fdeeee;
-  --tone-red-text: #ae2b2b;
-  --tone-red-ring: #d56f6f;
-  --tone-orange: #d1600b;
-  --tone-orange-weak: #fbefe4;
-  --tone-orange-text: #9c5927;
-  --tone-orange-ring: #c87a40;
+  --tone-gray: #9399a1;
+  --tone-gray-weak: #f6f6f7;
+  --tone-gray-text: #4b5563;
+  --tone-gray-ring: #d0d3d6;
+  --tone-green: #73b38b;
+  --tone-green-weak: #f3f9f5;
+  --tone-green-text: #15803d;
+  --tone-green-ring: #c2decd;
+  --tone-yellow: #b9a766;
+  --tone-yellow-weak: #f9f8f2;
+  --tone-yellow-text: #8a6d00;
+  --tone-yellow-ring: #e1d9bd;
+  --tone-red: #d57777;
+  --tone-red-weak: #fcf4f4;
+  --tone-red-text: #b91c1c;
+  --tone-red-ring: #edc4c4;
+  --star: #eab308;
 
   --scrim: rgba(6, 12, 18, 0.5);
 
@@ -106,7 +113,7 @@
   --icon-control: 18px;
   --icon-lg: 22px;
 
-  --content-max: 1080px;
+  --content-max: 1280px;
   --reading-max: 700px;
   --header-h: 76px;
   --row-py: 13px;
@@ -133,11 +140,12 @@
   color-scheme: dark;
 
   --bg: #0e0e11;
-  --surface: #1d1d22;
-  --surface-2: #26262c;
-  --surface-3: #303037;
+  --surface: #16161a;
+  --surface-2: #1d1d22;
+  --surface-3: #26262c;
+  --surface-4: #303037;
 
-  --border: #2c2c32;
+  --border: #26262c;
   --border-strong: #3a3a42;
   --border-control: #6a6a76;
 
@@ -151,26 +159,23 @@
   --accent-ring: #2b576e;
   --focus-edge: #307190;
 
-  --tone-gray: #83838a;
-  --tone-gray-weak: #33333a;
-  --tone-gray-text: #a6a6b0;
-  --tone-gray-ring: #646471;
-  --tone-green: #25955b;
-  --tone-green-weak: #1e2b25;
-  --tone-green-text: #32ae70;
-  --tone-green-ring: #2b724e;
-  --tone-yellow: #e2a92f;
-  --tone-yellow-weak: #2f2a1a;
-  --tone-yellow-text: #c19538;
-  --tone-yellow-ring: #7a622e;
-  --tone-red: #ff5c5c;
-  --tone-red-weak: #342223;
-  --tone-red-text: #e29b9b;
-  --tone-red-ring: #ac4141;
-  --tone-orange: #e07a2c;
-  --tone-orange-weak: #322418;
-  --tone-orange-text: #cd8954;
-  --tone-orange-ring: #8b5a35;
+  --tone-gray: #6a6f78;
+  --tone-gray-weak: #191a1e;
+  --tone-gray-text: #9ca3af;
+  --tone-gray-ring: #393b40;
+  --tone-green: #428f60;
+  --tone-green-weak: #141e1b;
+  --tone-green-text: #5ed58b;
+  --tone-green-ring: #264a36;
+  --tone-yellow: #927d36;
+  --tone-yellow-weak: #1e1c16;
+  --tone-yellow-text: #d9b84a;
+  --tone-yellow-ring: #4b4122;
+  --tone-red: #9d5758;
+  --tone-red-weak: #20171a;
+  --tone-red-text: #ea7e7f;
+  --tone-red-ring: #503032;
+  --star: #facc15;
 
   --btn-danger: #d92d20;
   --btn-danger-hover: #b8261b;
@@ -212,13 +217,6 @@
   --tone-ring: var(--tone-red-ring);
 }
 
-[data-tone="orange"] {
-  --tone: var(--tone-orange);
-  --tone-weak: var(--tone-orange-weak);
-  --tone-text: var(--tone-orange-text);
-  --tone-ring: var(--tone-orange-ring);
-}
-
 [data-tone="accent"] {
   --tone: var(--accent);
   --tone-weak: var(--accent-weak);
@@ -228,7 +226,7 @@
 
 [data-tone="field"] {
   --tone: var(--border);
-  --tone-weak: var(--surface);
+  --tone-weak: var(--field-fill);
   --tone-text: var(--text);
   --tone-ring: var(--border);
 }

@@ -18,8 +18,10 @@
   white-space: nowrap;
 }
 
-.button:hover {
-  background: var(--btn-hover);
+@media (hover: hover) {
+  .button:hover {
+    background: var(--btn-hover);
+  }
 }
 
 .address {
@@ -56,8 +58,10 @@
   composes: inkDanger from "./shared.module.css";
 }
 
-.danger.danger:hover {
-  background: var(--tone-red-weak);
+@media (hover: hover) {
+  .danger.danger:hover {
+    background: color-mix(in srgb, var(--tone-red-text) 10%, transparent);
+  }
 }
 
 .icon {

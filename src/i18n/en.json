@@ -191,6 +191,7 @@
     "emptyUnpaid": "Pay for a bag above to get a contract",
     "unpaidTitle": "Unpaid",
     "bagId": "Bag ID",
+    "actions": "Actions",
     "timeLeft": "Free storage",
     "expired": "Time expired",
     "continuePayment": "Continue payment",
@@ -281,18 +282,18 @@
     "partial": "Partial",
     "unstable": "Unstable",
     "unavailable": "Unavailable",
+    "unchecked": "Unchecked",
     "notStored": "Not stored",
     "noProofs": "Not proven",
-    "noChecksYet": "Not checked",
+    "noChecksYet": "No checks",
     "noData": "No data",
     "unknown": "Unknown",
-    "unknownReason": "Unknown check code: {{value}}",
-    "unknownCode": "Code {{value}}"
+    "unknownReason": "Unknown check code: {{value}}"
   },
   "reason": {
     "101": "The provider address was not found in the network",
     "102": "The checker reported no result for this bag",
-    "103": "The check was skipped — too many failed in a row",
+    "103": "This bag's check was skipped — the provider had failed too many checks in a row",
     "104": "The connection did not open — the request never reached the provider",
     "105": "The check itself failed",
     "201": "Cannot ping the provider — it is offline or ports are closed",
@@ -303,21 +304,6 @@
     "401": "The provider did not return the requested piece of the bag",
     "402": "The proof from the provider could not be parsed",
     "403": "The provider did not prove it stores the bag"
-  },
-  "reasonShort": {
-    "101": "Not found",
-    "102": "No check result",
-    "103": "Check skipped",
-    "104": "No connection",
-    "105": "Checker error",
-    "201": "Offline",
-    "202": "Bad Bag ID",
-    "203": "Not responding",
-    "301": "No bag info",
-    "302": "Wrong bag info",
-    "401": "Didn't serve files",
-    "402": "Bad proof",
-    "403": "Storage not proven"
   },
   "errors": {
     "walletNotConnected": "Wallet not connected",

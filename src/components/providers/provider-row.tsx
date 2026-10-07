@@ -1,4 +1,4 @@
-import type { CSSProperties, MouseEvent, ReactNode } from "react"
+import { useRef, type CSSProperties, type MouseEvent, type ReactNode } from "react"
 import { Check, Star } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
@@ -9,7 +9,7 @@ import type { SortDirection, SortField } from "@/lib/providers"
 import type { Provider } from "@/types/provider"
 import { CopyButton } from "../copy-button"
 import { SortColumn } from "../sort-column"
-import { GhostCopy, GhostValue } from "../table"
+import { GhostCopy, GhostGlyph, GhostValue } from "../table"
 import shared from "../shared.module.css"
 import styles from "./provider-row.module.css"
 
@@ -83,11 +83,12 @@ const StatusLabel = ({ label, ratio }: { label: string; ratio: string | null }) 
   )
 }
 
-const WIDEST_SPACE = 100 * 1024 * BYTES_IN_GIB
-const WIDEST_WORKING_TIME = 700 * SECONDS_IN_DAY
-const WIDEST_RATING = 9.99
-const WIDEST_UPTIME = 99.99
-const WIDEST_PRICE = 999.99
+const SAMPLE_SPACE = 1402 * BYTES_IN_GIB
+const SAMPLE_WORKING_TIME = 400 * SECONDS_IN_DAY
+const SAMPLE_RATING = 23.82
+const SAMPLE_UPTIME = 99.68
+const SAMPLE_PRICE = 10
+const SAMPLE_LOCATION = "Russia"
 
 const Cell = ({ children }: { children: ReactNode }) => (
   <div className={styles.cell}>
@@ -97,15 +98,7 @@ const Cell = ({ children }: { children: ReactNode }) => (
 
 export const ProviderSkeleton = ({ index = 0 }: { index?: number }) => {
   const { t } = useTranslation()
-
-  const sample: Record<string, string> = {
-    "table.rating": formatNumber(WIDEST_RATING, 2),
-    "table.uptime": formatPercent(WIDEST_UPTIME),
-    "table.price": formatNumber(WIDEST_PRICE, 2),
-    "table.free": splitSpace(WIDEST_SPACE).value,
-    "table.workingTime": formatDuration(WIDEST_WORKING_TIME, t),
-    "table.location": t("unknown"),
-  }
+  const space = splitSpace(SAMPLE_SPACE)
 
   return (
     <article
@@ -114,31 +107,54 @@ export const ProviderSkeleton = ({ index = 0 }: { index?: number }) => {
       className={cx(styles.card, styles.placeholder)}
     >
       <span className={styles.pickCell}>
-        <span className={cx(shared.check, shared.ghost)} />
+        <span className={styles.pick}>
+          <span className={cx(shared.check, shared.ghost)} />
+        </span>
       </span>
 
-      {COLUMNS.map((column) =>
-        column.id === "pubkey" ? (
-          <div key={column.id} className={styles.keyCell}>
-            <div className={styles.key}>
-              <span className={cx(styles.pubkey, shared.shape)}>{KEY_PLACEHOLDER}</span>
-              <GhostCopy />
-            </div>
-          </div>
-        ) : column.id === "status" ? (
-          <span key={column.id} className={cx(styles.status, shared.ghost)}>
-            <span className={shared.dot} />
-            <StatusLabel label={t("status.stable")} ratio={WIDEST_RATIO} />
-          </span>
-        ) : (
-          <Cell key={column.id}>
-            <GhostValue sample={sample[column.label]} />
-          </Cell>
-        ),
-      )}
+      <div className={styles.keyCell}>
+        <div className={styles.key}>
+          <span className={cx(styles.pubkey, shared.shape)}>{KEY_PLACEHOLDER}</span>
+          <GhostCopy />
+        </div>
+      </div>
+
+      <Cell>
+        <GhostGlyph />
+        <GhostValue vary sample={formatNumber(SAMPLE_RATING, 2)} />
+      </Cell>
+
+      <span className={cx(styles.status, shared.ghost)}>
+        <span className={shared.dot} />
+        <StatusLabel label={t("status.stable")} ratio={WIDEST_RATIO} />
+      </span>
+
+      <Cell>
+        <GhostValue vary sample={formatPercent(SAMPLE_UPTIME)} />
+      </Cell>
+
+      <Cell>
+        <GhostValue vary sample={formatNumber(SAMPLE_PRICE, 2)} />
+        <span className={cx(styles.unit, shared.shape)}>{GRAM}</span>
+      </Cell>
+
+      <Cell>
+        <GhostValue vary sample={space.value} />
+        {space.unit && <span className={cx(styles.unit, shared.shape)}>{space.unit}</span>}
+      </Cell>
+
+      <Cell>
+        <GhostValue vary sample={formatDuration(SAMPLE_WORKING_TIME, t)} />
+      </Cell>
+
+      <Cell>
+        <GhostValue vary sample={SAMPLE_LOCATION} />
+      </Cell>
     </article>
   )
 }
+
+export type RowRing = "red" | "yellow"
 
 interface ProviderRowProps {
   provider: Provider
@@ -149,7 +165,7 @@ interface ProviderRowProps {
   full?: boolean
   quiet?: boolean
   unlisted?: boolean
-  declined?: boolean
+  ring?: RowRing
   fate?: "new" | "removed"
   note?: ReactNode
   proofDays: number
@@ -168,7 +184,7 @@ export const ProviderRow = ({
   full = false,
   quiet = false,
   unlisted = false,
-  declined = false,
+  ring,
   fate,
   note,
   proofDays,
@@ -191,22 +207,24 @@ export const ProviderRow = ({
     onToggle(provider.pubkey)
   }
 
+  const openRef = useRef<HTMLButtonElement>(null)
   const open = () => onOpen(provider.pubkey)
+  const openFromKey = () => {
+    openRef.current?.focus()
+    open()
+  }
 
   return (
     <article
       data-fresh={fresh ? "" : undefined}
       data-viewed={viewed ? "" : undefined}
       data-fate={fate}
+      data-ring={ring ?? (selected && conflict ? "yellow" : undefined)}
       style={{ "--card-index": index } as CSSProperties}
-      className={cx(
-        styles.card,
-        !quiet && selected && styles.cardSelected,
-        selected && conflict && styles.conflict,
-        declined && styles.declinedCard,
-      )}
+      className={cx(styles.card, !quiet && selected && styles.cardSelected)}
     >
       <button
+        ref={openRef}
         type="button"
         onClick={open}
         aria-label={`${t("catalog.providerDetails")} ${keyShort}`}
@@ -232,9 +250,9 @@ export const ProviderRow = ({
 
       <div className={styles.keyCell}>
         <div className={styles.key}>
-          <span title={provider.pubkey} className={styles.pubkey}>
+          <button type="button" tabIndex={-1} title={provider.pubkey} onClick={openFromKey} className={styles.pubkey}>
             {keyShort}
-          </span>
+          </button>
           <CopyButton
             value={provider.pubkey}
             copied={copied}

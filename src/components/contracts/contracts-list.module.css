@@ -16,22 +16,12 @@
 }
 
 .headActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-@media (max-width: 539px) {
-  .headActions {
-    flex: 1 0 100%;
-    justify-content: flex-end;
-  }
+  composes: headingActions from "../shared.module.css";
 }
 
 .list {
   --row-min: calc(var(--control-sm) + var(--row-py) * 2);
-  --table-min: 960px;
-  --table-cols: minmax(0, 1.25fr) minmax(120px, 0.8fr) minmax(0, 0.85fr) minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2.4fr);
+  --table-cols: max-content max-content max-content fit-content(32ch) max-content max-content max-content max-content;
 }
 
 .statusCell {
@@ -41,8 +31,11 @@
 }
 
 @media (max-width: 1119px) {
-  .item .card.card > :first-child {
+  .rows > .card.card > :first-child {
     grid-row: 1;
+    grid-column: 1 / -1;
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--border);
   }
 
   .statusCell {
@@ -54,9 +47,55 @@
   }
 }
 
+@media (min-width: 540px) and (max-width: 1119px) {
+  .rows > .card > :first-child .cellLabel,
+  .rows > .card .statusCell .cellLabel {
+    display: none;
+  }
+}
+
+@media (max-width: 539px) {
+  .rows > .card.card > :first-child {
+    grid-row: auto;
+    grid-column: auto;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .rows > .card.card > :nth-child(n + 5) {
+    order: 2;
+  }
+
+  .ghostLead > :last-child {
+    display: none;
+  }
+
+  .statusCell.statusCell {
+    flex-direction: column;
+    grid-row: auto;
+    grid-column: auto;
+    order: 1;
+    gap: 0;
+    justify-self: start;
+    align-self: start;
+    align-items: flex-start;
+    padding-bottom: 0;
+  }
+}
+
 .statusGhost {
   composes: ghost from "../shared.module.css";
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-xs);
+}
+
+.cellLabel {
+  composes: tableLabel from "../shared.module.css";
+}
+
+@media (pointer: coarse) {
+  .ghostLead {
+    min-height: var(--control-input);
+  }
 }
 
 .actions {
@@ -66,12 +105,24 @@
 @media (max-width: 539px) {
   .actions.actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border);
   }
 
-  .actions.actions > :last-child {
-    grid-column: 1 / -1;
+  .actions.actions > * {
+    width: 100%;
+    height: var(--control-field);
+    border-radius: var(--radius-pill);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
   }
+}
+
+.actionIcon {
+  width: var(--icon-control);
+  height: var(--icon-control);
 }
 
 .actionsWait {
@@ -89,43 +140,46 @@
 }
 
 .scroll {
-  composes: tableScroll from "../shared.module.css";
+  composes: tableGrid from "../shared.module.css";
+}
+
+@media (max-width: 1119px) {
+  .scroll.scroll {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .head {
   composes: tableCardHead from "../shared.module.css";
 }
 
-.rows {
-  composes: tableCards from "../shared.module.css";
+.frame {
+  composes: tableFrame tableSubgrid from "../shared.module.css";
 }
 
-.item {
-  composes: tableCard cardAppear from "../shared.module.css";
-  display: flex;
-  flex-direction: column;
+.actionsHead {
+  justify-self: end;
+}
+
+.rows {
+  composes: stackedRows from "../shared.module.css";
 }
 
 .card {
-  composes: tableRow from "../shared.module.css";
+  composes: tableRow cardAppear from "../shared.module.css";
   min-height: var(--row-min);
-  border-radius: var(--radius-lg);
   cursor: pointer;
-}
-
-.card.card {
-  background: transparent;
 }
 
 @media (hover: hover) {
   .card:hover {
-    background: var(--surface-2);
+    background: var(--row-hover);
   }
 }
 
 .card:focus-visible {
   outline: none;
-  background: var(--surface-2);
+  background: var(--row-deep);
   box-shadow: inset 0 0 0 1px var(--focus-edge);
 }
 
@@ -140,8 +194,7 @@
 
 .opened.opened[data-active],
 .opened.opened[data-active]:hover {
-  border-color: var(--border);
-  background: var(--surface);
+  background: var(--accent-weak);
   color: var(--accent-text);
 }
 

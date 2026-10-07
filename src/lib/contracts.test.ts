@@ -11,7 +11,7 @@ import type { ContractStatus, WalletTransaction } from "@/types/contract"
 import { ApiError } from "./api"
 import { CONTRACT_RESERVE, MIN_BOUNTY, fullBounty } from "./pricing"
 import { BYTES_IN_GIB } from "./format"
-import { checkLabelOf } from "./check-label"
+import { checkKindOf, checkLabelOf } from "./check-label"
 import {
   INDEX_LAG_SECONDS,
   PROOF_GRACE_SECONDS,
@@ -645,7 +645,7 @@ describe("Ratio", () => {
     renderToStaticMarkup(createElement(Ratio, { valid, total })).replace(/<[^>]*>/g, "")
 
   it("names the unchecked state instead of printing an empty fraction", () => {
-    expect(shown(0, 0)).toBe("Not checked")
+    expect(shown(0, 0)).toBe("No checks")
   })
 
   it("keeps the fraction once a check has run", () => {
@@ -661,8 +661,8 @@ describe("checkLabelOf", () => {
     "details.checkAgo",
     "reason.0",
     "reason.401",
-    "reasonShort.401",
-    "status.unknownCode",
+    "status.notStored",
+    "status.unchecked",
     "status.unknownReason",
   ])
 
@@ -685,7 +685,8 @@ describe("checkLabelOf", () => {
 
   it("keeps zero healthy and dates a failed code from the given moment", () => {
     expect(checkLabelOf(statusOf(0), NOW, t)).toEqual({
-      failed: false,
+      kind: "stored",
+      tone: "green",
       short: "details.checkOk",
       long: "reason.0",
       at: 0,
@@ -693,8 +694,9 @@ describe("checkLabelOf", () => {
       agoShort: "",
     })
     expect(checkLabelOf(statusOf(401, NOW - 7200), NOW, t)).toEqual({
-      failed: true,
-      short: "reasonShort.401",
+      kind: "notStored",
+      tone: "red",
+      short: "status.notStored",
       long: "reason.401",
       at: NOW - 7200,
       ago: "details.checkAgo(2.hr)",
@@ -702,15 +704,22 @@ describe("checkLabelOf", () => {
     })
   })
 
-  it("shows the code itself when nobody translated it", () => {
+  it("files a code nobody translated under unchecked and names the code in the reason", () => {
     expect(checkLabelOf(statusOf(599), NOW, t)).toEqual({
-      failed: true,
-      short: "status.unknownCode",
+      kind: "unchecked",
+      tone: "gray",
+      short: "status.unchecked",
       long: "status.unknownReason",
       at: 0,
       ago: "",
       agoShort: "",
     })
+  })
+
+  it("blames the provider only for codes the checker reached it with", () => {
+    expect([301, 302, 401, 402, 403].map(checkKindOf)).toEqual(Array(5).fill("notStored"))
+    expect([101, 103, 201, 203].map(checkKindOf)).toEqual(Array(4).fill("unavailable"))
+    expect([102, 104, 105, 202].map(checkKindOf)).toEqual(Array(4).fill("unchecked"))
   })
 })
 

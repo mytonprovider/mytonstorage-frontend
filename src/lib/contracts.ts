@@ -365,7 +365,7 @@ const VERDICT_LOOK: Record<ContractVerdict, { tone: Tone; word: string }> = {
   notHired: { tone: "gray", word: "files.statusNotHired" },
   stored: { tone: "green", word: "files.statusStored" },
   partial: { tone: "yellow", word: "files.statusPartial" },
-  starting: { tone: "orange", word: "files.statusStarting" },
+  starting: { tone: "yellow", word: "files.statusStarting" },
   lost: { tone: "red", word: "files.statusNone" },
 }
 

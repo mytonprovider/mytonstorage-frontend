@@ -29,7 +29,7 @@ export const matchesQuery = (row: ContractRow, query: string): boolean => {
   return [row.address, row.bagId, row.description].some((value) => value.toLowerCase().includes(needle))
 }
 
-const SORT_FIELDS = ["createdAt", "address", "desc", "paidUntil", "size", "checks", "status"] as const
+const SORT_FIELDS = ["createdAt", "address", "bagId", "desc", "paidUntil", "size", "checks", "status"] as const
 
 export type ContractSortField = (typeof SORT_FIELDS)[number]
 export type SortDirection = "asc" | "desc"
@@ -55,6 +55,8 @@ const valueOf = (row: ContractRow, field: ContractSortField, now: number): numbe
       return row.createdAt
     case "address":
       return row.address
+    case "bagId":
+      return row.bagId
     case "desc":
       return row.description
     case "size":

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Check, RefreshCw, ScrollText } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
@@ -24,12 +24,13 @@ import { Notice } from "../notice"
 import { SearchField } from "../search-field"
 import { Sheet } from "../sheet"
 import { SortColumn } from "../sort-column"
+import { TableFrame, TableRows, TableScroll } from "../table"
 import shared from "../shared.module.css"
 import styles from "./contracts-list.module.css"
 
 const SKELETON_ROWS = 3
 const ROW_PORTION = 10
-const ASC_FIRST: ContractSortField[] = ["status", "paidUntil", "checks", "address", "desc"]
+const ASC_FIRST: ContractSortField[] = ["status", "paidUntil", "checks", "address", "bagId", "desc"]
 
 const storedView = (): { rows: number; field: ContractSortField; direction: SortDirection } => {
   const { shown, sort, dir } = readListView()
@@ -276,7 +277,7 @@ export const ContractsList = ({
         </div>
       ) : (
         <div className={styles.list}>
-          <div className={styles.scroll}>
+          <TableScroll className={styles.scroll}>
             <div className={styles.head}>
               {COLUMNS.map(({ word, field, hint }) => (
                 <SortColumn
@@ -288,21 +289,23 @@ export const ContractsList = ({
                   onSort={field && (() => sort(field))}
                 />
               ))}
-              <span />
+              <span className={cx(shared.tableHeadCell, styles.actionsHead)}>{t("files.actions")}</span>
             </div>
 
-            <div className={styles.rows}>
-              {loading &&
-                visible.length === 0 &&
-                Array.from({ length: stored.rows || SKELETON_ROWS }, (_, index) => <SkeletonRow key={index} />)}
-              {portion.map((contract, index) => {
-                const openKind =
-                  editing && editing.address === contract.address && !contract.closed ? editing.kind : null
+            <TableFrame className={styles.frame}>
+              <TableRows className={styles.rows}>
+                {loading &&
+                  visible.length === 0 &&
+                  Array.from({ length: stored.rows || SKELETON_ROWS }, (_, index) => <SkeletonRow key={index} />)}
+                {portion.map((contract, index) => {
+                  const openKind =
+                    editing && editing.address === contract.address && !contract.closed ? editing.kind : null
 
-                return (
-                  <div key={contract.address} style={{ "--card-index": index % ROW_PORTION } as CSSProperties} className={styles.item}>
+                  return (
                     <ContractRow
+                      key={contract.address}
                       contract={contract}
+                      index={index % ROW_PORTION}
                       openKind={openKind}
                       active={busy === contract.address}
                       busy={busy !== null}
@@ -312,11 +315,11 @@ export const ContractsList = ({
                       onAction={(kind) => toggleFor(contract.address, kind)}
                       onAskWithdraw={() => setWithdrawFor(contract.address)}
                     />
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+                  )
+                })}
+              </TableRows>
+            </TableFrame>
+          </TableScroll>
 
           {visible.length > portion.length && (
             <div className={styles.more}>

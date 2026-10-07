@@ -1,8 +1,10 @@
 import { useTranslation } from "react-i18next"
+import type { CheckWarn } from "@/lib/check-label"
 import { MAX_SELECTED, type ProviderFate } from "@/lib/pricing"
 import { declineKeyOf, spanAllows, stubOf, type PinnedProvider } from "@/lib/providers"
 import { daysLabel } from "./catalog-toolbar"
-import { ProviderHeader, ProviderRow } from "./provider-row"
+import { ProviderHeader, ProviderRow, type RowRing } from "./provider-row"
+import { TableFrame, TableRows, TableScroll } from "../table"
 import styles from "./providers-step.module.css"
 
 type ShownFate = Exclude<ProviderFate, "kept">
@@ -35,7 +37,7 @@ interface SelectedTableProps {
   declineByKey: Map<string, string>
   fates?: Map<string, ProviderFate>
   copied: string | null
-  warnOf?: (pubkey: string) => { short: string; full: string } | undefined
+  warnOf?: (pubkey: string) => CheckWarn | undefined
   onCopy: (value: string) => void
   onOpen: (pubkey: string) => void
   onRemove: (pubkey: string) => void
@@ -89,9 +91,12 @@ export const SelectedTable = ({
     return { kind: "idle" }
   }
 
+  const ringOf = (state: RowState): RowRing | undefined =>
+    state.kind === "declined" || state.kind === "failed" ? "red" : state.kind === "warn" ? "yellow" : undefined
+
   const stateLine = (state: RowState) => {
     if (state.kind === "idle") return null
-    const tone = state.kind === "declined" || state.kind === "failed" ? "red" : state.kind === "warn" ? "yellow" : FATE_TONES[state.fate]
+    const tone = state.kind === "fate" ? FATE_TONES[state.fate] : ringOf(state)
     return (
       <span
         data-tone={tone}
@@ -104,33 +109,35 @@ export const SelectedTable = ({
   }
 
   return (
-    <div className={styles.selPanel}>
-      <div className={styles.scrollX}>
+    <TableFrame>
+      <TableScroll className={styles.scrollX}>
         <ProviderHeader />
-        {pinned.map(({ pubkey, provider }) => {
-          const state = stateOf({ pubkey, provider })
-          const fate = fateOf(pubkey)
+        <TableRows className={styles.selRows}>
+          {pinned.map(({ pubkey, provider }) => {
+            const state = stateOf({ pubkey, provider })
+            const fate = fateOf(pubkey)
 
-          return (
-            <ProviderRow
-              key={pubkey}
-              provider={provider ?? stubOf(pubkey)}
-              selected={fate !== "removed"}
-              full={picked >= MAX_SELECTED}
-              quiet
-              unlisted={!provider}
-              declined={state.kind === "declined"}
-              fate={fate === "new" || fate === "removed" ? fate : undefined}
-              note={stateLine(state)}
-              proofDays={proofDays}
-              copied={copied === pubkey}
-              onToggle={onRemove}
-              onOpen={onOpen}
-              onCopy={onCopy}
-            />
-          )
-        })}
-      </div>
-    </div>
+            return (
+              <ProviderRow
+                key={pubkey}
+                provider={provider ?? stubOf(pubkey)}
+                selected={fate !== "removed"}
+                full={picked >= MAX_SELECTED}
+                quiet
+                unlisted={!provider}
+                ring={ringOf(state)}
+                fate={fate === "new" || fate === "removed" ? fate : undefined}
+                note={stateLine(state)}
+                proofDays={proofDays}
+                copied={copied === pubkey}
+                onToggle={onRemove}
+                onOpen={onOpen}
+                onCopy={onCopy}
+              />
+            )
+          })}
+        </TableRows>
+      </TableScroll>
+    </TableFrame>
   )
 }

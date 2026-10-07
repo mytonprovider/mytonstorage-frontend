@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type UIEvent } from "react"
 import { Loader, Minus, Plus, Server, SlidersHorizontal, SquareCheck } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { fetchProviderByKey } from "@/lib/api"
+import type { CheckWarn } from "@/lib/check-label"
 import { cx } from "@/lib/cx"
-import { nearBottom } from "@/lib/dom"
+import { nearBottom, useScrollbarGutter } from "@/lib/dom"
 import { DEFAULT_PICK_COUNT, DEFAULT_PROOF_DAYS, MAX_SELECTED, type ProviderFate } from "@/lib/pricing"
 import {
   NO_FILTERS,
@@ -30,6 +31,7 @@ import { Notice } from "../notice"
 import { ProviderHeader, ProviderRow, ProviderSkeleton } from "./provider-row"
 import { SelectedTable } from "./selected-table"
 import { StepFooter } from "./step-footer"
+import { TableFrame, TableRows } from "../table"
 import { RECIPES, STRATEGIES, StrategyCards, type Strategy } from "./strategy-cards"
 import shared from "../shared.module.css"
 import styles from "./providers-step.module.css"
@@ -73,7 +75,7 @@ interface ProvidersStepProps {
   revertDisabled?: boolean
   fates?: Map<string, ProviderFate>
   warning?: string
-  warnOf?: (pubkey: string) => { short: string; full: string } | undefined
+  warnOf?: (pubkey: string) => CheckWarn | undefined
   onSelected: (next: string[]) => void
   onAddManual: (provider: Provider) => void
   onProofDays: (days: number) => void
@@ -271,8 +273,11 @@ export const ProvidersStep = ({
 
   const atBottom = useRef(false)
   const catalogRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const rowsRef = useRef<HTMLDivElement>(null)
   const [catalogWindow, setCatalogWindow] = useState<string>()
+  const [catalogHead, setCatalogHead] = useState<string>()
+  const [catalogGutter, gutterRef] = useScrollbarGutter()
 
   const showMore = useCallback(
     () => setShownLimit((current) => Math.min(current + PAGE, filtered.length)),
@@ -285,8 +290,10 @@ export const ProvidersStep = ({
     if (!head || !row) return
 
     const measure = () => {
-      const window = head.getBoundingClientRect().height + row.getBoundingClientRect().height * WINDOW_ROWS
-      if (window > 0) setCatalogWindow(`${window}px`)
+      const rows = row.getBoundingClientRect().height * WINDOW_ROWS
+      if (rows <= 0) return
+      setCatalogWindow(`${rows}px`)
+      setCatalogHead(`${head.getBoundingClientRect().height}px`)
     }
 
     const observer = new ResizeObserver(measure)
@@ -298,8 +305,7 @@ export const ProvidersStep = ({
 
   useEffect(() => {
     const onScroll = () => {
-      const box = catalogRef.current
-      if (box && box.scrollHeight > box.clientHeight) return
+      if ([catalogRef.current, scrollRef.current].some((box) => box && box.scrollHeight > box.clientHeight)) return
       const reached = nearBottom(document.documentElement, NEXT_PAGE_AHEAD)
       if (reached && !atBottom.current) showMore()
       atBottom.current = reached
@@ -340,29 +346,36 @@ export const ProvidersStep = ({
   const catalogSkeleton = (
     <div className={styles.scrollX}>
       <ProviderHeader />
-      <div className={styles.scroll}>
-        <div className={styles.rows}>
-          {Array.from({ length: SKELETON_ROWS }, (_, index) => (
-            <ProviderSkeleton key={index} index={index} />
-          ))}
-        </div>
-      </div>
+      <TableRows className={styles.rows}>
+        {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+          <ProviderSkeleton key={index} index={index} />
+        ))}
+      </TableRows>
     </div>
   )
+
+  const onCatalogScroll = (event: UIEvent<HTMLDivElement>) => {
+    const box = event.currentTarget
+    if (box.scrollHeight > box.clientHeight && nearBottom(box, NEXT_PAGE_AHEAD)) showMore()
+  }
 
   const catalogBox = (
     <div
       ref={catalogRef}
-      style={{ "--catalog-window": catalogWindow } as CSSProperties}
-      onScroll={(event) => {
-        const box = event.currentTarget
-        if (box.scrollHeight > box.clientHeight && nearBottom(box, NEXT_PAGE_AHEAD)) showMore()
-      }}
+      style={{ "--catalog-window": catalogWindow, "--catalog-head": catalogHead, "--catalog-gutter": catalogGutter } as CSSProperties}
+      onScroll={onCatalogScroll}
       className={styles.catalog}
     >
       <ProviderHeader field={sortField} direction={sortDirection} onSort={sort} />
-      <div className={styles.scroll}>
-        <div ref={rowsRef} className={styles.rows}>
+      <div
+        ref={(box) => {
+          scrollRef.current = box
+          gutterRef(box)
+        }}
+        onScroll={onCatalogScroll}
+        className={styles.scroll}
+      >
+        <TableRows ref={rowsRef} className={styles.rows}>
           {page.map((provider, index) => (
             <ProviderRow
               key={provider.pubkey}
@@ -379,7 +392,7 @@ export const ProvidersStep = ({
               onCopy={onCopy}
             />
           ))}
-        </div>
+        </TableRows>
       </div>
     </div>
   )
@@ -391,7 +404,7 @@ export const ProvidersStep = ({
   )
 
   const panelBody = (bare: boolean) => {
-    const boxed = (content: ReactNode) => (bare ? <div className={shared.tablePanel}>{content}</div> : content)
+    const boxed = (content: ReactNode) => (bare ? <TableFrame>{content}</TableFrame> : content)
 
     return (
       <div className={bare ? styles.bare : styles.panel}>
@@ -407,9 +420,9 @@ export const ProvidersStep = ({
         />
 
         {spanMismatchedCount > 0 && (
-          <span role="status" className={cx(styles.quietNote, !bare && styles.panelNote)}>
+          <Notice tone="yellow" className={cx(!bare && styles.panelNote)}>
             {t("catalog.spanHidden", { count: spanMismatchedCount, days: daysLabel(t, proofDays) })}
-          </span>
+          </Notice>
         )}
 
         {loading && boxed(catalogSkeleton)}

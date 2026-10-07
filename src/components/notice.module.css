@@ -17,6 +17,7 @@
 .neutral.neutral {
   --tone: var(--text-3);
   --tone-text: var(--text-3);
+  --tone-ring: var(--border);
   background: var(--surface-2);
   color: var(--text-2);
 }
@@ -48,7 +49,7 @@
   height: var(--control-xs);
   padding: 0 var(--space-5);
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--tone) 16%, transparent);
+  box-shadow: inset 0 0 0 1px var(--tone-ring);
   color: var(--tone-text);
   font-size: var(--font-sm);
   font-weight: 500;
@@ -58,7 +59,7 @@
 
 @media (hover: hover) {
   .action > *:hover {
-    background: color-mix(in srgb, var(--tone) 26%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone-text) 45%, transparent);
   }
 }
 
@@ -96,12 +97,13 @@
 
   .action {
     flex-basis: 100%;
-    justify-content: flex-start;
-    padding-left: calc(var(--icon-control) + var(--space-4));
+    margin-left: 0;
   }
 
   .action > * {
+    width: 100%;
     height: var(--control-field);
+    justify-content: center;
     padding: 0 var(--space-6);
     font-size: var(--font-base);
   }
