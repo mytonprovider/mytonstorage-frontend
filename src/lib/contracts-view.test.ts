@@ -25,6 +25,7 @@ const provider = (lastProofTime: number, pubkey = KEY) => ({ pubkey, ratePerMbDa
 
 const row = (over: Partial<ContractRow> & { proofs?: number[]; balance?: number; name?: string } = {}): ContractRow => {
   const { proofs = [NOW - 3600], balance = 40 * MIN_BOUNTY, name = "Aaa", ...rest } = over
+  const keys = proofs.map((_, index) => (index === 0 ? KEY : "b".repeat(64)))
   return {
     address: "EQ" + name,
     createdAt: HIRED,
@@ -32,27 +33,29 @@ const row = (over: Partial<ContractRow> & { proofs?: number[]; balance?: number;
     bagId: BAG,
     description: "backup.tar",
     size: BYTES_IN_GIB,
-    valid: 1,
-    total: 1,
+    valid: keys.length,
+    total: keys.length,
+    checked: keys,
+    stored: keys,
     state: {
       torrentHash: BAG,
       fileSize: BYTES_IN_GIB,
       balance,
-      providers: proofs.map((at, index) => provider(at, index === 0 ? KEY : "b".repeat(64))),
+      providers: proofs.map((at, index) => provider(at, keys[index])),
     },
     ...rest,
   }
 }
 
 const stored = row()
-const partial = row({ name: "Bbb", proofs: [NOW - 3600, NOW - 2 * WEEK] })
+const partial = row({ name: "Bbb", proofs: [NOW - 3600, NOW - 2 * WEEK], stored: [KEY] })
 const unpaid = row({ name: "Ccc", proofs: [NOW - WEEK - PROOF_GRACE_SECONDS - 60], balance: MIN_BOUNTY - 1 })
-const lost = row({ name: "Ddd", proofs: [NOW - 3 * WEEK], balance: 400 * MIN_BOUNTY })
-const starting = row({ name: "Eee", proofs: [0], createdAt: NOW - 3600, valid: 0, total: 1 })
+const lost = row({ name: "Ddd", proofs: [NOW - 3 * WEEK], balance: 400 * MIN_BOUNTY, stored: [] })
+const unchecked = row({ name: "Eee", proofs: [0], createdAt: NOW - 3600, checked: [], stored: [] })
 const noData = row({ name: "Fff", state: null })
 const notHired = row({ name: "Ggg", proofs: [] })
 
-const rows = [stored, partial, unpaid, lost, starting, noData, notHired]
+const rows = [stored, partial, unpaid, lost, unchecked, noData, notHired]
 
 describe("matchesStatuses", () => {
   it("names each row by the same verdict the badge shows", () => {
@@ -60,7 +63,7 @@ describe("matchesStatuses", () => {
     expect(matchesStatuses(partial, ["partial"], NOW)).toBe(true)
     expect(matchesStatuses(unpaid, ["unpaid"], NOW)).toBe(true)
     expect(matchesStatuses(lost, ["lost"], NOW)).toBe(true)
-    expect(matchesStatuses(starting, ["starting"], NOW)).toBe(true)
+    expect(matchesStatuses(unchecked, ["unchecked"], NOW)).toBe(true)
     expect(matchesStatuses(noData, ["noData"], NOW)).toBe(true)
     expect(matchesStatuses(notHired, ["notHired"], NOW)).toBe(true)
   })
@@ -81,7 +84,7 @@ describe("matchesStatuses", () => {
 describe("statusCounts", () => {
   it("counts every verdict once and covers the whole list", () => {
     const counts = statusCounts(rows, NOW)
-    expect(counts).toEqual({ stored: 1, partial: 1, starting: 1, lost: 1, unpaid: 1, notHired: 1, noData: 1, closed: 0 })
+    expect(counts).toEqual({ stored: 1, partial: 1, lost: 1, unchecked: 1, unpaid: 1, notHired: 1, noData: 1, closed: 0 })
     expect(STATUS_FILTERS.reduce((sum, status) => sum + counts[status], 0)).toBe(rows.length)
   })
 
@@ -132,24 +135,24 @@ describe("sortContracts", () => {
   })
 
   it("orders the statuses by how bad they are", () => {
-    expect(names(sortContracts([stored, starting, partial, notHired, unpaid, lost], "status", "asc", NOW))).toEqual([
+    expect(names(sortContracts([stored, unchecked, partial, notHired, unpaid, lost], "status", "asc", NOW))).toEqual([
       unpaid.address,
       lost.address,
       notHired.address,
       partial.address,
-      starting.address,
+      unchecked.address,
       stored.address,
     ])
   })
 
   it("orders the checks ratio and keeps contracts the catalogue never asked about at the end", () => {
-    const half = row({ name: "Hlf", valid: 1, total: 2 })
-    const full = row({ name: "Ful", valid: 2, total: 2 })
-    const unchecked = row({ name: "Unc", valid: 0, total: 0 })
-    expect(names(sortContracts([full, unchecked, half], "checks", "asc", NOW))).toEqual([
+    const half = row({ name: "Hlf", proofs: [NOW - 3600, NOW - 3600], stored: [KEY] })
+    const full = row({ name: "Ful" })
+    const never = row({ name: "Unc", checked: [], stored: [] })
+    expect(names(sortContracts([full, never, half], "checks", "asc", NOW))).toEqual([
       half.address,
       full.address,
-      unchecked.address,
+      never.address,
     ])
   })
 

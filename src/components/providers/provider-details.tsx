@@ -1,6 +1,7 @@
 import { useState, type ComponentType } from "react"
 import { BarChart2, Cpu, Globe, Info, Server } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import { reasonKeyOf } from "@/lib/check-label"
 import { cx } from "@/lib/cx"
 import { scanUrl } from "@/lib/contracts"
 import {
@@ -59,7 +60,7 @@ export const ProviderDetails = ({ provider, unlisted = false, catalogReady = tru
   const status = statusOf(provider)
 
   const describe = (reason: number) =>
-    reason === 0 ? t("provider.allChecksPassed") : t([`reason.${reason}`, "status.unknownReason"], { value: String(reason) })
+    reason === 0 ? t("provider.allChecksPassed") : t(reasonKeyOf(reason), { value: String(reason) })
 
   const toneOf = (reason: number) => statusOf({ ...provider, status: reason, status_ratio: 0 }).tone
 

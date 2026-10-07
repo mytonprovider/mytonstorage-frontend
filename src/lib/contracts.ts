@@ -33,7 +33,7 @@ const lastOf = (contract: ScannedContract): number => contract.lastEventAt ?? co
 
 export interface ContractRow extends StorageContract {
   lastEventAt?: number
-  pending?: number
+  checked?: string[]
   stored?: string[]
   enriched?: boolean
   state?: ContractState | null
@@ -305,26 +305,31 @@ const keyOf = (pubkey: string): string => pubkeyFrom(pubkey) ?? pubkey
 export const countChecks = (
   statuses: ContractStatus[],
   address: string,
-): { valid: number; total: number; pending: number; stored: string[] } => {
+): { valid: number; total: number; checked: string[]; stored: string[] } => {
   const own = statuses.filter((status) => status.address === address)
+  const checked = own.filter(checkRan).map((status) => keyOf(status.provider_pubkey))
   const stored = own.filter((status) => status.reason === 0).map((status) => keyOf(status.provider_pubkey))
-  return {
-    valid: stored.length,
-    total: own.length,
-    pending: own.filter((status) => !checkRan(status)).length,
-    stored,
-  }
+  return { valid: stored.length, total: own.length, checked, stored }
+}
+
+export interface ShownChecks {
+  valid: number
+  total: number
+  ran: number
 }
 
 export const shownChecks = (
-  contract: Pick<ContractRow, "valid" | "total" | "pending" | "stored" | "state">,
-): { valid: number; total: number } | null => {
-  if (contract.pending === undefined || contract.state === undefined) return null
-  if (contract.state === null) return { valid: contract.valid, total: contract.total }
+  contract: Pick<ContractRow, "valid" | "total" | "checked" | "stored" | "state">,
+): ShownChecks | null => {
+  if (contract.checked === undefined || contract.state === undefined) return null
+  if (contract.state === null) return { valid: contract.valid, total: contract.total, ran: contract.checked.length }
 
   const hired = new Set(contract.state.providers.map((provider) => keyOf(provider.pubkey)))
-  return { valid: (contract.stored ?? []).filter((key) => hired.has(keyOf(key))).length, total: hired.size }
+  const among = (keys: string[]): number => keys.filter((key) => hired.has(keyOf(key))).length
+  return { valid: among(contract.stored ?? []), total: hired.size, ran: among(contract.checked) }
 }
+
+export const checksTone = (checks: ShownChecks): Tone | undefined => (checks.ran === 0 ? "gray" : undefined)
 
 export const PROOF_GRACE_SECONDS = 3600
 const START_WINDOW_SECONDS = 86_400
@@ -332,17 +337,17 @@ const LATE_PROOF_SHARE = 0.1
 const PICKUP_SECONDS = 7200
 const FETCH_BYTES_PER_SECOND = 5 * MIB
 
-export const hiredAt = (contract: Pick<ContractRow, "createdAt" | "lastEventAt">): number => contract.lastEventAt ?? contract.createdAt
+const hiredAt = (contract: Pick<ContractRow, "createdAt" | "lastEventAt">): number => contract.lastEventAt ?? contract.createdAt
 
 const proofGrace = (maxSpan: number): number => Math.max(PROOF_GRACE_SECONDS, Math.round(maxSpan * LATE_PROOF_SHARE))
 
 const fetchWindow = (fileSize: number, maxSpan: number): number =>
   Math.min(PICKUP_SECONDS + Math.round(fileSize / FETCH_BYTES_PER_SECOND), maxSpan)
 
-export const proofDue = ({ lastProofTime, maxSpan }: StorageProvider, hired: number, fileSize: number, abandoned = false): number =>
+const proofDue = ({ lastProofTime, maxSpan }: StorageProvider, hired: number, fileSize: number): number =>
   lastProofTime > 0
     ? lastProofTime + maxSpan + proofGrace(maxSpan)
-    : hired + (abandoned ? START_WINDOW_SECONDS : Math.max(START_WINDOW_SECONDS, fetchWindow(fileSize, maxSpan)))
+    : hired + Math.max(START_WINDOW_SECONDS, fetchWindow(fileSize, maxSpan))
 
 const payDue = ({ lastProofTime, maxSpan }: StorageProvider, hired: number): number =>
   (lastProofTime > 0 ? lastProofTime : hired) + maxSpan + PROOF_GRACE_SECONDS
@@ -355,12 +360,11 @@ const unpaid = (state: ContractState, hired: number, now: number): boolean => {
   )
 }
 
-export type ContractVerdict = "closed" | "noData" | "unpaid" | "notHired" | "stored" | "partial" | "starting" | "lost"
+export type ContractVerdict = "closed" | "noData" | "unpaid" | "notHired" | "stored" | "partial" | "unchecked" | "lost"
 
-export const contractVerdict = (
-  contract: Pick<ContractRow, "closed" | "state" | "createdAt" | "lastEventAt" | "valid" | "total">,
-  now: number,
-): ContractVerdict | null => {
+type VerdictInput = Pick<ContractRow, "closed" | "state" | "createdAt" | "lastEventAt" | "valid" | "total" | "checked" | "stored">
+
+export const contractVerdict = (contract: VerdictInput, now: number): ContractVerdict | null => {
   if (contract.closed) return "closed"
 
   const state = contract.state
@@ -371,14 +375,12 @@ export const contractVerdict = (
   const hired = hiredAt(contract)
   if (unpaid(state, hired, now)) return "unpaid"
 
-  const abandoned = contract.total > 0 && contract.valid === 0
-  const inTime = state.providers.filter((provider) => now <= proofDue(provider, hired, state.fileSize, abandoned))
-  const proven = inTime.filter(({ lastProofTime }) => lastProofTime > 0).length
+  const checks = shownChecks(contract)
+  if (checks === null) return null
+  if (checks.ran > 0) return checks.valid === checks.total ? "stored" : checks.valid === 0 ? "lost" : "partial"
 
-  if (proven === state.providers.length) return "stored"
-  if (proven > 0) return "partial"
-  if (inTime.length > 0) return "starting"
-  return "lost"
+  const inTime = state.providers.some((provider) => now <= proofDue(provider, hired, state.fileSize))
+  return inTime ? "unchecked" : "lost"
 }
 
 const VERDICT_LOOK: Record<ContractVerdict, { tone: Tone; word: string }> = {
@@ -388,7 +390,7 @@ const VERDICT_LOOK: Record<ContractVerdict, { tone: Tone; word: string }> = {
   notHired: { tone: "gray", word: "files.statusNotHired" },
   stored: { tone: "green", word: "files.statusStored" },
   partial: { tone: "yellow", word: "files.statusPartial" },
-  starting: { tone: "yellow", word: "files.statusStarting" },
+  unchecked: { tone: "gray", word: "files.statusUnchecked" },
   lost: { tone: "red", word: "files.statusNone" },
 }
 
@@ -396,10 +398,7 @@ export const VERDICT_WORDS: string[] = Object.values(VERDICT_LOOK).map(({ word }
 
 export const verdictWord = (verdict: ContractVerdict): string => VERDICT_LOOK[verdict].word
 
-export const contractStatus = (
-  contract: Pick<ContractRow, "closed" | "state" | "createdAt" | "lastEventAt" | "valid" | "total">,
-  now: number,
-): { tone: Tone; word: string } | null => {
+export const contractStatus = (contract: VerdictInput, now: number): { tone: Tone; word: string } | null => {
   const verdict = contractVerdict(contract, now)
   return verdict && VERDICT_LOOK[verdict]
 }
@@ -423,14 +422,8 @@ interface ContractsOptions {
 interface ContractsFailure {
   key: string
   status: number | null
-  kind: "load" | "action" | "notify"
+  kind: "load" | "action"
 }
-
-const notifyFailure = (error: unknown): ContractsFailure => ({
-  key: "errors.notifyFailed",
-  status: failureStatus(error),
-  kind: "notify",
-})
 
 export const loadFailure = (error: unknown): ContractsFailure => ({
   key: "errors.failedToLoadContracts",
@@ -487,16 +480,6 @@ export interface ContractsState {
   reload: () => void
   refresh: () => void
   run: ContractRunner
-  notify: (contract: string, providers: string[]) => Promise<void>
-  notifyStatus: NotifyStatus | null
-  renotify: () => void
-}
-
-export type NotifyState = "sending" | "sent" | "failed"
-
-interface NotifyStatus {
-  contract: string
-  state: NotifyState
 }
 
 interface Cursors {
@@ -535,17 +518,31 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
   const syncing = useRef<AbortController | null>(null)
   const shown = useRef<string[]>([])
   const swept = useRef(false)
+  const unnotified = useRef<{ contract: string; providers: string[] } | null>(null)
 
   useEffect(() => {
     if (hydratedFor.current === owner) return
     hydratedFor.current = owner
     swept.current = false
+    unnotified.current = null
     const next = hydrate(owner)
     cursors.current = next.cursors
     listRef.current = next.rows
     setList(next.rows)
     setFailure(null)
   }, [owner])
+
+  const notifyPending = useCallback(async () => {
+    const pending = unnotified.current
+    if (!pending) return
+    unnotified.current = null
+    try {
+      await notifyProviders(pending.contract, pending.providers)
+    } catch (error) {
+      unnotified.current ??= pending
+      onUnauthorized(error)
+    }
+  }, [onUnauthorized])
 
   const sync = useCallback(
     async (controller: AbortController, full = false) => {
@@ -573,6 +570,7 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
           },
         })
         if (everything && !signal.aborted) swept.current = true
+        if (!signal.aborted) void notifyPending()
       } catch (error) {
         if (signal.aborted) return
         if (onUnauthorized(error)) return
@@ -585,7 +583,7 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
         }
       }
     },
-    [owner, onUnauthorized],
+    [owner, onUnauthorized, notifyPending],
   )
 
   useEffect(() => {
@@ -618,23 +616,6 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
     shown.current = addresses
   }, [])
 
-  const unnotified = useRef<{ contract: string; providers: string[] } | null>(null)
-  const [notifyStatus, setNotifyStatus] = useState<NotifyStatus | null>(null)
-
-  const notify = async (contract: string, providers: string[]) => {
-    setNotifyStatus({ contract, state: "sending" })
-    try {
-      await notifyProviders(contract, providers)
-      unnotified.current = null
-      setFailure(null)
-      setNotifyStatus({ contract, state: "sent" })
-    } catch (error) {
-      unnotified.current = { contract, providers }
-      setNotifyStatus({ contract, state: "failed" })
-      if (!onUnauthorized(error)) setFailure(notifyFailure(error))
-    }
-  }
-
   const run: ContractRunner = async (contract, build, providers) => {
     const pending = runContractAction(busyLock, tonConnectUI, contract, build)
     if (!pending) return false
@@ -656,13 +637,11 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
       setBusy(null)
     }
 
-    if (confirmed && providers) await notify(contract, providers)
+    if (confirmed && providers) {
+      unnotified.current = { contract, providers }
+      await notifyPending()
+    }
     return confirmed
-  }
-
-  const renotify = () => {
-    const pending = unnotified.current
-    if (pending) void notify(pending.contract, pending.providers)
   }
 
   const onHideClosed = (value: boolean) => {
@@ -684,8 +663,5 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
     reload,
     refresh,
     run,
-    notify,
-    notifyStatus,
-    renotify,
   }
 }

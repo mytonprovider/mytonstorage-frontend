@@ -23,21 +23,19 @@ const KIND_OF_CODE: Record<number, CheckKind> = {
   403: "notStored",
 }
 
-const KIND_WORD: Record<CheckKind, string> = {
-  stored: "details.checkOk",
-  notStored: "status.notStored",
-  unavailable: "status.unavailable",
-  unchecked: "status.unchecked",
-}
-
-const KIND_TONE: Record<CheckKind, Tone> = {
-  stored: "green",
-  notStored: "red",
-  unavailable: "gray",
-  unchecked: "gray",
+const REASON_WORD: Record<CheckKind, string> = {
+  stored: "reason.passed",
+  notStored: "reason.noProof",
+  unavailable: "reason.unreachable",
+  unchecked: "reason.checkerFailed",
 }
 
 export const checkKindOf = (reason: number): CheckKind => KIND_OF_CODE[reason] ?? "unchecked"
+
+export const reasonKeyOf = (reason: number): string => {
+  const kind = checkKindOf(reason)
+  return kind === "notStored" && reason < 400 ? "reason.noBagInfo" : REASON_WORD[kind]
+}
 
 export interface CheckLabel {
   kind: CheckKind
@@ -59,14 +57,15 @@ export const checkLabelOf = (status: ContractStatus | undefined, now: number, t:
 
   const reason = status.reason
   const kind = checkKindOf(reason)
+  const stored = kind === "stored"
   const at = status.reason_timestamp
   const time = at ? formatDuration(now - at, t).replace(/ /g, "\u00A0") : ""
 
   return {
     kind,
-    tone: KIND_TONE[kind],
-    short: t(KIND_WORD[kind]),
-    long: t([`reason.${reason}`, "status.unknownReason"], { value: String(reason) }),
+    tone: stored ? "green" : "red",
+    short: t(stored ? "details.checkOk" : "details.checkFailed"),
+    long: t(reasonKeyOf(reason), { value: String(reason) }),
     at: at ?? 0,
     ago: time ? t("details.checkAgo", { time }) : "",
     agoShort: time ? t("provider.ago", { time }) : "",

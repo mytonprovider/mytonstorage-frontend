@@ -540,11 +540,6 @@
   color: var(--text-2);
 }
 
-.ratioNone {
-  font-size: var(--font-sm);
-  color: var(--text-3);
-}
-
 .check {
   display: grid;
   place-items: center;

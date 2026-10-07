@@ -3,7 +3,7 @@ import { paidDaysLeft } from "./pricing"
 
 export type StatusFilter = ContractVerdict
 
-export const STATUS_FILTERS: StatusFilter[] = ["stored", "partial", "starting", "lost", "unpaid", "notHired", "noData", "closed"]
+export const STATUS_FILTERS: StatusFilter[] = ["stored", "partial", "lost", "unchecked", "unpaid", "notHired", "noData", "closed"]
 
 export const matchesStatuses = (row: ContractRow, statuses: StatusFilter[], now: number): boolean => {
   if (!statuses.length) return true
@@ -12,7 +12,7 @@ export const matchesStatuses = (row: ContractRow, statuses: StatusFilter[], now:
 }
 
 export const statusCounts = (rows: ContractRow[], now: number): Record<StatusFilter, number> => {
-  const counts: Record<StatusFilter, number> = { stored: 0, partial: 0, starting: 0, lost: 0, unpaid: 0, notHired: 0, noData: 0, closed: 0 }
+  const counts: Record<StatusFilter, number> = { stored: 0, partial: 0, lost: 0, unchecked: 0, unpaid: 0, notHired: 0, noData: 0, closed: 0 }
 
   rows.forEach((row) => {
     const verdict = contractVerdict(row, now)
@@ -41,7 +41,7 @@ const HEAVINESS: Record<ContractVerdict, number> = {
   lost: 1,
   notHired: 2,
   partial: 3,
-  starting: 4,
+  unchecked: 4,
   stored: 5,
   noData: 6,
   closed: 7,
@@ -62,8 +62,8 @@ const valueOf = (row: ContractRow, field: ContractSortField, now: number): numbe
     case "size":
       return row.size || row.state?.fileSize || 0
     case "checks": {
-      const checks = shownChecks(row) ?? row
-      return checks.total > 0 ? checks.valid / checks.total : NO_VALUE
+      const checks = shownChecks(row)
+      return checks !== null && checks.ran > 0 ? checks.valid / checks.total : NO_VALUE
     }
     case "status": {
       const verdict = contractVerdict(row, now)

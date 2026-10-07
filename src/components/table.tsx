@@ -109,9 +109,7 @@ export const TableCell = ({ label, value, title, ghost, labelClassName, children
 )
 
 export const Ratio = ({ valid, total, tone }: { valid: number; total: number; tone?: string }) => {
-  const { t } = useTranslation()
-
-  if (total === 0) return <span className={shared.ratioNone}>{t("status.noChecksYet")}</span>
+  if (total === 0) return null
 
   return (
     <span className={shared.ratio}>

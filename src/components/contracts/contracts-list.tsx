@@ -30,6 +30,7 @@ import styles from "./contracts-list.module.css"
 
 const SKELETON_ROWS = 3
 const ROW_PORTION = 10
+const TOOLBAR_FROM = 5
 const ASC_FIRST: ContractSortField[] = ["status", "paidUntil", "checks", "address", "bagId", "desc"]
 
 const storedView = (): { rows: number; field: ContractSortField; direction: SortDirection } => {
@@ -63,9 +64,6 @@ interface ContractsListProps {
   onRefresh: () => void
   refreshing: boolean
   onShown: (addresses: string[]) => void
-  onRenotify: () => void
-  notifyStatus: ContractsState["notifyStatus"]
-  onNotify: (contract: string, providers: string[]) => void
   onHideClosed: (value: boolean) => void
   onCopy: (value: string) => void
   onEditingChange: (editor: OpenEditor | null) => void
@@ -88,9 +86,6 @@ export const ContractsList = ({
   onRefresh,
   refreshing,
   onShown,
-  onRenotify,
-  notifyStatus,
-  onNotify,
   onHideClosed,
   onCopy,
   onEditingChange,
@@ -114,6 +109,7 @@ export const ContractsList = ({
     () => STATUS_FILTERS.filter((option) => statuses[option] > 0 || picked.includes(option)),
     [statuses, picked],
   )
+  const filtering = picked.length > 0 || query.trim() !== ""
   const visible = useMemo(
     () =>
       visibleContracts(
@@ -205,16 +201,10 @@ export const ContractsList = ({
           tone={payErrorTone(error)}
           className={styles.error}
           action={
-            errorKind === "load" ? (
+            errorKind === "load" && (
               <button type="button" onClick={onRetry}>
                 {t("ui.retry")}
               </button>
-            ) : (
-              errorKind === "notify" && (
-                <button type="button" onClick={onRenotify}>
-                  {t("files.notifyAgain")}
-                </button>
-              )
             )
           }
         >
@@ -223,7 +213,7 @@ export const ContractsList = ({
         </Notice>
       )}
 
-      {(contracts.length > ROW_PORTION || picked.length > 0 || query.trim() !== "") && (
+      {(contracts.length > TOOLBAR_FROM || filtering) && (
         <div className={styles.tools}>
           <SearchField
             value={query}
@@ -261,7 +251,7 @@ export const ContractsList = ({
 
       {!loading && visible.length === 0 ? (
         <div className={shared.emptyState}>
-          {picked.length > 0 || query.trim() !== "" ? (
+          {filtering ? (
             <>
               <p>{t("files.noMatches")}</p>
               <button type="button" onClick={reset} className={cx(shared.textDanger, styles.reset)}>
@@ -347,8 +337,6 @@ export const ContractsList = ({
             contract={infoContract}
             copied={copied}
             onCopy={onCopy}
-            notifyState={notifyStatus?.contract === infoContract.address ? notifyStatus.state : null}
-            onNotify={(providers) => onNotify(infoContract.address, providers)}
           />
         )}
       </Sheet>
