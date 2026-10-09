@@ -139,42 +139,42 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #0e0e11;
-  --surface: #16161a;
-  --surface-2: #1d1d22;
-  --surface-3: #26262c;
-  --surface-4: #303037;
+  --bg: #18181b;
+  --surface: #1f1f23;
+  --surface-2: #26262b;
+  --surface-3: #2f2f35;
+  --surface-4: #393940;
 
-  --border: #26262c;
-  --border-strong: #3a3a42;
-  --border-control: #6a6a76;
+  --border: #2f2f35;
+  --border-strong: #44444c;
+  --border-control: #72727e;
 
-  --text: #f5f5f7;
+  --text: #e6e6ea;
   --text-2: #b0b0b8;
-  --text-3: #8f8f98;
+  --text-3: #98989f;
 
   --accent: #5cc4f7;
-  --accent-weak: #14262f;
+  --accent-weak: #1d2f38;
   --accent-text: var(--accent);
-  --accent-ring: #2b576e;
+  --accent-ring: #315d74;
   --focus-edge: #307190;
 
-  --tone-gray: #6a6f78;
-  --tone-gray-weak: #191a1e;
+  --tone-gray: #6e727b;
+  --tone-gray-weak: #232327;
   --tone-gray-text: #9ca3af;
-  --tone-gray-ring: #393b40;
-  --tone-green: #428f60;
-  --tone-green-weak: #141e1b;
+  --tone-gray-ring: #404247;
+  --tone-green: #469364;
+  --tone-green-weak: #1e2724;
   --tone-green-text: #5ed58b;
-  --tone-green-ring: #264a36;
-  --tone-yellow: #927d36;
-  --tone-yellow-weak: #1e1c16;
+  --tone-green-ring: #2d513d;
+  --tone-yellow: #95803a;
+  --tone-yellow-weak: #27251f;
   --tone-yellow-text: #d9b84a;
-  --tone-yellow-ring: #4b4122;
-  --tone-red: #9d5758;
-  --tone-red-weak: #20171a;
+  --tone-yellow-ring: #524829;
+  --tone-red: #a05a5c;
+  --tone-red-weak: #292023;
   --tone-red-text: #ea7e7f;
-  --tone-red-ring: #503032;
+  --tone-red-ring: #573739;
   --star: #facc15;
 
   --btn-danger: #d92d20;
