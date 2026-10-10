@@ -21,7 +21,7 @@
 
 .list {
   --row-min: calc(var(--control-sm) + var(--row-py) * 2);
-  --table-cols: max-content max-content fit-content(32ch) max-content max-content max-content max-content;
+  --table-cols: max-content max-content max-content max-content max-content max-content max-content;
 }
 
 @media (max-width: 1119px) {
@@ -30,6 +30,19 @@
     grid-column: 1 / -1;
     padding-bottom: var(--space-4);
     border-bottom: 1px solid var(--border);
+  }
+
+  .rows > .card.card {
+    align-items: start;
+  }
+
+  .desc.desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 }
 

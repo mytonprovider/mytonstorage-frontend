@@ -27,6 +27,8 @@ const WIDEST_ADDRESS = "E".repeat(48)
 const WIDEST_BAG = "F".repeat(64)
 const WIDEST_DESC = "archive-2026-01.tar.zst"
 const WIDEST_SIZE = 999.99 * MIB
+const DESC_HEAD = 17
+const DESC_TAIL = 17
 
 
 const useSkeletonSample = (): Record<string, string> => {
@@ -218,7 +220,11 @@ export const ContractRow = ({ contract, index, openKind, active, busy, copied, o
       </TableCell>
 
       {contract.enriched ? (
-        <TableCell label={t("files.desc")} value={contract.description} title={contract.description || undefined} />
+        <TableCell label={t("files.desc")}>
+          <span title={contract.description || undefined} className={cx(shared.tableValue, styles.desc)}>
+            {shortenMiddle(contract.description, DESC_HEAD, DESC_TAIL)}
+          </span>
+        </TableCell>
       ) : (
         <TableCell label={t("files.desc")}>
           <GhostValue vary sample={sample["files.desc"]} />
