@@ -3,7 +3,7 @@ import { paidDaysLeft } from "./pricing"
 
 export type StatusFilter = ContractVerdict
 
-export const STATUS_FILTERS: StatusFilter[] = ["stored", "partial", "lost", "noPeers", "closed"]
+export const STATUS_FILTERS: StatusFilter[] = ["stored", "partial", "closed", "noPeers", "lost"]
 
 export const matchesStatuses = (row: ContractRow, statuses: StatusFilter[]): boolean => {
   if (!statuses.length) return true
