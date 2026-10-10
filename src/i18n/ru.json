@@ -185,9 +185,7 @@
     "statusStored": "Хранится",
     "statusNone": "Не хранится",
     "statusPartial": "Частично",
-    "statusUnchecked": "Не проверен",
-    "statusUnpaid": "Не оплачен",
-    "statusNotHired": "Нет набора",
+    "statusNoPeers": "Нет пиров",
     "topup": "Продлить",
     "withdraw": "Закрыть",
     "closed": "Закрыт",
@@ -233,8 +231,7 @@
     "statuses_other": "{{count}} статусов",
     "searchPlaceholder": "Адрес контракта, Bag ID, описание",
     "noMatches": "Ничего не нашлось",
-    "confirmations": "Проверки",
-    "confirmationsHint": "Сколько провайдеров прошли проверку. Обновляется раз в час через mytonprovider.org."
+    "statusHint": "Сколько провайдеров прошли проверку. Обновляется раз в час через mytonprovider.org."
   },
   "filters": {
     "title": "Фильтры",
@@ -374,6 +371,7 @@
     "nextProof": "Следующее доказательство",
     "checksOf": "Проверки",
     "checkAgo": "Проверка: {{time}} назад",
-    "check": "Проверка"
+    "check": "Проверка",
+    "checkHint": "Проверка хранения через mytonprovider.org, раз в час."
   }
 }

@@ -179,9 +179,7 @@
     "statusStored": "Stored",
     "statusNone": "Not stored",
     "statusPartial": "Partial",
-    "statusUnchecked": "Unchecked",
-    "statusUnpaid": "Not paid",
-    "statusNotHired": "No providers",
+    "statusNoPeers": "No peers",
     "topup": "Extend",
     "withdraw": "Close",
     "closed": "Closed",
@@ -225,8 +223,7 @@
     "statuses_other": "{{count}} statuses",
     "searchPlaceholder": "Contract address, bag ID, description",
     "noMatches": "Nothing found",
-    "confirmations": "Checks",
-    "confirmationsHint": "How many of the providers passed the check. Updated hourly by mytonprovider.org."
+    "statusHint": "How many of the providers passed the check. Updated hourly by mytonprovider.org."
   },
   "filters": {
     "title": "Filters",
@@ -362,6 +359,7 @@
     "nextProof": "Next proof",
     "checksOf": "Checks",
     "checkAgo": "Last check: {{time}} ago",
-    "check": "Check"
+    "check": "Check",
+    "checkHint": "Storage check by mytonprovider.org, hourly."
   }
 }

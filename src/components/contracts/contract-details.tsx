@@ -2,7 +2,7 @@ import { FileText, Server, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { gatewayUrl } from "@/lib/api"
 import { useCheckLabel } from "@/lib/check-label"
-import { checksTone, contractStatus, countChecks, paymentTone, scanUrl, shownChecks, type ContractRow } from "@/lib/contracts"
+import { contractStatus, countChecks, paymentTone, scanUrl, shownChecks } from "@/lib/contracts"
 import { useContractData, type ContractState } from "@/lib/contracts-cache"
 import { cx } from "@/lib/cx"
 import { GHOST_TON, SECONDS_IN_DAY, formatBytes, formatDate, formatDateTime, formatDuration, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
@@ -20,7 +20,7 @@ const MIDDLE_PROOF_DAYS = PROOF_STEPS[Math.floor(PROOF_STEPS.length / 2)]
 const HEAD_KEYS = ["table.key", "details.priceDay", "details.span", "details.check", "details.checked", "details.lastProof", "details.nextProof"]
 
 interface ContractDetailsProps {
-  contract: StorageContract & Pick<ContractRow, "lastEventAt">
+  contract: StorageContract
   copied: string | null
   onCopy: (value: string) => void
 }
@@ -48,7 +48,7 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
   }
 
   const shaped = { ...contract, ...checks, state }
-  const status = contractStatus(shaped, now)
+  const status = contractStatus(shaped)
   const stateWord = t(status?.word ?? "status.noData")
 
   return (
@@ -63,10 +63,10 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
             <span className={shared.dot} aria-hidden="true" />
             {stateWord}
           </span>
-          {!contract.closed && shown !== null && shown.total > 0 && (
+          {!contract.closed && shown !== null && shown.ran > 0 && (
             <span className={styles.checksRow}>
               <span className={styles.checksLabel}>{t("details.checksOf")}</span>
-              <Ratio valid={shown.valid} total={shown.total} tone={checksTone(shown)} />
+              <Ratio valid={shown.valid} total={shown.total} />
             </span>
           )}
         </div>
@@ -152,6 +152,7 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
                     <span title={t(key)} className={shared.ellipsis}>
                       {t(key)}
                     </span>
+                    {key === "details.check" && <Hint text={t("details.checkHint")} />}
                   </span>
                 ))}
               </TableHead>

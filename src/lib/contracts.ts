@@ -4,11 +4,10 @@ import type { BagInfoShort, ContractStatus, StorageContract, WalletTransaction }
 import type { Tone } from "@/types/tone"
 import { failureStatus, fetchBagDetails, notifyProviders, sessionEnded } from "./api"
 import type { ContractState } from "./contracts-cache"
-import { CONTRACT_RESERVE, MIN_BOUNTY, fullBounty } from "./pricing"
+import { CONTRACT_RESERVE } from "./pricing"
 import { pubkeyFrom } from "./providers"
-import type { StorageProvider } from "./ton/storage-data"
 import { getStatuses, knownStateHash, peekState, putStates, readContractsCache, refreshState, stateOf, writeContractsCache } from "./contracts-cache"
-import { MIB, nowSeconds } from "./format"
+import { nowSeconds } from "./format"
 import { readListView, writeListView } from "./local-storage"
 import { forgetPendingFound, readPendingPaid } from "./paid-link"
 import { ADDRESS_BATCH, ChainRequestError, fetchAccountStates, fetchMessages, type MessagesPage, type MessagesQuery } from "./ton/toncenter"
@@ -329,77 +328,31 @@ export const shownChecks = (
   return { valid: among(contract.stored ?? []), total: hired.size, ran: among(contract.checked) }
 }
 
-export const checksTone = (checks: ShownChecks): Tone | undefined => (checks.ran === 0 ? "gray" : undefined)
+export type ContractVerdict = "closed" | "noPeers" | "stored" | "partial" | "lost"
 
-export const PROOF_GRACE_SECONDS = 3600
-const START_WINDOW_SECONDS = 86_400
-const LATE_PROOF_SHARE = 0.1
-const PICKUP_SECONDS = 7200
-const FETCH_BYTES_PER_SECOND = 5 * MIB
+type VerdictInput = Pick<ContractRow, "closed" | "state" | "valid" | "total" | "checked" | "stored">
 
-const hiredAt = (contract: Pick<ContractRow, "createdAt" | "lastEventAt">): number => contract.lastEventAt ?? contract.createdAt
-
-const proofGrace = (maxSpan: number): number => Math.max(PROOF_GRACE_SECONDS, Math.round(maxSpan * LATE_PROOF_SHARE))
-
-const fetchWindow = (fileSize: number, maxSpan: number): number =>
-  Math.min(PICKUP_SECONDS + Math.round(fileSize / FETCH_BYTES_PER_SECOND), maxSpan)
-
-const proofDue = ({ lastProofTime, maxSpan }: StorageProvider, hired: number, fileSize: number): number =>
-  lastProofTime > 0
-    ? lastProofTime + maxSpan + proofGrace(maxSpan)
-    : hired + Math.max(START_WINDOW_SECONDS, fetchWindow(fileSize, maxSpan))
-
-const payDue = ({ lastProofTime, maxSpan }: StorageProvider, hired: number): number =>
-  (lastProofTime > 0 ? lastProofTime : hired) + maxSpan + PROOF_GRACE_SECONDS
-
-const unpaid = (state: ContractState, hired: number, now: number): boolean => {
-  const available = Math.max(0, state.balance - CONTRACT_RESERVE)
-  return state.providers.some(
-    (provider) =>
-      now > payDue(provider, hired) && available < Math.max(MIN_BOUNTY, fullBounty(state.fileSize, provider.ratePerMbDay, provider.maxSpan)),
-  )
-}
-
-export type ContractVerdict = "closed" | "noData" | "unpaid" | "notHired" | "stored" | "partial" | "unchecked" | "lost"
-
-type VerdictInput = Pick<ContractRow, "closed" | "state" | "createdAt" | "lastEventAt" | "valid" | "total" | "checked" | "stored">
-
-export const contractVerdict = (contract: VerdictInput, now: number): ContractVerdict | null => {
+export const contractVerdict = (contract: VerdictInput): ContractVerdict | null => {
   if (contract.closed) return "closed"
-
-  const state = contract.state
-  if (state === undefined) return null
-  if (state === null) return "noData"
-  if (!state.providers.length) return "notHired"
-
-  const hired = hiredAt(contract)
-  if (unpaid(state, hired, now)) return "unpaid"
 
   const checks = shownChecks(contract)
   if (checks === null) return null
-  if (checks.ran > 0) return checks.valid === checks.total ? "stored" : checks.valid === 0 ? "lost" : "partial"
-
-  const inTime = state.providers.some((provider) => now <= proofDue(provider, hired, state.fileSize))
-  return inTime ? "unchecked" : "lost"
+  if (checks.ran === 0) return "noPeers"
+  return checks.valid === checks.total ? "stored" : checks.valid === 0 ? "lost" : "partial"
 }
 
 const VERDICT_LOOK: Record<ContractVerdict, { tone: Tone; word: string }> = {
   closed: { tone: "gray", word: "files.closed" },
-  noData: { tone: "gray", word: "status.noData" },
-  unpaid: { tone: "red", word: "files.statusUnpaid" },
-  notHired: { tone: "gray", word: "files.statusNotHired" },
+  noPeers: { tone: "gray", word: "files.statusNoPeers" },
   stored: { tone: "green", word: "files.statusStored" },
   partial: { tone: "yellow", word: "files.statusPartial" },
-  unchecked: { tone: "gray", word: "files.statusUnchecked" },
   lost: { tone: "red", word: "files.statusNone" },
 }
 
-export const VERDICT_WORDS: string[] = Object.values(VERDICT_LOOK).map(({ word }) => word)
-
 export const verdictWord = (verdict: ContractVerdict): string => VERDICT_LOOK[verdict].word
 
-export const contractStatus = (contract: VerdictInput, now: number): { tone: Tone; word: string } | null => {
-  const verdict = contractVerdict(contract, now)
+export const contractStatus = (contract: VerdictInput): { tone: Tone; word: string } | null => {
+  const verdict = contractVerdict(contract)
   return verdict && VERDICT_LOOK[verdict]
 }
 

@@ -1,9 +1,9 @@
-import type { CSSProperties, MouseEvent } from "react"
+import type { CSSProperties, MouseEvent, ReactNode } from "react"
 import { CircleX, Loader, Pencil, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { gatewayUrl } from "@/lib/api"
 import { cx } from "@/lib/cx"
-import { VERDICT_WORDS, checksTone, contractStatus, paymentTone, scanUrl, shownChecks, type ContractRow as ContractRowData } from "@/lib/contracts"
+import { contractStatus, contractVerdict, paymentTone, scanUrl, shownChecks, verdictWord, type ContractRow as ContractRowData, type ContractVerdict } from "@/lib/contracts"
 import type { ContractSortField } from "@/lib/contracts-view"
 import { MIB, SECONDS_IN_DAY, formatBytes, formatDate, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
 import { dailyCost, paidDaysLeft } from "@/lib/pricing"
@@ -17,10 +17,9 @@ export type EditorKind = "edit" | "extend"
 export const COLUMNS: { word: string; field?: ContractSortField; hint?: string }[] = [
   { word: "files.bagId", field: "bagId" },
   { word: "files.contract", field: "address" },
-  { word: "files.status", field: "status" },
   { word: "files.desc", field: "desc" },
   { word: "files.size", field: "size" },
-  { word: "files.confirmations", field: "checks", hint: "files.confirmationsHint" },
+  { word: "files.status", field: "checks", hint: "files.statusHint" },
   { word: "files.paidUntil", field: "paidUntil" },
 ]
 
@@ -57,23 +56,29 @@ const GhostLead = ({ sample }: { sample: string }) => (
   </span>
 )
 
-const StatusPill = ({ wordKey }: { wordKey: string }) => {
+const WORDED: ContractVerdict[] = ["closed", "noPeers"]
+
+const StatusPill = ({ wordKey, tone }: { wordKey: string; tone?: string }) => {
   const { t } = useTranslation()
 
   return (
-    <span className={shared.badge}>
+    <span data-tone={tone} className={shared.badge}>
       <span className={shared.dot} aria-hidden="true" />
-      <span className={styles.pillStack}>
-        <span className={shared.ellipsis}>{t(wordKey)}</span>
-        <span className={styles.pillGhost} aria-hidden="true">
-          {VERDICT_WORDS.map((key) => (
-            <span key={key}>{t(key)}</span>
-          ))}
-        </span>
-      </span>
+      {t(wordKey)}
     </span>
   )
 }
+
+const StatusSlot = ({ children }: { children: ReactNode }) => (
+  <span className={styles.statusStack}>
+    {children}
+    <span className={styles.statusGhost} aria-hidden="true">
+      {WORDED.map((verdict) => (
+        <StatusPill key={verdict} wordKey={verdictWord(verdict)} />
+      ))}
+    </span>
+  </span>
+)
 
 export const SkeletonRow = () => {
   const { t } = useTranslation()
@@ -89,13 +94,6 @@ export const SkeletonRow = () => {
         <GhostLead sample={sample["files.contract"]} />
       </TableCell>
 
-      <span className={styles.statusCell}>
-        <span className={cx(shared.tableLabelGhost, styles.cellLabel)}>{t("files.status")}</span>
-        <span className={styles.statusGhost}>
-          <StatusPill wordKey="files.statusStored" />
-        </span>
-      </span>
-
       <TableCell ghost label={t("files.desc")}>
         <GhostValue vary sample={sample["files.desc"]} />
       </TableCell>
@@ -104,8 +102,10 @@ export const SkeletonRow = () => {
         <GhostValue sample={sample["files.size"]} />
       </TableCell>
 
-      <TableCell ghost label={t("files.confirmations")}>
-        <GhostRatio />
+      <TableCell ghost label={t("files.status")}>
+        <StatusSlot>
+          <GhostRatio />
+        </StatusSlot>
       </TableCell>
 
       <TableCell ghost label={t("files.paidUntil")}>
@@ -168,8 +168,9 @@ interface ContractRowProps {
 export const ContractRow = ({ contract, index, openKind, active, busy, copied, onCopy, onOpen, onAction, onAskWithdraw }: ContractRowProps) => {
   const { t } = useTranslation()
   const sample = useSkeletonSample()
-  const status = contractStatus(contract, nowSeconds())
-  const checks = shownChecks(contract)
+  const status = contractStatus(contract)
+  const verdict = contractVerdict(contract)
+  const checks = verdict !== null && !WORDED.includes(verdict) && shownChecks(contract)
 
   const act = (run: () => void) => (event: MouseEvent) => {
     event.stopPropagation()
@@ -178,7 +179,6 @@ export const ContractRow = ({ contract, index, openKind, active, busy, copied, o
 
   return (
     <article
-      data-tone={status?.tone}
       role="button"
       tabIndex={0}
       aria-label={`${t("files.details")} ${shortenMiddle(contract.address, 6, 6)}`}
@@ -217,17 +217,6 @@ export const ContractRow = ({ contract, index, openKind, active, busy, copied, o
         />
       </TableCell>
 
-      <span className={styles.statusCell}>
-        <span className={cx(shared.tableLabel, styles.cellLabel)}>{t("files.status")}</span>
-        {status ? (
-          <StatusPill wordKey={status.word} />
-        ) : (
-          <span className={styles.statusGhost}>
-            <StatusPill wordKey="files.statusStored" />
-          </span>
-        )}
-      </span>
-
       {contract.enriched ? (
         <TableCell label={t("files.desc")} value={contract.description} title={contract.description || undefined} />
       ) : (
@@ -244,8 +233,10 @@ export const ContractRow = ({ contract, index, openKind, active, busy, copied, o
         </TableCell>
       )}
 
-      <TableCell label={t("files.confirmations")}>
-        {contract.closed ? null : checks === null ? <GhostRatio /> : <Ratio valid={checks.valid} total={checks.total} tone={checksTone(checks)} />}
+      <TableCell label={t("files.status")}>
+        <StatusSlot>
+          {checks ? <Ratio valid={checks.valid} total={checks.total} /> : status ? <StatusPill wordKey={status.word} tone={status.tone} /> : <GhostRatio />}
+        </StatusSlot>
       </TableCell>
 
       <PaidUntil contract={contract} />

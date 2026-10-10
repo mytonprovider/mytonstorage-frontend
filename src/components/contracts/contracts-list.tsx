@@ -31,7 +31,7 @@ import styles from "./contracts-list.module.css"
 const SKELETON_ROWS = 3
 const ROW_PORTION = 10
 const TOOLBAR_FROM = 5
-const ASC_FIRST: ContractSortField[] = ["status", "paidUntil", "checks", "address", "bagId", "desc"]
+const ASC_FIRST: ContractSortField[] = ["paidUntil", "checks", "address", "bagId", "desc"]
 
 const storedView = (): { rows: number; field: ContractSortField; direction: SortDirection } => {
   const { shown, sort, dir } = readListView()
@@ -104,7 +104,7 @@ export const ContractsList = ({
 
   useDismiss(statusOpen, () => setStatusOpen(false))
 
-  const statuses = useMemo(() => statusCounts(contracts, nowSeconds()), [contracts])
+  const statuses = useMemo(() => statusCounts(contracts), [contracts])
   const options = useMemo(
     () => STATUS_FILTERS.filter((option) => statuses[option] > 0 || picked.includes(option)),
     [statuses, picked],

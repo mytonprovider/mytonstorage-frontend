@@ -21,13 +21,7 @@
 
 .list {
   --row-min: calc(var(--control-sm) + var(--row-py) * 2);
-  --table-cols: max-content max-content max-content fit-content(32ch) max-content max-content max-content max-content;
-}
-
-.statusCell {
-  display: flex;
-  align-items: center;
-  min-width: 0;
+  --table-cols: max-content max-content fit-content(32ch) max-content max-content max-content max-content;
 }
 
 @media (max-width: 1119px) {
@@ -37,19 +31,10 @@
     padding-bottom: var(--space-4);
     border-bottom: 1px solid var(--border);
   }
-
-  .statusCell {
-    grid-row: 1;
-    grid-column: 1 / -1;
-    justify-self: end;
-    align-self: center;
-    padding-bottom: var(--space-4);
-  }
 }
 
 @media (min-width: 540px) and (max-width: 1119px) {
-  .rows > .card > :first-child .cellLabel,
-  .rows > .card .statusCell .cellLabel {
+  .rows > .card > :first-child .cellLabel {
     display: none;
   }
 }
@@ -62,30 +47,9 @@
     border-bottom: 0;
   }
 
-  .rows > .card.card > :nth-child(n + 5) {
-    order: 2;
-  }
-
   .ghostLead > :last-child {
     display: none;
   }
-
-  .statusCell.statusCell {
-    flex-direction: column;
-    grid-row: auto;
-    grid-column: auto;
-    order: 1;
-    gap: 0;
-    justify-self: start;
-    align-self: start;
-    align-items: flex-start;
-    padding-bottom: 0;
-  }
-}
-
-.statusGhost {
-  composes: ghost from "../shared.module.css";
-  border-radius: var(--radius-xs);
 }
 
 .cellLabel {
@@ -131,11 +95,11 @@
   margin-right: var(--space-3);
 }
 
-.pillStack {
+.statusStack {
   composes: stack from "../shared.module.css";
 }
 
-.pillGhost {
+.statusGhost {
   composes: stackGhost from "../shared.module.css";
 }
 

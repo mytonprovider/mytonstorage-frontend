@@ -3,19 +3,19 @@ import { paidDaysLeft } from "./pricing"
 
 export type StatusFilter = ContractVerdict
 
-export const STATUS_FILTERS: StatusFilter[] = ["stored", "partial", "lost", "unchecked", "unpaid", "notHired", "noData", "closed"]
+export const STATUS_FILTERS: StatusFilter[] = ["stored", "partial", "lost", "noPeers", "closed"]
 
-export const matchesStatuses = (row: ContractRow, statuses: StatusFilter[], now: number): boolean => {
+export const matchesStatuses = (row: ContractRow, statuses: StatusFilter[]): boolean => {
   if (!statuses.length) return true
-  const verdict = contractVerdict(row, now)
+  const verdict = contractVerdict(row)
   return verdict !== null && statuses.includes(verdict)
 }
 
-export const statusCounts = (rows: ContractRow[], now: number): Record<StatusFilter, number> => {
-  const counts: Record<StatusFilter, number> = { stored: 0, partial: 0, lost: 0, unchecked: 0, unpaid: 0, notHired: 0, noData: 0, closed: 0 }
+export const statusCounts = (rows: ContractRow[]): Record<StatusFilter, number> => {
+  const counts: Record<StatusFilter, number> = { stored: 0, partial: 0, lost: 0, noPeers: 0, closed: 0 }
 
   rows.forEach((row) => {
-    const verdict = contractVerdict(row, now)
+    const verdict = contractVerdict(row)
     if (verdict !== null) counts[verdict] += 1
   })
 
@@ -29,23 +29,12 @@ export const matchesQuery = (row: ContractRow, query: string): boolean => {
   return [row.address, row.bagId, row.description].some((value) => value.toLowerCase().includes(needle))
 }
 
-const SORT_FIELDS = ["createdAt", "address", "bagId", "desc", "paidUntil", "size", "checks", "status"] as const
+const SORT_FIELDS = ["createdAt", "address", "bagId", "desc", "paidUntil", "size", "checks"] as const
 
 export type ContractSortField = (typeof SORT_FIELDS)[number]
 export type SortDirection = "asc" | "desc"
 
 export const isSortField = (value: string): value is ContractSortField => SORT_FIELDS.some((field) => field === value)
-
-const HEAVINESS: Record<ContractVerdict, number> = {
-  unpaid: 0,
-  lost: 1,
-  notHired: 2,
-  partial: 3,
-  unchecked: 4,
-  stored: 5,
-  noData: 6,
-  closed: 7,
-}
 
 const NO_VALUE = Number.MAX_SAFE_INTEGER
 
@@ -64,10 +53,6 @@ const valueOf = (row: ContractRow, field: ContractSortField, now: number): numbe
     case "checks": {
       const checks = shownChecks(row)
       return checks !== null && checks.ran > 0 ? checks.valid / checks.total : NO_VALUE
-    }
-    case "status": {
-      const verdict = contractVerdict(row, now)
-      return verdict === null ? HEAVINESS.noData : HEAVINESS[verdict]
     }
     case "paidUntil": {
       if (row.closed || !row.state) return NO_VALUE
@@ -104,7 +89,7 @@ export const openContracts = (rows: ContractRow[], hideClosed: boolean): Contrac
 
 export const visibleContracts = (rows: ContractRow[], view: ListView, now: number): ContractRow[] => {
   const kept = openContracts(rows, view.hideClosed && !view.statuses.includes("closed")).filter(
-    (row) => matchesStatuses(row, view.statuses, now) && matchesQuery(row, view.query),
+    (row) => matchesStatuses(row, view.statuses) && matchesQuery(row, view.query),
   )
 
   return sortContracts(kept, view.field, view.direction, now)
