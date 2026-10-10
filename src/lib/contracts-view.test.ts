@@ -131,17 +131,19 @@ describe("sortContracts", () => {
     expect(names(sortContracts([stored, orphan], "paidUntil", "asc", NOW))[0]).toBe(orphan.address)
   })
 
-  it("orders the checks ratio and keeps the closed ones and those the catalogue never asked about at the end", () => {
-    const half = row({ name: "Hlf", proofs: [NOW - 3600, NOW - 3600], stored: [KEY] })
-    const full = row({ name: "Ful" })
+  it("orders the status by how many providers passed and keeps the rows without a ratio at the end", () => {
+    const two = row({ name: "Two", proofs: [NOW - 3600, NOW - 3600, NOW - 3600], stored: [KEY, "b".repeat(64)] })
     const never = row({ name: "Unc", checked: [], stored: [] })
     const shut = { ...row({ name: "Cls" }), closed: true }
-    expect(names(sortContracts([shut, full, never, half], "checks", "asc", NOW))).toEqual([
-      half.address,
-      full.address,
-      shut.address,
-      never.address,
-    ])
+    expect(names(sortContracts([never, two, shut, lost, stored], "checks", "asc", NOW))).toEqual([lost.address, stored.address, two.address, never.address, shut.address])
+    expect(names(sortContracts([never, two, shut, lost, stored], "checks", "desc", NOW))).toEqual([two.address, stored.address, lost.address, never.address, shut.address])
+  })
+
+  it("keeps the rows without a date at the end in both directions", () => {
+    const shut = { ...row({ name: "Cls" }), closed: true }
+    const unread = { ...row({ name: "Zzz" }), state: undefined }
+    expect(names(sortContracts([unread, shut, stored], "paidUntil", "asc", NOW))).toEqual([stored.address, unread.address, shut.address])
+    expect(names(sortContracts([unread, shut, stored], "paidUntil", "desc", NOW))).toEqual([stored.address, unread.address, shut.address])
   })
 
   it("compares the address, the bag id and the description as words in both directions", () => {

@@ -36,9 +36,7 @@ export type SortDirection = "asc" | "desc"
 
 export const isSortField = (value: string): value is ContractSortField => SORT_FIELDS.some((field) => field === value)
 
-const NO_VALUE = Number.MAX_SAFE_INTEGER
-
-const valueOf = (row: ContractRow, field: ContractSortField, now: number): number | string => {
+const valueOf = (row: ContractRow, field: ContractSortField, now: number): number | string | null => {
   switch (field) {
     case "createdAt":
       return row.createdAt
@@ -51,12 +49,11 @@ const valueOf = (row: ContractRow, field: ContractSortField, now: number): numbe
     case "size":
       return row.size || row.state?.fileSize || 0
     case "checks": {
-      if (row.closed) return NO_VALUE
       const checks = shownChecks(row)
-      return checks !== null && checks.ran > 0 ? checks.valid / checks.total : NO_VALUE
+      return row.closed || checks === null || checks.ran === 0 ? null : checks.valid
     }
     case "paidUntil": {
-      if (row.closed || !row.state) return NO_VALUE
+      if (row.closed || !row.state) return null
       const left = paidDaysLeft(row.state.fileSize, row.state.providers, row.state.balance, now)
       return left ?? 0
     }
@@ -73,7 +70,8 @@ export const sortContracts = (
   return [...rows].sort((a, b) => {
     const left = valueOf(a, field, now)
     const right = valueOf(b, field, now)
-    return typeof left === "string" ? left.localeCompare(right as string) * sign : (left - (right as number)) * sign
+    if (left === null || right === null) return Number(left === null) - Number(right === null)
+    return (typeof left === "string" ? left.localeCompare(right as string) : left - (right as number)) * sign
   })
 }
 
