@@ -51,6 +51,7 @@ const valueOf = (row: ContractRow, field: ContractSortField, now: number): numbe
     case "size":
       return row.size || row.state?.fileSize || 0
     case "checks": {
+      if (row.closed) return NO_VALUE
       const checks = shownChecks(row)
       return checks !== null && checks.ran > 0 ? checks.valid / checks.total : NO_VALUE
     }

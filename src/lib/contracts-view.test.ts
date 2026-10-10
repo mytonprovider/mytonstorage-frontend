@@ -48,19 +48,19 @@ const row = (over: Partial<ContractRow> & { proofs?: number[]; balance?: number;
 
 const stored = row()
 const partial = row({ name: "Bbb", proofs: [NOW - 3600, NOW - 2 * WEEK], stored: [KEY] })
-const lost = row({ name: "Ddd", proofs: [NOW - 3 * WEEK], balance: 400 * MIN_BOUNTY, stored: [] })
-const unchecked = row({ name: "Eee", proofs: [0], createdAt: NOW - 3600, checked: [], stored: [] })
-const notHired = row({ name: "Ggg", proofs: [] })
+const lost = row({ name: "Ddd", stored: [] })
+const unseen = row({ name: "Eee", checked: [], stored: [] })
+const empty = row({ name: "Ggg", proofs: [] })
 
-const rows = [stored, partial, lost, unchecked, notHired]
+const rows = [stored, partial, lost, unseen, empty]
 
 describe("matchesStatuses", () => {
   it("names each row by the same verdict the status cell shows", () => {
     expect(matchesStatuses(stored, ["stored"])).toBe(true)
     expect(matchesStatuses(partial, ["partial"])).toBe(true)
     expect(matchesStatuses(lost, ["lost"])).toBe(true)
-    expect(matchesStatuses(unchecked, ["noPeers"])).toBe(true)
-    expect(matchesStatuses(notHired, ["noPeers"])).toBe(true)
+    expect(matchesStatuses(unseen, ["noPeers"])).toBe(true)
+    expect(matchesStatuses(empty, ["noPeers"])).toBe(true)
     expect(matchesStatuses({ ...lost, closed: true }, ["closed"])).toBe(true)
   })
 
@@ -131,13 +131,15 @@ describe("sortContracts", () => {
     expect(names(sortContracts([stored, orphan], "paidUntil", "asc", NOW))[0]).toBe(orphan.address)
   })
 
-  it("orders the checks ratio and keeps contracts the catalogue never asked about at the end", () => {
+  it("orders the checks ratio and keeps the closed ones and those the catalogue never asked about at the end", () => {
     const half = row({ name: "Hlf", proofs: [NOW - 3600, NOW - 3600], stored: [KEY] })
     const full = row({ name: "Ful" })
     const never = row({ name: "Unc", checked: [], stored: [] })
-    expect(names(sortContracts([full, never, half], "checks", "asc", NOW))).toEqual([
+    const shut = { ...row({ name: "Cls" }), closed: true }
+    expect(names(sortContracts([shut, full, never, half], "checks", "asc", NOW))).toEqual([
       half.address,
       full.address,
+      shut.address,
       never.address,
     ])
   })
@@ -170,7 +172,7 @@ describe("visibleContracts", () => {
   const view: ListView = { statuses: [], query: "", field: "createdAt", direction: "desc", hideClosed: true }
 
   it("applies the status, the query and the order in one pass", () => {
-    const rows = [stored, partial, lost, { ...unchecked, closed: true }]
+    const rows = [stored, partial, lost, { ...unseen, closed: true }]
     expect(visibleContracts(rows, view, NOW)).toHaveLength(3)
     expect(visibleContracts(rows, { ...view, statuses: ["partial"] }, NOW).map((row) => row.address)).toEqual([
       partial.address,
