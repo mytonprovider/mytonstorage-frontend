@@ -105,10 +105,6 @@ export const ContractsList = ({
   useDismiss(statusOpen, () => setStatusOpen(false))
 
   const statuses = useMemo(() => statusCounts(contracts), [contracts])
-  const options = useMemo(
-    () => STATUS_FILTERS.filter((option) => statuses[option] > 0 || picked.includes(option)),
-    [statuses, picked],
-  )
   const filtering = picked.length > 0 || query.trim() !== ""
   const visible = useMemo(
     () =>
@@ -231,17 +227,16 @@ export const ContractsList = ({
                   : t("files.statuses", { count: picked.length })
             }
             active={picked.length > 0}
-            disabled={options.length === 0}
             open={statusOpen}
             onToggle={() => setStatusOpen(!statusOpen)}
           >
-            {options.map((option) => (
+            {STATUS_FILTERS.map((option) => (
               <MenuOption
                 key={option}
                 label={t(verdictWord(option))}
                 count={statuses[option]}
                 selected={picked.includes(option)}
-                dimmed={statuses[option] === 0}
+                dimmed={statuses[option] === 0 && !picked.includes(option)}
                 onToggle={() => pickStatus(option)}
               />
             ))}
