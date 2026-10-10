@@ -372,6 +372,6 @@
     "checksOf": "Проверки",
     "checkAgo": "Проверка: {{time}} назад",
     "check": "Проверка",
-    "checkHint": "Проверка хранения через mytonprovider.org, раз в час."
+    "checkHint": "Прошёл ли провайдер проверку хранения. Обновляется раз в час через mytonprovider.org."
   }
 }

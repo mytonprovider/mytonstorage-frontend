@@ -360,6 +360,6 @@
     "checksOf": "Checks",
     "checkAgo": "Last check: {{time}} ago",
     "check": "Check",
-    "checkHint": "Storage check by mytonprovider.org, hourly."
+    "checkHint": "Whether the provider passed the storage check. Updated hourly by mytonprovider.org."
   }
 }
