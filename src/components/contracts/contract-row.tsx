@@ -3,7 +3,7 @@ import { CircleX, Loader, Pencil, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { gatewayUrl } from "@/lib/api"
 import { cx } from "@/lib/cx"
-import { contractStatus, contractVerdict, paymentTone, scanUrl, shownChecks, verdictWord, type ContractRow as ContractRowData, type ContractVerdict } from "@/lib/contracts"
+import { contractStatus, paymentTone, scanUrl, shownChecks, verdictWord, type ContractRow as ContractRowData, type ContractVerdict } from "@/lib/contracts"
 import type { ContractSortField } from "@/lib/contracts-view"
 import { MIB, SECONDS_IN_DAY, formatBytes, formatDate, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
 import { dailyCost, paidDaysLeft } from "@/lib/pricing"
@@ -171,8 +171,8 @@ export const ContractRow = ({ contract, index, openKind, active, busy, copied, o
   const { t } = useTranslation()
   const sample = useSkeletonSample()
   const status = contractStatus(contract)
-  const verdict = contractVerdict(contract)
-  const checks = verdict !== null && !WORDED.includes(verdict) && shownChecks(contract)
+  const checks = shownChecks(contract)
+  const ratio = !contract.closed && checks !== null && checks.ran > 0 ? checks : null
 
   const act = (run: () => void) => (event: MouseEvent) => {
     event.stopPropagation()
@@ -241,7 +241,7 @@ export const ContractRow = ({ contract, index, openKind, active, busy, copied, o
 
       <TableCell label={t("files.status")}>
         <StatusSlot>
-          {checks ? <Ratio valid={checks.valid} total={checks.total} /> : status ? <StatusPill wordKey={status.word} tone={status.tone} /> : <GhostRatio />}
+          {ratio ? <Ratio valid={ratio.valid} total={ratio.total} /> : status ? <StatusPill wordKey={status.word} tone={status.tone} /> : <GhostRatio />}
         </StatusSlot>
       </TableCell>
 
