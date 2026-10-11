@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next"
 import { gatewayUrl } from "@/lib/api"
 import { scanUrl, txUrl } from "@/lib/contracts"
 import { formatBytes, shortenMiddle } from "@/lib/format"
-import { Notice } from "../notice"
 import { SheetField } from "../sheet-fields"
 import shared from "../shared.module.css"
 import styles from "./done-step.module.css"
@@ -15,7 +14,6 @@ interface DoneStepProps {
   size: number
   contractAddress?: string
   paymentHash?: string
-  paymentHashPending?: boolean
   copied: string | null
   onCopy: (value: string) => void
   onFinish: () => void
@@ -28,7 +26,6 @@ export const DoneStep = ({
   size,
   contractAddress,
   paymentHash,
-  paymentHashPending,
   copied,
   onCopy,
   onFinish,
@@ -37,49 +34,17 @@ export const DoneStep = ({
 
   return (
     <div className={styles.step}>
-      <Notice tone="green" icon={CircleCheck} className={styles.deployed}>
-        {t("done.deployed")}
-      </Notice>
-
-      {(contractAddress || paymentHash) && (
-        <>
-          <div className={styles.heading}>
-            <h2 className={shared.tableTitle}>
-              <FileText className={shared.titleIcon} aria-hidden="true" />
-              <span>{t("details.contract")}</span>
-            </h2>
-          </div>
-
-          <div className={styles.box}>
-            {contractAddress && (
-              <SheetField
-                label={t("files.contract")}
-                value={shortenMiddle(contractAddress, 6, 6)}
-                title={contractAddress}
-                href={scanUrl(contractAddress)}
-                mono
-                copy={contractAddress}
-                copied={copied}
-                onCopy={onCopy}
-              />
-            )}
-            {paymentHash ? (
-              <SheetField
-                label={t("done.tx")}
-                value={shortenMiddle(paymentHash, 6, 6)}
-                title={paymentHash}
-                href={txUrl(paymentHash)}
-                mono
-                copy={paymentHash}
-                copied={copied}
-                onCopy={onCopy}
-              />
-            ) : (
-              paymentHashPending && <SheetField label={t("done.tx")} value={shortenMiddle("0".repeat(64), 6, 6)} mono pending />
-            )}
-          </div>
-        </>
-      )}
+      <div className={styles.lead}>
+        <h2 className={styles.leadTitle}>
+          <CircleCheck className={styles.okIcon} aria-hidden="true" />
+          <span>{t("done.title")}</span>
+        </h2>
+        <ul className={styles.leadList}>
+          <li>{t("done.nextStored")}</li>
+          <li>{t("done.nextProviders")}</li>
+          <li>{t("done.nextTrack")}</li>
+        </ul>
+      </div>
 
       <div className={styles.heading}>
         <h2 className={shared.tableTitle}>
@@ -110,6 +75,44 @@ export const DoneStep = ({
         <SheetField label={t("done.filesCount")} value={String(filesCount)} />
         <SheetField label={t("files.size")} value={formatBytes(size)} />
       </div>
+
+      {(contractAddress || paymentHash) && (
+        <>
+          <div className={styles.heading}>
+            <h2 className={shared.tableTitle}>
+              <FileText className={shared.titleIcon} aria-hidden="true" />
+              <span>{t("details.contract")}</span>
+            </h2>
+          </div>
+
+          <div className={styles.box}>
+            {contractAddress && (
+              <SheetField
+                label={t("files.contract")}
+                value={shortenMiddle(contractAddress, 6, 6)}
+                title={contractAddress}
+                href={scanUrl(contractAddress)}
+                mono
+                copy={contractAddress}
+                copied={copied}
+                onCopy={onCopy}
+              />
+            )}
+            {paymentHash && (
+              <SheetField
+                label={t("done.tx")}
+                value={shortenMiddle(paymentHash, 6, 6)}
+                title={paymentHash}
+                href={txUrl(paymentHash)}
+                mono
+                copy={paymentHash}
+                copied={copied}
+                onCopy={onCopy}
+              />
+            )}
+          </div>
+        </>
+      )}
 
       <div className={styles.footer}>
         <a href={gatewayUrl(bagId)} target="_blank" rel="noopener noreferrer" className={shared.secondary}>

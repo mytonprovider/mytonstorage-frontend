@@ -1,6 +1,7 @@
 import { useState, type ComponentType } from "react"
 import { BarChart2, Cpu, Globe, Info, Server } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import { reasonKeyOf } from "@/lib/check-label"
 import { cx } from "@/lib/cx"
 import { scanUrl } from "@/lib/contracts"
 import {
@@ -59,7 +60,7 @@ export const ProviderDetails = ({ provider, unlisted = false, catalogReady = tru
   const status = statusOf(provider)
 
   const describe = (reason: number) =>
-    reason === 0 ? t("provider.allChecksPassed") : t([`reason.${reason}`, "status.unknownReason"], { value: String(reason) })
+    reason === 0 ? t("provider.allChecksPassed") : t(reasonKeyOf(reason), { value: String(reason) })
 
   const toneOf = (reason: number) => statusOf({ ...provider, status: reason, status_ratio: 0 }).tone
 
@@ -235,7 +236,7 @@ export const ProviderDetails = ({ provider, unlisted = false, catalogReady = tru
         <div className={styles.statusBody}>
           <div className={styles.statusMain}>
             <div className={styles.statusHead}>
-              <span className={shared.dotStrong} aria-hidden="true" />
+              <span className={shared.dot} aria-hidden="true" />
               <span className={styles.statusLabel}>{t(`status.${status.key}`)}</span>
               {total > 0 && <span className={styles.statusRatio}>{formatPercent((valid / total) * 100)}</span>}
             </div>
@@ -248,7 +249,7 @@ export const ProviderDetails = ({ provider, unlisted = false, catalogReady = tru
             <div className={styles.checks}>
               <div className={styles.checksRow}>
                 <span className={styles.checksLabel}>{t("provider.filesAvailable")}</span>
-                <Ratio valid={valid} total={total} />
+                <Ratio valid={valid} total={total} tone={status.tone} />
               </div>
               <button
                 type="button"
@@ -265,7 +266,7 @@ export const ProviderDetails = ({ provider, unlisted = false, catalogReady = tru
           <div className={styles.legend}>
             {stats.map((stat) => (
               <div key={stat.reason} data-tone={stat.reason === 0 ? "green" : toneOf(stat.reason)} className={styles.legendRow}>
-                <span className={shared.dotStrong} aria-hidden="true" />
+                <span className={shared.dot} aria-hidden="true" />
                 <span className={styles.legendLabel}>{describe(stat.reason)}</span>
                 <span className={shared.spacer} />
                 <span className={styles.legendMeta}>

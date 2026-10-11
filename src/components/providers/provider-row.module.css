@@ -1,51 +1,24 @@
 .grid {
-  display: grid;
-  min-width: 1040px;
-  grid-template-columns:
-    var(--control-md)
-    minmax(0, 1.3fr) minmax(0, 0.7fr) minmax(0, 1.44fr)
-    minmax(0, 0.9fr) minmax(0, 0.74fr) minmax(0, 0.87fr)
-    minmax(0, 1fr) minmax(0, 1.3fr);
-  gap: 0 var(--space-3);
-  align-items: center;
+  composes: tableSubgrid from "../shared.module.css";
 }
 
 .headerRow {
   composes: grid;
+  composes: tableHeadSkin from "../shared.module.css";
   --lead-py: var(--space-4);
   padding: var(--space-4) var(--space-4) var(--space-4) var(--space-3);
-  border-bottom: 1px solid var(--border);
-  background: var(--panel-bg, var(--surface));
 }
 
 .pickCell {
   position: sticky;
   left: 0;
-  z-index: 1;
+  z-index: 2;
   display: grid;
   place-items: center;
   align-self: stretch;
-  padding: var(--lead-py) var(--space-3) var(--lead-py) 0;
-  margin: calc(-1 * var(--lead-py)) calc(-1 * var(--space-3)) calc(-1 * var(--lead-py)) 0;
+  padding: var(--lead-py) var(--space-3);
+  margin: calc(-1 * var(--lead-py)) calc(-1 * var(--space-3));
   background: inherit;
-  clip-path: inset(2px 0);
-}
-
-@media (max-width: 1119px) {
-  .pickCell::after {
-    content: "";
-    position: absolute;
-    inset: 0 var(--space-2) 0 auto;
-    width: 1px;
-    background: var(--border);
-    pointer-events: none;
-  }
-}
-
-@media (hover: hover) {
-  .column:hover {
-    color: var(--text-2);
-  }
 }
 
 .columnStatus {
@@ -58,8 +31,7 @@
   position: relative;
   width: 100%;
   padding: var(--row-py) var(--space-4) var(--row-py) var(--space-3);
-  border-bottom: 1px solid var(--border);
-  background: var(--panel-bg, var(--surface));
+  background: var(--row-surface);
   cursor: pointer;
 }
 
@@ -77,38 +49,48 @@
   outline: none;
 }
 
-.card:last-child {
-  border-bottom: 0;
-  border-radius: 0 0 calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px);
+.card[data-viewed] {
+  background: var(--row-deep);
 }
 
-.card:has(.open:focus-visible),
-.card[data-viewed] {
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--row-ring, var(--focus-edge)), var(--shadow-1);
+.card:has(.open:focus-visible) {
+  background: var(--row-deep);
+}
+
+.card[data-ring="yellow"] {
+  --row-ring: var(--tone-yellow);
+}
+
+.card[data-ring="red"] {
+  --row-ring: var(--tone-red);
+}
+
+.card[data-ring]::after,
+.card:has(.open:focus-visible)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  box-shadow: inset 0 0 0 1px var(--row-ring, var(--focus-edge));
+  pointer-events: none;
 }
 
 @media (hover: hover) {
   .card:hover {
-    background: var(--surface-2);
+    background: var(--row-hover);
   }
 }
 
 .cardSelected,
-.cardSelected:hover,
 .cardSelected:has(.open:focus-visible),
 .cardSelected[data-viewed] {
-  background: var(--accent-weak);
+  background: var(--row-picked);
 }
 
-.conflict {
-  --row-ring: var(--tone-yellow-ring);
-  box-shadow: inset 0 0 0 1px var(--row-ring);
-}
-
-.declinedCard {
-  --row-ring: var(--tone-red-ring);
-  box-shadow: inset 0 0 0 1px var(--row-ring);
+@media (hover: hover) {
+  .cardSelected:hover {
+    background: var(--row-picked-hover);
+  }
 }
 
 .pick {
@@ -127,7 +109,7 @@
 
 @media (hover: hover) {
   .pick:hover {
-    background: var(--surface-2);
+    background: color-mix(in srgb, var(--text) 10%, transparent);
   }
 }
 
@@ -164,6 +146,9 @@
 
 .pubkey {
   composes: tableMono from "../shared.module.css";
+  padding: 0;
+  border: 0;
+  cursor: pointer;
   color: var(--text);
   text-transform: uppercase;
 }
@@ -219,12 +204,6 @@
 
 .placeholder {
   cursor: default;
-}
-
-@media (pointer: coarse) {
-  .column {
-    height: var(--control-input);
-  }
 }
 
 .card[data-fate="new"],

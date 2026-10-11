@@ -2,6 +2,7 @@ import type { ComponentType, ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
 import { CopyButton } from "./copy-button"
+import { GhostIcon } from "./table"
 import shared from "./shared.module.css"
 import styles from "./sheet-fields.module.css"
 
@@ -77,7 +78,7 @@ export const SheetField = ({
           {value}
         </span>
       )}
-      {pending && <span aria-hidden="true" className={styles.copySlot} />}
+      {pending && <GhostIcon />}
       {copy && onCopy && (
         <CopyButton
           value={copy}

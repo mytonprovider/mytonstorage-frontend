@@ -9,18 +9,17 @@ import en from "@/i18n/en.json"
 import ru from "@/i18n/ru.json"
 import type { ContractStatus, WalletTransaction } from "@/types/contract"
 import { ApiError } from "./api"
-import { CONTRACT_RESERVE, MIN_BOUNTY, fullBounty } from "./pricing"
-import { BYTES_IN_GIB } from "./format"
-import { checkLabelOf } from "./check-label"
+import { CONTRACT_RESERVE } from "./pricing"
+import { checkKindOf, checkLabelOf } from "./check-label"
 import {
   INDEX_LAG_SECONDS,
-  PROOF_GRACE_SECONDS,
   STORAGE_CODE_HASH,
   actionFailure,
   contractStatus,
   paymentTone,
   LOW_BALANCE_DAYS,
   countChecks,
+  shownChecks,
   discover,
   findClosed,
   loadFailure,
@@ -210,6 +209,19 @@ describe("refreshStates", () => {
     expect(rows.map((contract) => contract.address)).toEqual(["EQC"])
   })
 
+  it("reopens a closed row once its account holds more than the reserve, and keeps one left at the reserve closed", async () => {
+    const fetchStates = vi.fn((): Promise<AccountStates> =>
+      Promise.resolve({ accounts: [account("EQA", { balance: CONTRACT_RESERVE + 1, dataBoc: BOC }), account("EQB", { balance: CONTRACT_RESERVE, dataBoc: BOC })], friendly: {} }),
+    )
+
+    const rows = await refreshStates([row("EQA", { closed: true }), row("EQB", { closed: true })], { fetchStates, now: NOW })
+
+    expect(rows.map((contract) => [contract.address, contract.closed, contract.lastEventAt])).toEqual([
+      ["EQA", false, NOW],
+      ["EQB", true, undefined],
+    ])
+  })
+
   it("fills the bag and the size from the state it just read", async () => {
     putState("EQA", "hash-1", state)
 
@@ -284,7 +296,11 @@ describe("runPass", () => {
   })
 
   it("closes a contract from a terminated message seen before its deploy page, and moves both cursors only at the end", async () => {
-    const { shown, io: deps } = io([pageOf([message({ source: "0:2", destination: OWNER, createdLt: "5", createdAt: NOW - 3600 })]), deploys(["0:1", "0:2"])])
+    const { shown, io: deps } = io([pageOf([message({ source: "0:2", destination: OWNER, createdLt: "5", createdAt: NOW - 3600 })]), deploys(["0:1", "0:2"])], {
+      fetchStates: vi.fn((addresses: string[], withData: boolean): Promise<AccountStates> =>
+        Promise.resolve({ accounts: addresses.map((address) => account(address, { ...(address === "0:2" ? { balance: CONTRACT_RESERVE } : {}), dataBoc: withData ? BOC : null })), friendly: {} }),
+      ),
+    })
 
     const cursors = await runPass(OWNER, { headLt: null, closedLt: null }, [], deps)
 
@@ -292,14 +308,15 @@ describe("runPass", () => {
     expect(cursors).toEqual({ headLt: "100", closedLt: "5" })
   })
 
-  it("refreshes the cached rows the pages did not mention, in batches, skipping closed ones already read", async () => {
-    putState("0:9", "hash-1", state)
-    const { calls, io: deps } = io([pageOf([]), pageOf([])])
+  it("refreshes every cached row the pages did not mention, closed ones included, and asks the backend only about the open ones", async () => {
+    putState("0:9", "hash-1", { ...state, balance: CONTRACT_RESERVE })
+    const { calls, shown, io: deps } = io([pageOf([]), pageOf([])])
     const cached = [row("0:8", { enriched: true }), row("0:9", { closed: true, enriched: true, state })]
 
     await runPass(OWNER, { headLt: "50", closedLt: "5" }, cached, deps)
 
-    expect(calls).toEqual(["closed", "deploys", "states:1", "bags:0", "checks:1"])
+    expect(calls).toEqual(["closed", "deploys", "states:2", "states:1", "bags:0", "checks:1"])
+    expect(shown.at(-1)?.find((contract) => contract.address === "0:9")?.closed).toBe(true)
   })
 
   it("refreshes only the rows on screen when asked to focus, leaving the rest to the full sweep", async () => {
@@ -326,7 +343,7 @@ describe("runPass", () => {
 
     await runPass(OWNER, { headLt: null, closedLt: null }, [], deps)
 
-    expect(shown.at(-1)?.[0]).toMatchObject({ pending: 0, total: 0 })
+    expect(shown.at(-1)?.[0]).toMatchObject({ checked: [], total: 0 })
   })
 
   it("reports an ended session once and leaves the chain facts it already drew", async () => {
@@ -369,9 +386,14 @@ describe("mergeRows", () => {
     expect(merged[0]).toMatchObject({ closed: true, createdAt: 100, lastEventAt: 200 })
   })
 
-  it("never reopens a closed row from a later deploy sweep", () => {
-    const merged = mergeRows([row("EQA", { closed: true })], [{ address: "EQA", createdAt: 100, closed: false }])
-    expect(merged[0].closed).toBe(true)
+  it("reopens a closed row when the owner's next provider change comes after the termination", () => {
+    const merged = mergeRows([row("EQA", { closed: true, lastEventAt: 200 })], [{ address: "EQA", createdAt: 100, closed: false, lastEventAt: 300 }])
+    expect(merged[0]).toMatchObject({ closed: false, createdAt: 100, lastEventAt: 300 })
+  })
+
+  it("keeps a row closed when the deploy sweep only brings events older than the termination", () => {
+    const merged = mergeRows([row("EQA", { closed: true, lastEventAt: 200 })], [{ address: "EQA", createdAt: 100, closed: false }])
+    expect(merged[0]).toMatchObject({ closed: true, lastEventAt: 200 })
   })
 
   it("gives a brand-new address empty enrichment to fill later", () => {
@@ -455,7 +477,7 @@ describe("withPending", () => {
       valid: 0,
       total: 0,
     })
-    expect(contractStatus(rows[0], NOW)).toBeNull()
+    expect(contractStatus(rows[0])).toBeNull()
   })
 
   it("builds the same row the wizard write and link leave behind", () => {
@@ -521,16 +543,47 @@ describe("countChecks", () => {
   ]
 
   it("counts only the checks belonging to the given contract", () => {
-    expect(countChecks(statuses, "EQA")).toEqual({ valid: 1, total: 2, pending: 0 })
+    expect(countChecks(statuses, "EQA")).toEqual({ valid: 1, total: 2, checked: ["a", "b"], stored: ["a"] })
   })
 
   it("reports an unchecked contract as zero of zero", () => {
-    expect(countChecks(statuses, "EQC")).toEqual({ valid: 0, total: 0, pending: 0 })
+    expect(countChecks(statuses, "EQC")).toEqual({ valid: 0, total: 0, checked: [], stored: [] })
   })
 
-  it("counts a check that has not run yet in the denominator and names it pending", () => {
+  it("counts a check that has not run yet in the denominator but not among the checked", () => {
     const pending: ContractStatus = { address: "EQA", provider_pubkey: "d", reason: null, reason_timestamp: null }
-    expect(countChecks([...statuses, pending], "EQA")).toEqual({ valid: 1, total: 3, pending: 1 })
+    expect(countChecks([...statuses, pending], "EQA")).toEqual({ valid: 1, total: 3, checked: ["a", "b"], stored: ["a"] })
+  })
+})
+
+describe("shownChecks", () => {
+  const key = (seed: string) => seed.repeat(64).slice(0, 64)
+  const provider = (pubkey: string) => ({ pubkey, ratePerMbDay: 1, maxSpan: 86400, lastProofTime: 0 })
+  const state = { torrentHash: "", fileSize: 1, balance: 1, providers: ["a", "b", "c", "d", "e", "f"].map((seed) => provider(key(seed))) }
+
+  it("counts the backend confirmations against every provider the chain holds, not against the rows the backend returned", () => {
+    const two = [key("a"), key("b")]
+    expect(shownChecks({ valid: 2, total: 2, checked: two, stored: two, state })).toEqual({ valid: 2, total: 6, ran: 2 })
+  })
+
+  it("does not count a confirmation for a provider the contract no longer hires, whatever case the backend wrote the key in", () => {
+    const narrow = { ...state, providers: [provider(key("a"))] }
+    const written = [key("A").toUpperCase(), key("z")]
+    expect(shownChecks({ valid: 2, total: 2, checked: written, stored: written, state: narrow })).toEqual({ valid: 1, total: 1, ran: 1 })
+  })
+
+  it("counts no check run while the catalogue has not checked a single hired provider, whatever rows it holds", () => {
+    expect(shownChecks({ valid: 0, total: 3, checked: [], stored: [], state })).toEqual({ valid: 0, total: 6, ran: 0 })
+    expect(shownChecks({ valid: 0, total: 0, checked: [], stored: [], state })).toEqual({ valid: 0, total: 6, ran: 0 })
+    expect(shownChecks({ valid: 0, total: 2, checked: [], stored: [], state: null })).toEqual({ valid: 0, total: 2, ran: 0 })
+    expect(shownChecks({ valid: 0, total: 3, checked: [key("a")], stored: [], state })).toEqual({ valid: 0, total: 6, ran: 1 })
+    expect(shownChecks({ valid: 0, total: 1, checked: [key("z")], stored: [], state })).toEqual({ valid: 0, total: 6, ran: 0 })
+  })
+
+  it("shows nothing until both the backend and the chain have answered, and the backend rows alone when the chain has no account", () => {
+    expect(shownChecks({ valid: 2, total: 2, checked: [], stored: [], state: undefined })).toBe(null)
+    expect(shownChecks({ valid: 2, total: 2, checked: undefined, stored: [], state })).toBe(null)
+    expect(shownChecks({ valid: 2, total: 3, checked: [key("a"), key("b"), key("c")], stored: [], state: null })).toEqual({ valid: 2, total: 3, ran: 3 })
   })
 })
 
@@ -644,8 +697,8 @@ describe("Ratio", () => {
   const shown = (valid: number, total: number): string =>
     renderToStaticMarkup(createElement(Ratio, { valid, total })).replace(/<[^>]*>/g, "")
 
-  it("names the unchecked state instead of printing an empty fraction", () => {
-    expect(shown(0, 0)).toBe("Not checked")
+  it("prints nothing for an empty set instead of a zero over zero", () => {
+    expect(shown(0, 0)).toBe("")
   })
 
   it("keeps the fraction once a check has run", () => {
@@ -658,12 +711,12 @@ describe("checkLabelOf", () => {
   const NOW = 1785545100
   const PHRASED = new Set([
     "details.checkOk",
+    "details.checkFailed",
     "details.checkAgo",
-    "reason.0",
-    "reason.401",
-    "reasonShort.401",
-    "status.unknownCode",
-    "status.unknownReason",
+    "reason.passed",
+    "reason.noBagInfo",
+    "reason.noProof",
+    "reason.checkerFailed",
   ])
 
   const t: Translate = (key, options) => {
@@ -685,32 +738,42 @@ describe("checkLabelOf", () => {
 
   it("keeps zero healthy and dates a failed code from the given moment", () => {
     expect(checkLabelOf(statusOf(0), NOW, t)).toEqual({
-      failed: false,
+      kind: "stored",
+      tone: "green",
       short: "details.checkOk",
-      long: "reason.0",
+      long: "reason.passed",
       at: 0,
       ago: "",
       agoShort: "",
     })
     expect(checkLabelOf(statusOf(401, NOW - 7200), NOW, t)).toEqual({
-      failed: true,
-      short: "reasonShort.401",
-      long: "reason.401",
+      kind: "notStored",
+      tone: "red",
+      short: "details.checkFailed",
+      long: "reason.noProof",
       at: NOW - 7200,
       ago: "details.checkAgo(2.hr)",
       agoShort: "provider.ago(2.hr)",
     })
+    expect(checkLabelOf(statusOf(301), NOW, t)?.long).toBe("reason.noBagInfo")
   })
 
-  it("shows the code itself when nobody translated it", () => {
+  it("files a code nobody knows under unchecked and keeps its number for the reason", () => {
     expect(checkLabelOf(statusOf(599), NOW, t)).toEqual({
-      failed: true,
-      short: "status.unknownCode",
-      long: "status.unknownReason",
+      kind: "unchecked",
+      tone: "red",
+      short: "details.checkFailed",
+      long: "reason.checkerFailed",
       at: 0,
       ago: "",
       agoShort: "",
     })
+  })
+
+  it("blames the provider only for codes the checker reached it with", () => {
+    expect([301, 302, 401, 402, 403].map(checkKindOf)).toEqual(Array(5).fill("notStored"))
+    expect([101, 103, 201, 203].map(checkKindOf)).toEqual(Array(4).fill("unavailable"))
+    expect([102, 104, 105, 202].map(checkKindOf)).toEqual(Array(4).fill("unchecked"))
   })
 })
 
@@ -726,105 +789,40 @@ describe("paymentTone", () => {
 })
 
 describe("contractStatus", () => {
-  const week = 7 * 86400
-  const rate = 8797
-  const provider = (lastProofTime: number, maxSpan = week) => ({ pubkey: "p" + lastProofTime + maxSpan, ratePerMbDay: rate, maxSpan, lastProofTime })
-  const stateWith = (balance: number, ...proofs: number[]) => ({ ...state, fileSize: BYTES_IN_GIB, balance, providers: proofs.map((at) => provider(at)) })
-  const hourly = (balance: number, lastProofTime: number) => ({ ...state, fileSize: BYTES_IN_GIB, balance, providers: [provider(lastProofTime, 3600)] })
-  const rich = 10 * fullBounty(BYTES_IN_GIB, rate, week)
-  const HIRED = NOW - 30 * 86400
-  const verdictOf = (contract: Parameters<typeof contractStatus>[0], now: number): string | undefined => contractStatus(contract, now)?.word
-  const row = (chain: ReturnType<typeof stateWith> | null | undefined, createdAt = HIRED, lastEventAt?: number) => ({
+  const provider = (pubkey: string) => ({ pubkey, ratePerMbDay: 8797, maxSpan: 7 * 86400, lastProofTime: 0 })
+  const hiring = (...keys: string[]) => ({ ...state, providers: keys.map(provider) })
+  const row = (chain: ReturnType<typeof hiring> | null | undefined, checked: string[] = [], stored: string[] = []) => ({
     closed: false,
-    createdAt,
-    lastEventAt,
     state: chain,
-    valid: 1,
-    total: 1,
+    valid: stored.length,
+    total: checked.length,
+    checked,
+    stored,
   })
 
-  it("marks a closed contract regardless of the chain", () => {
-    expect(contractStatus({ ...row(stateWith(rich, NOW)), closed: true }, NOW)).toEqual({ tone: "gray", word: "files.closed" })
+  it("marks a closed contract regardless of the checks", () => {
+    expect(contractStatus({ ...row(hiring("a"), ["a"], ["a"]), closed: true })).toEqual({ tone: "gray", word: "files.closed" })
   })
 
-  it("gives no verdict at all until the chain has answered", () => {
-    expect(contractStatus(row(undefined), NOW)).toBeNull()
+  it("gives no verdict until both the chain and the catalog have answered", () => {
+    expect(contractStatus(row(undefined))).toBeNull()
+    expect(contractStatus({ ...row(hiring("a")), checked: undefined })).toBeNull()
   })
 
-  it("tells a chain that answered nothing from a contract with nobody hired", () => {
-    expect(contractStatus(row(null), NOW)).toEqual({ tone: "gray", word: "status.noData" })
-    expect(contractStatus(row(stateWith(rich)), NOW)).toEqual({ tone: "gray", word: "files.statusNotHired" })
+  it("has no peers while nobody of the hired set was checked, or nobody is hired", () => {
+    expect(contractStatus(row(hiring("a", "b")))).toEqual({ tone: "gray", word: "files.statusNoPeers" })
+    expect(contractStatus(row(hiring()))).toEqual({ tone: "gray", word: "files.statusNoPeers" })
+    expect(contractStatus(row(hiring("b"), ["gone"], ["gone"]))).toEqual({ tone: "gray", word: "files.statusNoPeers" })
   })
 
-  it("gives a provider a day to download before it has to prove anything", () => {
-    expect(verdictOf(row(hourly(rich, 0), NOW - 86400 + 60), NOW)).toBe("files.statusStarting")
-    expect(verdictOf(row(hourly(rich, 0), NOW - 86400 - 60), NOW)).toBe("files.statusNone")
+  it("words the share of the hired set that passed", () => {
+    expect(contractStatus(row(hiring("a", "b"), ["a", "b"], ["a", "b"]))).toEqual({ tone: "green", word: "files.statusStored" })
+    expect(contractStatus(row(hiring("a", "b"), ["a"], ["a"]))).toEqual({ tone: "yellow", word: "files.statusPartial" })
+    expect(contractStatus(row(hiring("a", "b"), ["a"]))).toEqual({ tone: "red", word: "files.statusNone" })
   })
 
-  it("gives a day from the hire whatever the period: the first proof follows the download, not the period", () => {
-    expect(verdictOf(row(stateWith(rich, 0), NOW - 86400 + 60), NOW)).toBe("files.statusStarting")
-    expect(verdictOf(row(stateWith(rich, 0), NOW - 2 * 86400), NOW)).toBe("files.statusNone")
-  })
-
-  it("stretches that window for a bag nobody could fetch in a day, up to its period", () => {
-    const huge = (proof: number) => ({ ...stateWith(rich, proof), fileSize: 1024 * BYTES_IN_GIB })
-    expect(verdictOf(row(huge(0), NOW - 2 * 86400), NOW)).toBe("files.statusStarting")
-    expect(verdictOf(row(huge(0), NOW - 3 * 86400), NOW)).toBe("files.statusNone")
-  })
-
-  it("counts that wait from the last change of the set, since a change resets the proofs", () => {
-    expect(verdictOf(row(stateWith(rich, 0), NOW - 365 * 86400, NOW - 60), NOW)).toBe("files.statusStarting")
-    expect(verdictOf(row(stateWith(rich, 0), NOW - 365 * 86400), NOW)).toBe("files.statusNone")
-  })
-
-  it("names the money only once a provider is already late with nothing left to pay it", () => {
-    const late = NOW - week - PROOF_GRACE_SECONDS - 60
-    expect(contractStatus(row(stateWith(MIN_BOUNTY - 1, late)), NOW)).toEqual({ tone: "red", word: "files.statusUnpaid" })
-    expect(verdictOf(row(stateWith(MIN_BOUNTY - 1, NOW - 3600)), NOW)).toBe("files.statusStored")
-  })
-
-  it("greens a contract every provider has proven within its period", () => {
-    expect(verdictOf(row(stateWith(rich, NOW - 3600, NOW - week + 60)), NOW)).toBe("files.statusStored")
-  })
-
-  it("keeps a contract stored while a proof runs late by less than a tenth of its period", () => {
-    const due = NOW - week - Math.round(week * 0.1)
-    expect(verdictOf(row(stateWith(rich, due + 60)), NOW)).toBe("files.statusStored")
-    expect(verdictOf(row(stateWith(rich, due - 120)), NOW)).toBe("files.statusNone")
-  })
-
-  it("still names the money by the hour the daemon waits, not by that tenth", () => {
-    const late = NOW - week - PROOF_GRACE_SECONDS - 60
-    expect(verdictOf(row(stateWith(MIN_BOUNTY - 1, late)), NOW)).toBe("files.statusUnpaid")
-    expect(verdictOf(row(stateWith(MIN_BOUNTY - 1, late + 120)), NOW)).toBe("files.statusStored")
-  })
-
-  it("treats the reserve the contract may never spend as money it does not have", () => {
-    const late = NOW - week - PROOF_GRACE_SECONDS - 60
-    const owed = fullBounty(BYTES_IN_GIB, rate, week)
-    expect(verdictOf(row(stateWith(owed + CONTRACT_RESERVE - 1, late)), NOW)).toBe("files.statusUnpaid")
-    expect(verdictOf(row(stateWith(owed + CONTRACT_RESERVE, late)), NOW)).not.toBe("files.statusUnpaid")
-  })
-
-  it("never stretches that window past the period, since the proof falls due with it", () => {
-    const span = 2 * 86400
-    const size = 1024 * BYTES_IN_GIB
-    const huge = { ...state, fileSize: size, balance: 10 * fullBounty(size, rate, span), providers: [provider(0, span)] }
-    expect(verdictOf(row(huge, NOW - span + 3600), NOW)).toBe("files.statusStarting")
-    expect(verdictOf(row(huge, NOW - span - 7200), NOW)).toBe("files.statusNone")
-  })
-
-  it("cuts the download window to a day once the catalog checked everyone and confirmed nobody", () => {
-    const fresh = NOW - 2 * 86400
-    const huge = { ...stateWith(rich, 0), fileSize: 1024 * BYTES_IN_GIB }
-    const checked = { ...row(huge, fresh), valid: 0, total: 3 }
-    expect(contractStatus(checked, NOW)?.word).toBe("files.statusNone")
-    expect(contractStatus({ ...checked, valid: 1 }, NOW)?.word).toBe("files.statusStarting")
-    expect(contractStatus({ ...checked, valid: 0, total: 0 }, NOW)?.word).toBe("files.statusStarting")
-  })
-
-  it("calls a contract partially stored while one provider still proves and another does not", () => {
-    expect(verdictOf(row(stateWith(rich, NOW - 3600, NOW - 2 * week)), NOW)).toBe("files.statusPartial")
-    expect(verdictOf(row(stateWith(rich, NOW - 3600, 0), NOW - 365 * 86400), NOW)).toBe("files.statusPartial")
+  it("counts the catalog rows alone when the chain answered nothing", () => {
+    expect(contractStatus(row(null, ["a", "b"], ["a"]))).toEqual({ tone: "yellow", word: "files.statusPartial" })
+    expect(contractStatus(row(null))).toEqual({ tone: "gray", word: "files.statusNoPeers" })
   })
 })

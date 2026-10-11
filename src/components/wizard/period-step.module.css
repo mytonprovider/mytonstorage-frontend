@@ -23,16 +23,16 @@
   padding: var(--space-6) var(--pad-pill);
 }
 
-.payHeading {
-  composes: tableHeading from "../shared.module.css";
-  margin-top: var(--space-10);
-}
-
 .note {
   margin-top: var(--space-4);
   font-size: var(--font-sm);
   color: var(--text-3);
   text-wrap: pretty;
+}
+
+.divider {
+  margin: var(--space-6) 0;
+  border-top: 1px solid var(--border);
 }
 
 .fields {

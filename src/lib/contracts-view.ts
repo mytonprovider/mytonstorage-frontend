@@ -1,21 +1,21 @@
-import { contractVerdict, type ContractRow, type ContractVerdict } from "./contracts"
+import { contractVerdict, shownChecks, type ContractRow, type ContractVerdict } from "./contracts"
 import { paidDaysLeft } from "./pricing"
 
 export type StatusFilter = ContractVerdict
 
-export const STATUS_FILTERS: StatusFilter[] = ["stored", "partial", "starting", "lost", "unpaid", "notHired", "noData", "closed"]
+export const STATUS_FILTERS: StatusFilter[] = ["stored", "partial", "closed", "noPeers", "lost"]
 
-export const matchesStatuses = (row: ContractRow, statuses: StatusFilter[], now: number): boolean => {
+export const matchesStatuses = (row: ContractRow, statuses: StatusFilter[]): boolean => {
   if (!statuses.length) return true
-  const verdict = contractVerdict(row, now)
+  const verdict = contractVerdict(row)
   return verdict !== null && statuses.includes(verdict)
 }
 
-export const statusCounts = (rows: ContractRow[], now: number): Record<StatusFilter, number> => {
-  const counts: Record<StatusFilter, number> = { stored: 0, partial: 0, starting: 0, lost: 0, unpaid: 0, notHired: 0, noData: 0, closed: 0 }
+export const statusCounts = (rows: ContractRow[]): Record<StatusFilter, number> => {
+  const counts: Record<StatusFilter, number> = { stored: 0, partial: 0, lost: 0, noPeers: 0, closed: 0 }
 
   rows.forEach((row) => {
-    const verdict = contractVerdict(row, now)
+    const verdict = contractVerdict(row)
     if (verdict !== null) counts[verdict] += 1
   })
 
@@ -29,44 +29,31 @@ export const matchesQuery = (row: ContractRow, query: string): boolean => {
   return [row.address, row.bagId, row.description].some((value) => value.toLowerCase().includes(needle))
 }
 
-const SORT_FIELDS = ["createdAt", "address", "desc", "paidUntil", "size", "checks", "status"] as const
+const SORT_FIELDS = ["createdAt", "address", "bagId", "desc", "paidUntil", "size", "checks"] as const
 
 export type ContractSortField = (typeof SORT_FIELDS)[number]
 export type SortDirection = "asc" | "desc"
 
 export const isSortField = (value: string): value is ContractSortField => SORT_FIELDS.some((field) => field === value)
 
-const HEAVINESS: Record<ContractVerdict, number> = {
-  unpaid: 0,
-  lost: 1,
-  notHired: 2,
-  partial: 3,
-  starting: 4,
-  stored: 5,
-  noData: 6,
-  closed: 7,
-}
-
-const NO_VALUE = Number.MAX_SAFE_INTEGER
-
-const valueOf = (row: ContractRow, field: ContractSortField, now: number): number | string => {
+const valueOf = (row: ContractRow, field: ContractSortField, now: number): number | string | null => {
   switch (field) {
     case "createdAt":
       return row.createdAt
     case "address":
       return row.address
+    case "bagId":
+      return row.bagId
     case "desc":
       return row.description
     case "size":
       return row.size || row.state?.fileSize || 0
-    case "checks":
-      return row.total > 0 ? row.valid / row.total : NO_VALUE
-    case "status": {
-      const verdict = contractVerdict(row, now)
-      return verdict === null ? HEAVINESS.noData : HEAVINESS[verdict]
+    case "checks": {
+      const checks = shownChecks(row)
+      return row.closed || checks === null || checks.ran === 0 ? null : checks.valid
     }
     case "paidUntil": {
-      if (row.closed || !row.state) return NO_VALUE
+      if (row.closed || !row.state) return null
       const left = paidDaysLeft(row.state.fileSize, row.state.providers, row.state.balance, now)
       return left ?? 0
     }
@@ -83,7 +70,8 @@ export const sortContracts = (
   return [...rows].sort((a, b) => {
     const left = valueOf(a, field, now)
     const right = valueOf(b, field, now)
-    return typeof left === "string" ? left.localeCompare(right as string) * sign : (left - (right as number)) * sign
+    if (left === null || right === null) return Number(left === null) - Number(right === null)
+    return (typeof left === "string" ? left.localeCompare(right as string) : left - (right as number)) * sign
   })
 }
 
@@ -100,7 +88,7 @@ export const openContracts = (rows: ContractRow[], hideClosed: boolean): Contrac
 
 export const visibleContracts = (rows: ContractRow[], view: ListView, now: number): ContractRow[] => {
   const kept = openContracts(rows, view.hideClosed && !view.statuses.includes("closed")).filter(
-    (row) => matchesStatuses(row, view.statuses, now) && matchesQuery(row, view.query),
+    (row) => matchesStatuses(row, view.statuses) && matchesQuery(row, view.query),
   )
 
   return sortContracts(kept, view.field, view.direction, now)

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQuote } from "@/lib/api"
-import { useCheckLabel } from "@/lib/check-label"
+import { useCheckLabel, type CheckWarn } from "@/lib/check-label"
 import { useContractData, type ContractState } from "@/lib/contracts-cache"
 import { formatDate, formatDuration, nowSeconds, SECONDS_IN_DAY, tonLabel } from "@/lib/format"
 import {
@@ -125,9 +125,9 @@ export const ContractProviders = ({
   const basePubkeys = base.providers.map(({ pubkey }) => pubkey)
   const selected = pickedKeys ?? basePubkeys
 
-  const warnOf = (pubkey: string): { short: string; full: string } | undefined => {
+  const warnOf = (pubkey: string): CheckWarn | undefined => {
     const check = checkLabel(statuses.find((status) => status.provider_pubkey === pubkey))
-    if (!check?.failed) return undefined
+    if (check?.kind !== "notStored") return undefined
     return { short: check.short, full: check.ago ? `${check.long} · ${check.ago}` : check.long }
   }
 

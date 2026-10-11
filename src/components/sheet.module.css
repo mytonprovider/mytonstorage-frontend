@@ -17,7 +17,14 @@
 }
 
 .sheet {
+  --field-fill: var(--bg);
   --panel-bg: var(--surface-2);
+  --row-bg: var(--surface-3);
+  --row-alt: var(--surface);
+  --row-hover: color-mix(in srgb, var(--accent) 6%, var(--surface-4));
+  --row-picked: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  --row-picked-hover: color-mix(in srgb, var(--accent) 28%, var(--surface));
+  --row-deep: var(--surface-4);
   flex-direction: column;
   width: clamp(var(--sheet-min), 58vw, var(--sheet-max));
   max-width: calc(100vw - var(--space-9));

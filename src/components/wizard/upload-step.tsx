@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from "react"
 import { File as FileIcon, Files, FileText, Folder, Upload, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
-import { onScrollNearBottom } from "@/lib/dom"
+import { onScrollNearBottom, useScrollbarGutter } from "@/lib/dom"
 import { formatBytes, formatBytesFloor, formatBytesOrZero, formatCountdown, formatDuration, splitFileName } from "@/lib/format"
 import { MAX_BAG_BYTES, MAX_BAG_FILES, MAX_DESCRIPTION } from "@/lib/pricing"
 import { hasFolder, mergeFiles, pickedFrom, rootsOf, roundedLeft, totalSize, validatePicked, type UploadStats } from "@/lib/upload"
 import type { PickedFile } from "@/types/bag"
 import { IconButton } from "../icon-button"
+import { TableFrame, TableHead, TableRows, TableScroll } from "../table"
 import { Notice } from "../notice"
 import { Sheet, SheetFooter } from "../sheet"
 import shared from "../shared.module.css"
@@ -128,6 +129,7 @@ interface PickedFilesProps {
 const PickedFiles = ({ files, uploading, onRemove, onClear }: PickedFilesProps) => {
   const { t } = useTranslation()
   const [shownLimit, setShownLimit] = useState(ROWS_PER_PAGE)
+  const [gutter, gutterRef] = useScrollbarGutter()
 
   return (
     <section className={styles.list}>
@@ -142,51 +144,54 @@ const PickedFiles = ({ files, uploading, onRemove, onClear }: PickedFilesProps) 
         </button>
       </div>
 
-      <div className={styles.panel}>
-        <div className={styles.head}>
+      <TableFrame className={styles.panel} style={{ "--list-gutter": gutter } as CSSProperties}>
+        <TableHead className={styles.head}>
           <span className={shared.tableHeadCell}>{t("upload.colFile")}</span>
           <span className={shared.tableHeadCell}>{t("upload.colSize")}</span>
           <span />
-        </div>
+        </TableHead>
 
-        <div
+        <TableScroll
+          ref={gutterRef}
           className={styles.scroll}
           onScroll={onScrollNearBottom(NEAR_BOTTOM_PX, () => {
             if (shownLimit < files.length) setShownLimit((current) => current + ROWS_PER_PAGE)
           })}
         >
-          {files.slice(0, shownLimit).map((file, index) => {
-            const [stem, extension] = splitFileName(file.name)
+          <TableRows className={styles.rows}>
+            {files.slice(0, shownLimit).map((file, index) => {
+              const [stem, extension] = splitFileName(file.name)
 
-            return (
-              <div key={`${file.name}-${index}`} className={styles.row}>
-                <span className={shared.tableLead}>
-                  {file.name.includes("/") ? (
-                    <Folder className={styles.rowIcon} aria-hidden="true" />
-                  ) : (
-                    <FileIcon className={styles.rowIcon} aria-hidden="true" />
-                  )}
-                  <span title={file.name} className={cx(shared.tableValue, styles.fileName)}>
-                    <span className={shared.ellipsis}>{stem}</span>
-                    <span className={styles.fileExt}>{extension}</span>
+              return (
+                <div key={`${file.name}-${index}`} className={styles.row}>
+                  <span className={shared.tableLead}>
+                    {file.name.includes("/") ? (
+                      <Folder className={styles.rowIcon} aria-hidden="true" />
+                    ) : (
+                      <FileIcon className={styles.rowIcon} aria-hidden="true" />
+                    )}
+                    <span title={file.name} className={cx(shared.tableValue, styles.fileName)}>
+                      <span className={shared.ellipsis}>{stem}</span>
+                      <span className={styles.fileExt}>{extension}</span>
+                    </span>
                   </span>
-                </span>
-                <span className={shared.tableCell}>
-                  <span className={shared.tableLabel}>{t("upload.colSize")}</span>
-                  <span className={shared.tableValue}>{formatBytes(file.size)}</span>
-                </span>
-                <IconButton size="xs" danger label={t("upload.removeFile")} onClick={() => onRemove(index)} disabled={uploading}>
-                  <X className={styles.removeIcon} aria-hidden="true" />
-                </IconButton>
-              </div>
-            )
-          })}
-        </div>
+                  <span className={shared.tableCell}>
+                    <span className={shared.tableLabel}>{t("upload.colSize")}</span>
+                    <span className={shared.tableValue}>{formatBytes(file.size)}</span>
+                  </span>
+                  <IconButton size="xs" danger label={t("upload.removeFile")} onClick={() => onRemove(index)} disabled={uploading}>
+                    <X className={styles.removeIcon} aria-hidden="true" />
+                  </IconButton>
+                </div>
+              )
+            })}
+          </TableRows>
+        </TableScroll>
 
         <p className={styles.foot}>
           {t("upload.total", { files: files.length, size: formatBytes(totalSize(files)) })}
         </p>
-      </div>
+      </TableFrame>
     </section>
   )
 }
@@ -360,8 +365,7 @@ export const UploadStep = ({
               </h2>
             </div>
 
-            <div className={styles.box}>
-              <span className={styles.inputWrap}>
+            <span className={styles.inputWrap}>
                 <input
                   type="text"
                   value={description}
@@ -373,8 +377,7 @@ export const UploadStep = ({
                 <span className={cx(styles.counter, descriptionLength > MAX_DESCRIPTION && styles.counterOver)}>
                   {descriptionLength} / {MAX_DESCRIPTION}
                 </span>
-              </span>
-            </div>
+            </span>
 
             {uploading ? (
               <>

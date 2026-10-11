@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Check, RefreshCw, ScrollText } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
@@ -24,20 +24,23 @@ import { Notice } from "../notice"
 import { SearchField } from "../search-field"
 import { Sheet } from "../sheet"
 import { SortColumn } from "../sort-column"
+import { TableFrame, TableRows, TableScroll } from "../table"
 import shared from "../shared.module.css"
 import styles from "./contracts-list.module.css"
 
 const SKELETON_ROWS = 3
 const ROW_PORTION = 10
-const ASC_FIRST: ContractSortField[] = ["status", "paidUntil", "checks", "address", "desc"]
+const TOOLBAR_FROM = 5
+const ASC_FIRST: ContractSortField[] = ["paidUntil", "checks", "address", "bagId", "desc"]
 
 const storedView = (): { rows: number; field: ContractSortField; direction: SortDirection } => {
   const { shown, sort, dir } = readListView()
+  const known = isSortField(sort)
 
   return {
     rows: shown > 0 ? Math.ceil(shown / ROW_PORTION) * ROW_PORTION : 0,
-    field: isSortField(sort) ? sort : "createdAt",
-    direction: dir === "asc" ? "asc" : "desc",
+    field: known ? sort : "createdAt",
+    direction: known && dir === "asc" ? "asc" : "desc",
   }
 }
 
@@ -62,9 +65,6 @@ interface ContractsListProps {
   onRefresh: () => void
   refreshing: boolean
   onShown: (addresses: string[]) => void
-  onRenotify: () => void
-  notifyStatus: ContractsState["notifyStatus"]
-  onNotify: (contract: string, providers: string[]) => void
   onHideClosed: (value: boolean) => void
   onCopy: (value: string) => void
   onEditingChange: (editor: OpenEditor | null) => void
@@ -87,9 +87,6 @@ export const ContractsList = ({
   onRefresh,
   refreshing,
   onShown,
-  onRenotify,
-  notifyStatus,
-  onNotify,
   onHideClosed,
   onCopy,
   onEditingChange,
@@ -108,11 +105,8 @@ export const ContractsList = ({
 
   useDismiss(statusOpen, () => setStatusOpen(false))
 
-  const statuses = useMemo(() => statusCounts(contracts, nowSeconds()), [contracts])
-  const options = useMemo(
-    () => STATUS_FILTERS.filter((option) => statuses[option] > 0 || picked.includes(option)),
-    [statuses, picked],
-  )
+  const statuses = useMemo(() => statusCounts(contracts), [contracts])
+  const filtering = picked.length > 0 || query.trim() !== ""
   const visible = useMemo(
     () =>
       visibleContracts(
@@ -204,16 +198,10 @@ export const ContractsList = ({
           tone={payErrorTone(error)}
           className={styles.error}
           action={
-            errorKind === "load" ? (
+            errorKind === "load" && (
               <button type="button" onClick={onRetry}>
                 {t("ui.retry")}
               </button>
-            ) : (
-              errorKind === "notify" && (
-                <button type="button" onClick={onRenotify}>
-                  {t("files.notifyAgain")}
-                </button>
-              )
             )
           }
         >
@@ -222,7 +210,7 @@ export const ContractsList = ({
         </Notice>
       )}
 
-      {(contracts.length > ROW_PORTION || picked.length > 0 || query.trim() !== "") && (
+      {(contracts.length > TOOLBAR_FROM || filtering) && (
         <div className={styles.tools}>
           <SearchField
             value={query}
@@ -240,17 +228,16 @@ export const ContractsList = ({
                   : t("files.statuses", { count: picked.length })
             }
             active={picked.length > 0}
-            disabled={options.length === 0}
             open={statusOpen}
             onToggle={() => setStatusOpen(!statusOpen)}
           >
-            {options.map((option) => (
+            {STATUS_FILTERS.map((option) => (
               <MenuOption
                 key={option}
                 label={t(verdictWord(option))}
                 count={statuses[option]}
                 selected={picked.includes(option)}
-                dimmed={statuses[option] === 0}
+                dimmed={statuses[option] === 0 && !picked.includes(option)}
                 onToggle={() => pickStatus(option)}
               />
             ))}
@@ -260,11 +247,18 @@ export const ContractsList = ({
 
       {!loading && visible.length === 0 ? (
         <div className={shared.emptyState}>
-          {picked.length > 0 || query.trim() !== "" ? (
+          {filtering ? (
             <>
               <p>{t("files.noMatches")}</p>
               <button type="button" onClick={reset} className={cx(shared.textDanger, styles.reset)}>
                 {t("ui.reset")}
+              </button>
+            </>
+          ) : contracts.length > 0 ? (
+            <>
+              <p>{t("files.noActive")}</p>
+              <button type="button" onClick={() => onHideClosed(false)} className={cx(shared.textAccent, styles.reset)}>
+                {t("files.showClosed")}
               </button>
             </>
           ) : (
@@ -276,7 +270,7 @@ export const ContractsList = ({
         </div>
       ) : (
         <div className={styles.list}>
-          <div className={styles.scroll}>
+          <TableScroll className={styles.scroll}>
             <div className={styles.head}>
               {COLUMNS.map(({ word, field, hint }) => (
                 <SortColumn
@@ -288,21 +282,23 @@ export const ContractsList = ({
                   onSort={field && (() => sort(field))}
                 />
               ))}
-              <span />
+              <span className={cx(shared.tableHeadCell, styles.actionsHead)}>{t("files.actions")}</span>
             </div>
 
-            <div className={styles.rows}>
-              {loading &&
-                visible.length === 0 &&
-                Array.from({ length: stored.rows || SKELETON_ROWS }, (_, index) => <SkeletonRow key={index} />)}
-              {portion.map((contract, index) => {
-                const openKind =
-                  editing && editing.address === contract.address && !contract.closed ? editing.kind : null
+            <TableFrame className={styles.frame}>
+              <TableRows className={styles.rows}>
+                {loading &&
+                  visible.length === 0 &&
+                  Array.from({ length: stored.rows || SKELETON_ROWS }, (_, index) => <SkeletonRow key={index} />)}
+                {portion.map((contract, index) => {
+                  const openKind =
+                    editing && editing.address === contract.address && !contract.closed ? editing.kind : null
 
-                return (
-                  <div key={contract.address} style={{ "--card-index": index % ROW_PORTION } as CSSProperties} className={styles.item}>
+                  return (
                     <ContractRow
+                      key={contract.address}
                       contract={contract}
+                      index={index % ROW_PORTION}
                       openKind={openKind}
                       active={busy === contract.address}
                       busy={busy !== null}
@@ -312,11 +308,11 @@ export const ContractsList = ({
                       onAction={(kind) => toggleFor(contract.address, kind)}
                       onAskWithdraw={() => setWithdrawFor(contract.address)}
                     />
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+                  )
+                })}
+              </TableRows>
+            </TableFrame>
+          </TableScroll>
 
           {visible.length > portion.length && (
             <div className={styles.more}>
@@ -337,8 +333,6 @@ export const ContractsList = ({
             contract={infoContract}
             copied={copied}
             onCopy={onCopy}
-            notifyState={notifyStatus?.contract === infoContract.address ? notifyStatus.state : null}
-            onNotify={(providers) => onNotify(infoContract.address, providers)}
           />
         )}
       </Sheet>

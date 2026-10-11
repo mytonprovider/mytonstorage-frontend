@@ -1,44 +1,40 @@
-import { FileText, Loader, Server, Wallet } from "lucide-react"
+import { FileText, Server, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { gatewayUrl } from "@/lib/api"
 import { useCheckLabel } from "@/lib/check-label"
-import { contractStatus, contractVerdict, countChecks, hiredAt, paymentTone, proofDue, scanUrl, type ContractRow, type NotifyState } from "@/lib/contracts"
+import { contractStatus, countChecks, paymentTone, scanUrl, shownChecks } from "@/lib/contracts"
 import { useContractData, type ContractState } from "@/lib/contracts-cache"
+import { cx } from "@/lib/cx"
 import { GHOST_TON, SECONDS_IN_DAY, formatBytes, formatDate, formatDateTime, formatDuration, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
 import { PROOF_STEPS, dailyCost, paidDaysLeft } from "@/lib/pricing"
 import type { StorageContract } from "@/types/contract"
 import { Hint } from "../hint"
 import { Notice } from "../notice"
 import { SheetField, SheetSection } from "../sheet-fields"
-import { Ratio, TableCell, TableLead } from "../table"
+import { Ratio, TableCell, TableFrame, TableHead, TableLead, TableRows, TableScroll } from "../table"
 import shared from "../shared.module.css"
 import styles from "./contract-details.module.css"
 
 const MIDDLE_PROOF_DAYS = PROOF_STEPS[Math.floor(PROOF_STEPS.length / 2)]
 
-const HEAD_KEYS = ["table.key", "details.priceDay", "details.span", "files.status", "details.check", "details.lastProof", "details.nextProof"]
+const HEAD_KEYS = ["table.key", "details.priceDay", "details.span", "details.check", "details.checked", "details.lastProof", "details.nextProof"]
 
 interface ContractDetailsProps {
-  contract: StorageContract & Pick<ContractRow, "lastEventAt">
+  contract: StorageContract
   copied: string | null
   onCopy: (value: string) => void
-  notifyState: NotifyState | null
-  onNotify: (providers: string[]) => void
 }
 
-export const ContractDetails = ({ contract, copied, onCopy, notifyState, onNotify }: ContractDetailsProps) => {
+export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsProps) => {
   const { t, i18n } = useTranslation()
   const { state, statuses, unreadable, offline, retry } = useContractData(contract.address, true)
 
   const now = nowSeconds()
   const checkLabel = useCheckLabel(now)
 
-  const checks = statuses.length > 0 ? countChecks(statuses, contract.address) : { valid: contract.valid, total: contract.total }
+  const checks = countChecks(statuses, contract.address)
+  const shown = shownChecks({ ...checks, state })
   const statusByKey = new Map(statuses.map((status) => [status.provider_pubkey, status]))
-  const hired = hiredAt(contract)
-  const behind = state ? state.providers.filter((provider) => now > proofDue(provider, hired, state.fileSize)) : []
-  const holding = behind.filter(({ pubkey }) => statusByKey.get(pubkey)?.reason === 0).length
-  const silent = behind.filter(({ pubkey }) => statusByKey.get(pubkey)?.reason !== 0)
   const bagId = contract.bagId || state?.torrentHash || ""
 
   const perDay = state ? dailyCost(state.fileSize, state.providers) : 0
@@ -51,27 +47,26 @@ export const ContractDetails = ({ contract, copied, onCopy, notifyState, onNotif
     return low === high ? low : `${low} – ${high}`
   }
 
-  const shaped = { ...contract, valid: checks.valid, total: checks.total, state }
-  const status = contractStatus(shaped, now)
-  const unfunded = contractVerdict(shaped, now) === "unpaid" || (paidDays !== null && paidDays <= 0)
+  const shaped = { ...contract, ...checks, state }
+  const status = contractStatus(shaped)
   const stateWord = t(status?.word ?? "status.noData")
 
   return (
     <div className={styles.body}>
       <section data-tone={status?.tone} className={styles.statusCard}>
         <div className={styles.bar}>
-          <span style={{ flexGrow: checks.valid }} className={styles.barFill} />
-          <span style={{ flexGrow: checks.total - checks.valid }} />
+          <span style={{ flexGrow: shown?.valid ?? 0 }} className={styles.barFill} />
+          <span style={{ flexGrow: shown ? shown.total - shown.valid : 0 }} />
         </div>
         <div className={styles.statusBody}>
           <span className={styles.statusWord}>
-            <span className={shared.dotStrong} aria-hidden="true" />
+            <span className={shared.dot} aria-hidden="true" />
             {stateWord}
           </span>
-          {!contract.closed && checks.total > 0 && (
+          {!contract.closed && shown !== null && shown.ran > 0 && (
             <span className={styles.checksRow}>
               <span className={styles.checksLabel}>{t("details.checksOf")}</span>
-              <Ratio valid={checks.valid} total={checks.total} />
+              <Ratio valid={shown.valid} total={shown.total} />
             </span>
           )}
         </div>
@@ -149,104 +144,93 @@ export const ContractDetails = ({ contract, copied, onCopy, notifyState, onNotif
 
       {state && state.providers.length > 0 && (
         <SheetSection icon={Server} title={t("files.providers")}>
-          <div className={styles.table}>
-            <div className={shared.tableWide}>
-              <div className={styles.head}>
+          <TableFrame className={styles.table}>
+            <TableScroll className={styles.scroll}>
+              <TableHead className={styles.head}>
                 {HEAD_KEYS.map((key) => (
                   <span key={key} className={shared.tableHeadCell}>
                     <span title={t(key)} className={shared.ellipsis}>
                       {t(key)}
                     </span>
+                    {key === "details.check" && <Hint text={t("details.checkHint")} />}
                   </span>
                 ))}
-              </div>
-              {state.providers.map((provider) => {
-                const { pubkey, lastProofTime: lastProof, maxSpan } = provider
-                const check = checkLabel(statusByKey.get(pubkey))
-                const nextProof = lastProof ? lastProof + maxSpan : null
-                const perDayLabel = tonLabel(dailyCost(state.fileSize, [provider]), 6)
-                const spanLabel = formatDuration(maxSpan, t)
+              </TableHead>
+              <TableRows className={styles.rows}>
+                {state.providers.map((provider) => {
+                  const { pubkey, lastProofTime: lastProof, maxSpan } = provider
+                  const check = checkLabel(statusByKey.get(pubkey))
+                  const nextProof = lastProof ? lastProof + maxSpan : null
+                  const perDayLabel = tonLabel(dailyCost(state.fileSize, [provider]), 6)
+                  const spanLabel = formatDuration(maxSpan, t)
 
-                return (
-                  <div key={pubkey} className={styles.row}>
-                    <TableLead
-                      shortValue={shortenMiddle(pubkey, 6, 6)}
-                      title={pubkey}
-                      upper
-                      copy={pubkey}
-                      copied={copied}
-                      onCopy={onCopy}
-                    />
-                    <TableCell label={t("details.priceDay")} value={perDayLabel} />
-                    <TableCell label={t("details.span")} value={spanLabel} />
-                    <TableCell label={t("files.status")}>
-                      {check ? (
-                        <span data-tone={check.failed ? "red" : "green"} className={styles.checkCell}>
-                          <span className={styles.checkWord}>{check.short}</span>
-                          {check.failed && <Hint text={check.long} />}
-                        </span>
-                      ) : (
-                        <span className={shared.tableValue} />
-                      )}
-                    </TableCell>
-                    <TableCell label={t("details.check")}>
-                      {check?.ago ? (
-                        <span title={formatDateTime(check.at, i18n.language)} className={shared.tableValue}>
-                          {check.agoShort}
-                        </span>
-                      ) : (
-                        <span className={shared.tableValue} />
-                      )}
-                    </TableCell>
-                    <TableCell
-                      label={t("details.lastProof")}
-                      value={lastProof ? formatDate(lastProof, i18n.language) : ""}
-                    />
-                    <TableCell label={t("details.nextProof")}>
-                      {nextProof === null ? (
-                        <span className={shared.tableValue} />
-                      ) : nextProof < now ? (
-                        <span data-tone="red" className={styles.checkWord}>
-                          {formatDate(nextProof, i18n.language)}
-                        </span>
-                      ) : (
-                        <span className={shared.tableValue}>{formatDate(nextProof, i18n.language)}</span>
-                      )}
-                    </TableCell>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+                  return (
+                    <div key={pubkey} className={styles.row}>
+                      <TableLead
+                        shortValue={shortenMiddle(pubkey, 6, 6)}
+                        title={pubkey}
+                        upper
+                        copy={pubkey}
+                        copied={copied}
+                        onCopy={onCopy}
+                      />
+                      <TableCell label={t("details.priceDay")} value={perDayLabel} />
+                      <TableCell label={t("details.span")} value={spanLabel} />
+                      <TableCell label={t("details.check")}>
+                        {check ? (
+                          <span data-tone={check.tone} className={styles.checkCell}>
+                            {check.kind === "stored" ? (
+                              <span className={shared.badge}>
+                                <span className={shared.dot} aria-hidden="true" />
+                                {check.short}
+                              </span>
+                            ) : (
+                              <Hint text={check.long} className={shared.badge}>
+                                <span className={shared.dot} aria-hidden="true" />
+                                {check.short}
+                              </Hint>
+                            )}
+                          </span>
+                        ) : (
+                          <span data-tone="gray" className={styles.checkCell}>
+                            <span className={shared.badge}>
+                              <span className={shared.dot} aria-hidden="true" />
+                              {t("details.checkNotRun")}
+                            </span>
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell label={t("details.checked")}>
+                        {check?.ago ? (
+                          <span title={formatDateTime(check.at, i18n.language)} className={shared.tableValue}>
+                            {check.agoShort}
+                          </span>
+                        ) : (
+                          <span className={shared.tableValue} />
+                        )}
+                      </TableCell>
+                      <TableCell
+                        label={t("details.lastProof")}
+                        value={lastProof ? formatDate(lastProof, i18n.language) : ""}
+                      />
+                      <TableCell label={t("details.nextProof")}>
+                        {nextProof === null ? (
+                          <span className={shared.tableValue} />
+                        ) : nextProof < now ? (
+                          <span className={cx(shared.tableValue, shared.inkDanger)}>
+                            {formatDate(nextProof, i18n.language)}
+                          </span>
+                        ) : (
+                          <span className={shared.tableValue}>{formatDate(nextProof, i18n.language)}</span>
+                        )}
+                      </TableCell>
+                    </div>
+                  )
+                })}
+              </TableRows>
+            </TableScroll>
+          </TableFrame>
 
-          {holding > 0 && (
-            <Notice tone="neutral" className={styles.paymentAlert}>
-              {t("files.unconfirmed", { count: holding })}
-            </Notice>
-          )}
-
-          {silent.length > 0 &&
-            !unfunded &&
-            (notifyState === "sent" ? (
-              <Notice tone="green" className={styles.paymentAlert}>
-                {t("files.notified")}
-              </Notice>
-            ) : (
-              <Notice
-                tone={notifyState === "failed" ? "red" : "yellow"}
-                className={styles.paymentAlert}
-                action={
-                  <button type="button" disabled={notifyState === "sending"} onClick={() => onNotify(state.providers.map(({ pubkey }) => pubkey))}>
-                    {notifyState === "sending" && <Loader strokeWidth={2.5} aria-hidden="true" className={shared.spinner} />}
-                    <span>{t("files.notify")}</span>
-                  </button>
-                }
-              >
-                {notifyState === "failed"
-                  ? t("errors.notifyFailed")
-                  : t(silent.some(({ lastProofTime }) => lastProofTime > 0) ? "files.stalled" : "files.unproven", { count: silent.length })}
-              </Notice>
-            ))}
         </SheetSection>
       )}
     </div>

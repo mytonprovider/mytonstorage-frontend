@@ -9,7 +9,7 @@ import type { UnpaidBagsState } from "@/lib/unpaid-bags"
 import type { UserBag } from "@/types/bag"
 import { ConfirmSheet } from "../confirm-sheet"
 import { Notice } from "../notice"
-import { TableCell, TableLead } from "../table"
+import { TableCell, TableFrame, TableLead, TableRows, TableScroll } from "../table"
 import shared from "../shared.module.css"
 import styles from "./unpaid-list.module.css"
 
@@ -125,7 +125,7 @@ export const UnpaidList = ({
       )}
       {bags.length > 0 && (
         <div className={styles.list}>
-          <div className={shared.tableScroll}>
+          <TableScroll className={styles.scroll}>
             <div className={styles.head}>
               <span className={shared.tableHeadCell}>{t("files.bagId")}</span>
               <span className={shared.tableHeadCell}>{t("files.desc")}</span>
@@ -134,22 +134,24 @@ export const UnpaidList = ({
               <span />
             </div>
 
-            <div className={styles.rows}>
-              {bags.map((bag, index) => (
-                <BagRow
-                  key={bag.bag_id}
-                  bag={bag}
-                  index={index}
-                  deadline={bag.created_at + freeStorageSeconds}
-                  busy={busy}
-                  copied={copied}
-                  onCopy={onCopy}
-                  onContinue={onContinue}
-                  onAskRemove={setRemoving}
-                />
-              ))}
-            </div>
-          </div>
+            <TableFrame className={styles.frame}>
+              <TableRows className={styles.rows}>
+                {bags.map((bag, index) => (
+                  <BagRow
+                    key={bag.bag_id}
+                    bag={bag}
+                    index={index}
+                    deadline={bag.created_at + freeStorageSeconds}
+                    busy={busy}
+                    copied={copied}
+                    onCopy={onCopy}
+                    onContinue={onContinue}
+                    onAskRemove={setRemoving}
+                  />
+                ))}
+              </TableRows>
+            </TableFrame>
+          </TableScroll>
         </div>
       )}
 

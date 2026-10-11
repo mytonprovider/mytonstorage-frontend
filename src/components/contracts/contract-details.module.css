@@ -40,26 +40,24 @@
 }
 
 .table {
-  composes: tablePanel from "../shared.module.css";
-  --table-min: 1130px;
-  --table-cols: minmax(0, 1.4fr) minmax(0, 1.1fr) minmax(0, 1.25fr) minmax(0, 1.35fr) minmax(0, 1.3fr) minmax(0, 1.9fr) minmax(0, 1.95fr);
+  --table-cols: repeat(7, max-content);
+}
+
+.scroll {
+  composes: tableGrid from "../shared.module.css";
+  column-gap: var(--space-3);
 }
 
 .head {
   composes: tableHead from "../shared.module.css";
 }
 
+.rows {
+  composes: tableRows from "../shared.module.css";
+}
+
 .row {
   composes: tableRow from "../shared.module.css";
-}
-
-.head.head,
-.row.row {
-  column-gap: var(--space-3);
-}
-
-.row + .row {
-  border-top: 1px solid var(--border);
 }
 
 .row > :has(.checkCell) {
@@ -71,11 +69,6 @@
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-}
-
-.checkWord {
-  composes: ellipsis from "../shared.module.css";
-  color: var(--tone-text);
 }
 
 .row > :first-child {

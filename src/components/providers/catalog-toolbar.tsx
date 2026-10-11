@@ -5,7 +5,7 @@ import { cx } from "@/lib/cx"
 import { useDismiss } from "@/lib/dismiss"
 import { formatNumber, type Translate } from "@/lib/format"
 import { PROOF_PRESETS, PROOF_STEPS, nearestProofDays } from "@/lib/pricing"
-import { bounds, countMatching, hasFilters, priceInTon, type ProviderFilters } from "@/lib/providers"
+import { PRICE_DIGITS, bounds, countMatching, hasFilters, shownPrice, type ProviderFilters } from "@/lib/providers"
 import type { Provider } from "@/types/provider"
 import { Menu, MenuOption, RangeMenuBody } from "../menu"
 import { Hint } from "../hint"
@@ -104,7 +104,7 @@ export const CatalogToolbar = ({
   useDismiss(openMenu !== null, () => setOpenMenu(null))
 
   const ratingBounds = useMemo(() => bounds(providers.map((provider) => provider.rating || 0), 1), [providers])
-  const priceBounds = useMemo(() => bounds(providers.map((provider) => priceInTon(provider)), 0.01), [providers])
+  const priceBounds = useMemo(() => bounds(providers.map(shownPrice), 1 / 10 ** PRICE_DIGITS), [providers])
 
   const countries = useMemo(() => {
     const names = new Set(providers.map((provider) => provider.location?.country).filter(Boolean) as string[])

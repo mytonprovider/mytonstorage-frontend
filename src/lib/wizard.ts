@@ -9,7 +9,7 @@ import { checkErrorKey, deployFailureKey, OFFERS_INCOMPLETE, payErrorKey, UNAUTH
 import { nowSeconds, SECONDS_IN_DAY } from "./format"
 import { clearPendingPaid, contractDeployed, markPendingLinked, readPendingPaid, writePendingPaid, type DeployCheck } from "./paid-link"
 import { DEFAULT_PROOF_DAYS, DEFAULT_STORAGE_DAYS, gridDays, storageCost } from "./pricing"
-import { sendAndConfirm, waitForTransaction, walletRefused } from "./ton/transactions"
+import { normalizedExternalHash, sendAndConfirm, walletRefused } from "./ton/transactions"
 import { mergeFiles, totalSize, uploadBag, useUploadStats, type UploadHandle, type UploadProgress } from "./upload"
 
 const BAG_ID_LENGTH = 64
@@ -70,8 +70,6 @@ export const clampStep = (picked: number, reached: WizardStep): WizardStep =>
 
 const DEPLOY_TIMEOUT_MS = 240_000
 
-const PAYMENT_HASH_TIMEOUT_MS = 60_000
-
 interface WizardOptions {
   restored: boolean
   address: string
@@ -103,7 +101,6 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
   const [uploadError, setUploadError] = useState<UploadFailure | null>(null)
   const [payError, setPayError] = useState<string | null>(null)
   const [paymentHash, setPaymentHash] = useState<string | null>(null)
-  const [paymentHashPending, setPaymentHashPending] = useState(false)
 
   const upload = useRef<UploadHandle | null>(null)
   const sent = useRef<UploadProgress | null>(null)
@@ -134,7 +131,6 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
     setUploadError(null)
     setPayError(null)
     setPaymentHash(null)
-    setPaymentHashPending(false)
   }, [])
 
   const reset = useCallback(() => {
@@ -323,7 +319,6 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
 
   const signDeploy = async (bagId: string, transaction: WalletTransaction) => {
     let deployed = false
-    const since = nowSeconds()
     setPaymentHash(null)
 
     try {
@@ -331,20 +326,12 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
       setData((current) => ({ ...current, contractAddress: transaction.address }))
       if (!remembered) setPayError("errors.linkNotSaved")
 
-      const confirmed = await sendAndConfirm(tonConnectUI, transaction, DEPLOY_TIMEOUT_MS)
+      const confirmed = await sendAndConfirm(tonConnectUI, transaction, DEPLOY_TIMEOUT_MS, (boc) =>
+        setPaymentHash(normalizedExternalHash(boc)),
+      )
       if (!confirmed) throw new Error("not confirmed")
 
       deployed = true
-      setPaymentHashPending(true)
-      void waitForTransaction(
-        transaction.address,
-        since,
-        tonConnectUI.account?.address,
-        PAYMENT_HASH_TIMEOUT_MS,
-      ).then((hash) => {
-        setPaymentHash(hash)
-        setPaymentHashPending(false)
-      })
       await linkPaidBag(bagId, transaction.address)
     } catch (error) {
       const keptContract = contractAfterFailure(transaction.address, error)
@@ -449,7 +436,6 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
     uploadErrorDetail: uploadError?.detail ?? "",
     payError,
     paymentHash,
-    paymentHashPending,
     gateBag,
     onUnauthorized,
     reset,

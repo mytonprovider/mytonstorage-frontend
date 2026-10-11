@@ -65,6 +65,10 @@ export const freeSpace = (provider: Provider): number | null => {
 
 export const priceInTon = (provider: Provider): number => (provider.price || 0) / NANO
 
+export const PRICE_DIGITS = 2
+
+export const shownPrice = (provider: Provider): number => Number(priceInTon(provider).toFixed(PRICE_DIGITS))
+
 export const spanAllows = (provider: Provider, proofDays: number): boolean => {
   const span = Math.round(proofDays * SECONDS_IN_DAY)
   if (!provider.max_span) return false
@@ -102,7 +106,7 @@ export const statusOf = (provider: Provider): ProviderStatus => {
 
   if (UNAVAILABLE.includes(provider.status)) return { tone: "gray", key: "unavailable", ratio, rated: false }
   if (NOT_STORED.includes(provider.status)) return { tone: "red", key: "notStored", ratio, rated: false }
-  if (NO_PROOFS.includes(provider.status)) return { tone: "orange", key: "noProofs", ratio, rated: false }
+  if (NO_PROOFS.includes(provider.status)) return { tone: "red", key: "noProofs", ratio, rated: false }
 
   return { tone: "gray", key: "unknown", ratio, rated: false }
 }
@@ -127,7 +131,7 @@ const withinFilters = (provider: Provider, filters: ProviderFilters): boolean =>
   if (filters.ratingMin != null && rating < filters.ratingMin) return false
   if (filters.ratingMax != null && rating > filters.ratingMax) return false
 
-  const price = priceInTon(provider)
+  const price = shownPrice(provider)
   if (filters.priceMin != null && price < filters.priceMin) return false
   if (filters.priceMax != null && price > filters.priceMax) return false
 
@@ -346,8 +350,9 @@ export const bounds = (values: number[], step: number): [number, number] => {
   const usable = values.filter((value) => Number.isFinite(value))
   if (!usable.length) return [0, 1]
 
-  const low = Math.floor(Math.min(...usable) / step) * step
-  const high = Math.ceil(Math.max(...usable) / step) * step
+  const scale = 1 / step
+  const low = Math.floor(Number((Math.min(...usable) * scale).toFixed(6))) / scale
+  const high = Math.ceil(Number((Math.max(...usable) * scale).toFixed(6))) / scale
   return [low, high > low ? high : low + step]
 }
 

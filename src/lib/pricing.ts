@@ -86,16 +86,16 @@ export const dailyCost = (fileSize: number, providers: Pick<StorageProvider, "ra
   providers.reduce((sum, { ratePerMbDay }) => sum + (fileSize * ratePerMbDay) / MIB, 0)
 
 const proofDelay = ({ maxSpan, lastProofTime }: Pick<StorageProvider, "maxSpan" | "lastProofTime">, now: number): number =>
-  lastProofTime ? Math.max(0, lastProofTime + maxSpan - now) : 0
+  lastProofTime ? lastProofTime + maxSpan - now : 0
 
 const spending = (fileSize: number, providers: Omit<StorageProvider, "pubkey">[], now: number | null = null) => {
   const paying = providers
-    .map((provider) => ({
-      span: provider.maxSpan,
-      delay: now === null ? 0 : proofDelay(provider, now),
-      bounty: fullBounty(fileSize, provider.ratePerMbDay, provider.maxSpan),
-    }))
+    .map((provider) => {
+      const due = now === null ? 0 : proofDelay(provider, now)
+      return { span: provider.maxSpan, due, delay: Math.max(0, due), bounty: fullBounty(fileSize, provider.ratePerMbDay, provider.maxSpan) }
+    })
     .filter(({ bounty }) => bounty >= MIN_BOUNTY)
+  const first = paying.length ? Math.min(...paying.map(({ delay }) => delay)) : 0
 
   const dueAfter = (seconds: number): number =>
     Math.min(
@@ -105,7 +105,7 @@ const spending = (fileSize: number, providers: Omit<StorageProvider, "pubkey">[]
     )
 
   return {
-    first: paying.length ? Math.min(...paying.map(({ delay }) => delay)) : 0,
+    first,
     last: paying.length ? Math.max(...paying.map(({ delay }) => delay)) : 0,
     round: paying.length ? Math.min(...paying.map(({ span }) => span)) : 0,
     fastest: paying.reduce((burn, { span, bounty }) => Math.max(burn, bounty / span), 0),
@@ -116,6 +116,14 @@ const spending = (fileSize: number, providers: Omit<StorageProvider, "pubkey">[]
         0,
       ),
     dueAfter,
+    exhaustedAt: (left: number): number => {
+      let sum = 0
+      for (const { due, bounty } of paying.filter(({ delay }) => delay === first).sort((a, b) => a.due - b.due)) {
+        sum += bounty
+        if (sum > left) return due
+      }
+      return first
+    },
   }
 }
 
@@ -125,11 +133,11 @@ export const paidDaysLeft = (
   balance: number,
   now: number | null = null,
 ): number | null => {
-  const { first, last, round, fastest, spent, dueAfter } = spending(fileSize, providers, now)
+  const { first, last, round, fastest, spent, dueAfter, exhaustedAt } = spending(fileSize, providers, now)
   if (round <= 0) return null
 
   const left = Math.max(0, balance)
-  if (spent(first) > left) return first / SECONDS_IN_DAY
+  if (spent(first) > left) return exhaustedAt(left) / SECONDS_IN_DAY
 
   let lo = first
   let over = Math.min(SEARCH_TOP, last + Math.floor(left / fastest) + round)
@@ -152,7 +160,7 @@ export const topupForDays = (
   const { round, spent } = spending(fileSize, providers, now)
   if (round <= 0) return 0
 
-  const paid = paidDaysLeft(fileSize, providers, balance, now) ?? 0
+  const paid = Math.max(0, paidDaysLeft(fileSize, providers, balance, now) ?? 0)
   return Math.max(0, spent((paid + days) * SECONDS_IN_DAY - ROUND_EPSILON) - Math.max(0, balance))
 }
 

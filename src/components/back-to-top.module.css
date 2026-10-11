@@ -18,8 +18,10 @@
   visibility: visible;
 }
 
-.button:hover {
-  background: var(--btn-hover);
+@media (hover: hover) {
+  .button:hover {
+    background: var(--btn-hover);
+  }
 }
 
 .icon {

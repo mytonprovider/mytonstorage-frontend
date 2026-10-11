@@ -8,7 +8,7 @@
 }
 
 .button:active:not(:disabled) {
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--text) 16%, transparent);
 }
 
 .button:disabled {
@@ -21,7 +21,7 @@
 }
 
 .danger:active:not(:disabled) {
-  background: var(--tone-red-weak);
+  background: color-mix(in srgb, var(--tone-red-text) 16%, transparent);
 }
 
 .ok {
@@ -30,7 +30,7 @@
 
 @media (hover: hover) {
   .button:hover:not(:disabled) {
-    background: var(--surface-2);
+    background: color-mix(in srgb, var(--text) 10%, transparent);
   }
 
   .button:not(.danger):hover:not(:disabled) {
@@ -38,7 +38,7 @@
   }
 
   .danger:hover:not(:disabled) {
-    background: var(--tone-red-weak);
+    background: color-mix(in srgb, var(--tone-red-text) 10%, transparent);
   }
 
   .button.ok:hover:not(:disabled) {

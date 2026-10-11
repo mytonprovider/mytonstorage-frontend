@@ -27,9 +27,11 @@
   font-size: var(--font-sm);
 }
 
-.link:hover {
-  color: var(--text);
-  text-decoration: none;
+@media (hover: hover) {
+  .link:hover {
+    color: var(--text);
+    text-decoration: none;
+  }
 }
 
 .icon {
@@ -39,8 +41,10 @@
   color: var(--text-3);
 }
 
-.link:hover .icon {
-  color: var(--text-2);
+@media (hover: hover) {
+  .link:hover .icon {
+    color: var(--text-2);
+  }
 }
 
 @media (pointer: coarse) {

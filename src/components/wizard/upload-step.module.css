@@ -96,28 +96,30 @@
 }
 
 .panel {
-  composes: tablePanel tableWide from "../shared.module.css";
-  --table-cols: minmax(0, 1fr) 88px var(--control-xs);
+  composes: tableGrid from "../shared.module.css";
+  --table-cols: minmax(0, 1fr) max-content max-content;
+  padding-right: var(--list-gutter, 0px);
+}
+
+.scroll {
+  composes: tableSubgrid from "../shared.module.css";
+  max-height: min(40dvh, 240px);
+  margin-right: calc(-1 * var(--list-gutter, 0px));
+  overflow: hidden auto;
 }
 
 .head {
   composes: tableHead from "../shared.module.css";
-  overflow: hidden;
-  scrollbar-gutter: stable;
+  margin-right: calc(-1 * var(--list-gutter, 0px));
+  padding-right: calc(var(--pad-pill) + var(--list-gutter, 0px));
 }
 
-.scroll {
-  max-height: min(40dvh, 240px);
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+.rows {
+  composes: tableRows from "../shared.module.css";
 }
 
 .row {
   composes: tableRow from "../shared.module.css";
-}
-
-.row + .row {
-  border-top: 1px solid var(--border);
 }
 
 .fileName {
@@ -142,9 +144,11 @@
 }
 
 .foot {
-  padding: var(--row-py) var(--pad-pill);
+  grid-column: 1 / -1;
+  margin-right: calc(-1 * var(--list-gutter, 0px));
+  padding: var(--row-py) calc(var(--pad-pill) + var(--list-gutter, 0px)) var(--row-py) var(--pad-pill);
   border-top: 1px solid var(--border);
-  color: var(--text-3);
+  color: var(--text-2);
   font-size: var(--font-sm);
 }
 
@@ -154,10 +158,6 @@
 
 .formHead {
   composes: tableHeading from "../shared.module.css";
-}
-
-.box {
-  composes: panel from "../shared.module.css";
 }
 
 .inputWrap {
@@ -170,7 +170,7 @@
 .descInput {
   composes: inputControl from "../shared.module.css";
   padding: 0 calc(var(--space-6) + var(--counter-w)) 0 var(--space-6);
-  border: 1px solid var(--border-control);
+  border: 1px solid var(--border-strong);
 }
 
 .descInput:disabled {
@@ -272,12 +272,6 @@
 
 .notice {
   margin-top: var(--space-5);
-}
-
-@media (pointer: coarse) {
-  .panel {
-    --table-cols: minmax(0, 1fr) 88px var(--control-input);
-  }
 }
 
 @media (max-width: 539px) {

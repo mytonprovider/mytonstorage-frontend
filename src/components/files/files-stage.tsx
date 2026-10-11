@@ -104,9 +104,6 @@ export const FilesStage = ({
         onRefresh={contracts.refresh}
         refreshing={contracts.refreshing}
         onShown={contracts.onShown}
-        onRenotify={contracts.renotify}
-        notifyStatus={contracts.notifyStatus}
-        onNotify={(contract, providers) => void contracts.notify(contract, providers)}
         onHideClosed={contracts.onHideClosed}
         onCopy={onCopy}
         onEditingChange={setEditing}
