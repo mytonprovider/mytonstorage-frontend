@@ -35,11 +35,12 @@ const ASC_FIRST: ContractSortField[] = ["paidUntil", "checks", "address", "bagId
 
 const storedView = (): { rows: number; field: ContractSortField; direction: SortDirection } => {
   const { shown, sort, dir } = readListView()
+  const known = isSortField(sort)
 
   return {
     rows: shown > 0 ? Math.ceil(shown / ROW_PORTION) * ROW_PORTION : 0,
-    field: isSortField(sort) ? sort : "createdAt",
-    direction: dir === "asc" ? "asc" : "desc",
+    field: known ? sort : "createdAt",
+    direction: known && dir === "asc" ? "asc" : "desc",
   }
 }
 
