@@ -363,8 +363,8 @@ export const txUrl = (hash: string): string => `https://tonscan.org/tx/${hash}`
 
 export const LOW_BALANCE_DAYS = 3
 
-export const paymentTone = (paidDays: number | null): Extract<Tone, "red" | "yellow"> | null =>
-  paidDays === null ? null : paidDays < 1 ? "red" : paidDays < LOW_BALANCE_DAYS ? "yellow" : null
+export const paymentTone = (paidDays: number | null, roundDays = 0): Extract<Tone, "red" | "yellow"> | null =>
+  paidDays === null ? null : paidDays < 1 ? "red" : paidDays <= Math.max(LOW_BALANCE_DAYS, roundDays) ? "yellow" : null
 
 const PROOF_GRACE = SECONDS_IN_DAY
 
@@ -376,15 +376,12 @@ const missedProof = ({ lastProofTime, maxSpan }: Pick<StorageProvider, "lastProo
 export const silentProviders = (row: ContractRow, now: number): string[] =>
   (row.state?.providers ?? []).filter((provider) => missedProof(provider, lastOf(row), now)).map(({ pubkey }) => pubkey)
 
-export const balanceRunsLow = (paidDays: number | null, fileSize: number, providers: Omit<StorageProvider, "pubkey">[]): boolean =>
-  paidDays !== null && paidDays <= Math.max(LOW_BALANCE_DAYS, payoutDays(fileSize, providers))
-
 export const contractProblem = (row: ContractRow, now: number): ContractProblem | null => {
   const { state } = row
   if (row.closed || !state) return null
   const silent = silentProviders(row, now)
   if (silent.length === state.providers.length) return "lost"
-  if (balanceRunsLow(paidDaysLeft(state.fileSize, state.providers, state.balance, now), state.fileSize, state.providers)) return "balance"
+  if (paymentTone(paidDaysLeft(state.fileSize, state.providers, state.balance, now), payoutDays(state.fileSize, state.providers))) return "balance"
   return silent.length ? "replace" : null
 }
 

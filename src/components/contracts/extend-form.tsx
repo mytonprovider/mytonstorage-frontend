@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { balanceRunsLow, paymentTone } from "@/lib/contracts"
+import { paymentTone } from "@/lib/contracts"
 import { cx } from "@/lib/cx"
 import { useContractData } from "@/lib/contracts-cache"
 import {
@@ -154,10 +154,12 @@ export const ExtendForm = ({ address, onSubmit }: ExtendFormProps) => {
     )
   }
 
+  const lowTone = paymentTone(paidDays, payout)
+
   return (
     <div className={styles.form}>
-      {balanceRunsLow(paidDays, state.fileSize, state.providers) && (
-        <Notice tone={paymentTone(paidDays) === "red" ? "red" : "yellow"}>
+      {lowTone && (
+        <Notice tone={lowTone}>
           {t((paidDays ?? 0) > 0 ? "fix.balanceLow" : "fix.balanceOut", { date: formatDate(now + (paidDays ?? 0) * SECONDS_IN_DAY, i18n.language) })}
         </Notice>
       )}

@@ -6,7 +6,7 @@ import { contractProblem, contractStatus, countChecks, paymentTone, scanUrl, sho
 import { useContractData, type ContractState } from "@/lib/contracts-cache"
 import { cx } from "@/lib/cx"
 import { GHOST_TON, SECONDS_IN_DAY, formatBytes, formatDate, formatDateTime, formatDuration, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
-import { PROOF_STEPS, dailyCost, paidDaysLeft } from "@/lib/pricing"
+import { PROOF_STEPS, dailyCost, paidDaysLeft, payoutDays } from "@/lib/pricing"
 import { Hint } from "../hint"
 import { Notice } from "../notice"
 import type { EditorKind } from "./contract-row"
@@ -41,6 +41,7 @@ export const ContractDetails = ({ contract, copied, onCopy, onAction, onAskWithd
 
   const perDay = state ? dailyCost(state.fileSize, state.providers) : 0
   const paidDays = state ? paidDaysLeft(state.fileSize, state.providers, state.balance, now) : null
+  const payTone = state ? paymentTone(paidDays, payoutDays(state.fileSize, state.providers)) : null
 
   const spanRange = (providers: ContractState["providers"]): string => {
     const spans = providers.map(({ maxSpan }) => maxSpan)
@@ -85,7 +86,7 @@ export const ContractDetails = ({ contract, copied, onCopy, onAction, onAskWithd
 
       {problem && (
         <Notice
-          tone={problem === "lost" || (problem === "balance" && paymentTone(paidDays) === "red") ? "red" : "yellow"}
+          tone={problem === "lost" || (problem === "balance" && payTone === "red") ? "red" : "yellow"}
           action={
             <button type="button" onClick={problem === "lost" ? onAskWithdraw : () => onAction(problem === "balance" ? "extend" : "fix")}>
               {t(problem === "lost" ? "files.withdrawTitle" : problem === "balance" ? "files.topup" : "fix.replace")}
@@ -158,8 +159,8 @@ export const ContractDetails = ({ contract, copied, onCopy, onAction, onAskWithd
             <SheetField
               label={t("files.paidUntil")}
               value={paidDays === null ? "" : formatDate(now + paidDays * SECONDS_IN_DAY, i18n.language)}
-              alert={paymentTone(paidDays) === "red"}
-              warn={paymentTone(paidDays) === "yellow"}
+              alert={payTone === "red"}
+              warn={payTone === "yellow"}
             />
             <SheetField label={t("details.span")} value={spanRange(state.providers)} />
           </>

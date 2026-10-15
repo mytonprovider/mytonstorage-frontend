@@ -6,7 +6,7 @@ import { cx } from "@/lib/cx"
 import { contractProblem, contractStatus, paymentTone, scanUrl, shownChecks, silentProviders, verdictWord, type ContractRow as ContractRowData, type ContractVerdict } from "@/lib/contracts"
 import type { ContractSortField } from "@/lib/contracts-view"
 import { MIB, SECONDS_IN_DAY, formatBytes, formatDate, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
-import { dailyCost, paidDaysLeft } from "@/lib/pricing"
+import { dailyCost, paidDaysLeft, payoutDays } from "@/lib/pricing"
 import { IconButton } from "../icon-button"
 import { GhostCopy, GhostIcon, GhostValue, Ratio, TableCell, TableLead, activateOnKey } from "../table"
 import shared from "../shared.module.css"
@@ -141,7 +141,7 @@ const PaidUntil = ({ contract }: { contract: ContractRowData }) => {
   const paidDays = state ? paidDaysLeft(state.fileSize, state.providers, state.balance, now) : null
   if (!state || paidDays === null) return <TableCell label={label} value="" />
 
-  const tone = paymentTone(paidDays)
+  const tone = paymentTone(paidDays, payoutDays(state.fileSize, state.providers))
   const perDay = dailyCost(state.fileSize, state.providers)
   const title = `${t("details.balance")}: ${tonLabel(state.balance)} · ${t("details.perDay")}: ${tonLabel(perDay, 6)}`
 

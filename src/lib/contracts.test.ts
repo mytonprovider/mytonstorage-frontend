@@ -784,8 +784,14 @@ describe("paymentTone", () => {
     expect(paymentTone(0)).toBe("red")
     expect(paymentTone(0.99)).toBe("red")
     expect(paymentTone(1)).toBe("yellow")
-    expect(paymentTone(LOW_BALANCE_DAYS - 0.01)).toBe("yellow")
-    expect(paymentTone(LOW_BALANCE_DAYS)).toBeNull()
+    expect(paymentTone(LOW_BALANCE_DAYS)).toBe("yellow")
+    expect(paymentTone(LOW_BALANCE_DAYS + 0.01)).toBeNull()
+  })
+
+  it("warns a whole payout round ahead when the round is longer than the floor", () => {
+    expect(paymentTone(7, 7)).toBe("yellow")
+    expect(paymentTone(7.01, 7)).toBeNull()
+    expect(paymentTone(2, 1)).toBe("yellow")
   })
 })
 
