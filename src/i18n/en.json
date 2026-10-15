@@ -361,5 +361,33 @@
     "checkAgo": "Last check: {{time}} ago",
     "check": "Check",
     "checkHint": "Whether the provider passed the storage check. Updated hourly by mytonprovider.org."
+  },
+  "fix": {
+    "titleReplace": "Replacing providers",
+    "newTitle": "Replacement",
+    "manual": "Pick manually",
+    "replace": "Replace",
+    "remove": "Remove",
+    "why": {
+      "silent": "Not proving",
+      "neverTook": "Never took",
+      "spanRefused": "Period too long"
+    },
+    "summary_one": "{{count}} of {{total}} missed a proof — replace it.",
+    "summary_other": "{{count}} of {{total}} missed a proof — replace them.",
+    "noteReplace_one": "{{count}} of {{total}} missed a proof.",
+    "noteReplace_other": "{{count}} of {{total}} missed a proof.",
+    "leadReplace_one": "{{count}} of {{total}} missed a proof — replace it with the one picked below.",
+    "leadReplace_other": "{{count}} of {{total}} missed a proof — replace them with the ones picked below.",
+    "leadShort_one": "{{count}} of {{total}} missed a proof — replace it: {{found}} picked for a {{days}}-day period, the rest will be removed.",
+    "leadShort_other": "{{count}} of {{total}} missed a proof — replace them: {{found}} picked for a {{days}}-day period, the rest will be removed.",
+    "leadRemove_one": "{{count}} of {{total}} missed a proof — nobody accepts a {{days}}-day period, it will be removed.",
+    "leadRemove_other": "{{count}} of {{total}} missed a proof — nobody accepts a {{days}}-day period, they will be removed.",
+    "lostNote": "No provider holds the files — close the contract.",
+    "lostConfirm": "No provider holds the files — there is nothing to restore them from.",
+    "balanceLow": "The balance lasts until {{date}} — extend the contract.",
+    "balanceOut": "The balance ran out on {{date}} — extend the contract.",
+    "noteBalance": "The balance lasts until {{date}}.",
+    "noteBalanceOut": "The balance ran out on {{date}}."
   }
 }

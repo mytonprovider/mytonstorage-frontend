@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import { balanceRunsLow, paymentTone } from "@/lib/contracts"
 import { cx } from "@/lib/cx"
 import { useContractData } from "@/lib/contracts-cache"
 import {
@@ -155,6 +156,11 @@ export const ExtendForm = ({ address, onSubmit }: ExtendFormProps) => {
 
   return (
     <div className={styles.form}>
+      {balanceRunsLow(paidDays, state.fileSize, state.providers) && (
+        <Notice tone={paymentTone(paidDays) === "red" ? "red" : "yellow"}>
+          {t((paidDays ?? 0) > 0 ? "fix.balanceLow" : "fix.balanceOut", { date: formatDate(now + (paidDays ?? 0) * SECONDS_IN_DAY, i18n.language) })}
+        </Notice>
+      )}
       <div className={styles.total}>
         <span>{t("files.topupAddDays")}</span>
         <span className={shared.spacer} />

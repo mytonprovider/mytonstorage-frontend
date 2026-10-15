@@ -2,14 +2,14 @@ import { FileText, Server, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { gatewayUrl } from "@/lib/api"
 import { useCheckLabel } from "@/lib/check-label"
-import { contractStatus, countChecks, paymentTone, scanUrl, shownChecks } from "@/lib/contracts"
+import { contractProblem, contractStatus, countChecks, paymentTone, scanUrl, shownChecks, silentProviders, type ContractRow } from "@/lib/contracts"
 import { useContractData, type ContractState } from "@/lib/contracts-cache"
 import { cx } from "@/lib/cx"
 import { GHOST_TON, SECONDS_IN_DAY, formatBytes, formatDate, formatDateTime, formatDuration, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
 import { PROOF_STEPS, dailyCost, paidDaysLeft } from "@/lib/pricing"
-import type { StorageContract } from "@/types/contract"
 import { Hint } from "../hint"
 import { Notice } from "../notice"
+import type { EditorKind } from "./contract-row"
 import { SheetField, SheetSection } from "../sheet-fields"
 import { Ratio, TableCell, TableFrame, TableHead, TableLead, TableRows, TableScroll } from "../table"
 import shared from "../shared.module.css"
@@ -20,12 +20,14 @@ const MIDDLE_PROOF_DAYS = PROOF_STEPS[Math.floor(PROOF_STEPS.length / 2)]
 const HEAD_KEYS = ["table.key", "details.priceDay", "details.span", "details.check", "details.checked", "details.lastProof", "details.nextProof"]
 
 interface ContractDetailsProps {
-  contract: StorageContract
+  contract: ContractRow
   copied: string | null
   onCopy: (value: string) => void
+  onAction: (kind: EditorKind) => void
+  onAskWithdraw: () => void
 }
 
-export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsProps) => {
+export const ContractDetails = ({ contract, copied, onCopy, onAction, onAskWithdraw }: ContractDetailsProps) => {
   const { t, i18n } = useTranslation()
   const { state, statuses, unreadable, offline, retry } = useContractData(contract.address, true)
 
@@ -50,6 +52,15 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
   const shaped = { ...contract, ...checks, state }
   const status = contractStatus(shaped)
   const stateWord = t(status?.word ?? "status.noData")
+  const row = { ...contract, state: state ?? contract.state }
+  const problem = contractProblem(row, now)
+  const paidUntil = formatDate(now + (paidDays ?? 0) * SECONDS_IN_DAY, i18n.language)
+  const problemNote =
+    problem === "lost"
+      ? t("fix.lostConfirm")
+      : problem === "balance"
+        ? t((paidDays ?? 0) > 0 ? "fix.noteBalance" : "fix.noteBalanceOut", { date: paidUntil })
+        : t("fix.noteReplace", { count: silentProviders(row, now).length, total: row.state?.providers.length ?? 0 })
 
   return (
     <div className={styles.body}>
@@ -71,6 +82,19 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
           )}
         </div>
       </section>
+
+      {problem && (
+        <Notice
+          tone={problem === "lost" || (problem === "balance" && paymentTone(paidDays) === "red") ? "red" : "yellow"}
+          action={
+            <button type="button" onClick={problem === "lost" ? onAskWithdraw : () => onAction(problem === "balance" ? "extend" : "fix")}>
+              {t(problem === "lost" ? "files.withdrawTitle" : problem === "balance" ? "files.topup" : "fix.replace")}
+            </button>
+          }
+        >
+          {problemNote}
+        </Notice>
+      )}
 
       <SheetSection icon={FileText} title={t("details.contract")}>
         <SheetField

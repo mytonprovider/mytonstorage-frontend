@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Check, RefreshCw, ScrollText } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cx } from "@/lib/cx"
-import { verdictWord, type ContractRow as ContractRowData, type ContractsState } from "@/lib/contracts"
+import { contractProblem, verdictWord, type ContractRow as ContractRowData, type ContractsState } from "@/lib/contracts"
 import {
   STATUS_FILTERS,
   isSortField,
@@ -12,7 +12,7 @@ import {
   type SortDirection,
   type StatusFilter,
 } from "@/lib/contracts-view"
-import { nowSeconds, shortenMiddle } from "@/lib/format"
+import { nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
 import { readListView, writeListView } from "@/lib/local-storage"
 import { payErrorTone } from "@/lib/errors"
 import { useDismiss } from "@/lib/dismiss"
@@ -129,6 +129,9 @@ export const ContractsList = ({
 
   const infoContract = contracts.find((contract) => contract.address === infoFor) ?? null
   const editingContract = contracts.find((contract) => contract.address === editing?.address) ?? null
+  const withdrawContract = contracts.find((contract) => contract.address === withdrawFor) ?? null
+  const withdrawLost = withdrawContract !== null && contractProblem(withdrawContract, nowSeconds()) === "lost"
+  const editorTitle = { extend: "files.topupTitle", edit: "files.editTitle", fix: "fix.titleReplace" }
 
   const pickStatus = (option: StatusFilter) => {
     setPicked((chosen) => (chosen.includes(option) ? chosen.filter((kept) => kept !== option) : [...chosen, option]))
@@ -333,13 +336,21 @@ export const ContractsList = ({
             contract={infoContract}
             copied={copied}
             onCopy={onCopy}
+            onAction={(kind) => {
+              setInfoFor(null)
+              onEditingChange({ address: infoContract.address, kind })
+            }}
+            onAskWithdraw={() => {
+              setInfoFor(null)
+              setWithdrawFor(infoContract.address)
+            }}
           />
         )}
       </Sheet>
 
       <Sheet
         open={editing !== null && editingContract !== null}
-        title={t(editing?.kind === "extend" ? "files.topupTitle" : "files.editTitle")}
+        title={t(editorTitle[editing?.kind ?? "edit"])}
         subject={editingContract ? shortenMiddle(editingContract.address, 6, 6) : undefined}
         wide={editing?.kind === "edit"}
         onClose={() => onEditingChange(null)}
@@ -353,14 +364,26 @@ export const ContractsList = ({
         open={withdrawFor !== null}
         title={t("files.withdrawTitle")}
         subject={withdrawFor ? shortenMiddle(withdrawFor, 6, 6) : undefined}
-        note={t("files.withdrawNote")}
-        confirmLabel={t("files.withdraw")}
+        alert={withdrawLost ? t("fix.lostNote") : undefined}
+        note={withdrawContract?.state ? undefined : t("files.withdrawNote")}
+        confirmLabel={t(withdrawLost ? "files.withdrawTitle" : "files.withdraw")}
         onConfirm={() => {
           if (withdrawFor) onWithdraw(withdrawFor)
           setWithdrawFor(null)
         }}
         onClose={() => setWithdrawFor(null)}
-      />
+      >
+        {withdrawContract?.state && (
+          <div className={styles.closeCard}>
+            <div className={styles.closeTotal}>
+              <span>{t("details.balance")}</span>
+              <span className={shared.spacer} />
+              <span className={styles.closeBalance}>{tonLabel(withdrawContract.state.balance)}</span>
+            </div>
+            <span className={styles.closeNote}>{t("files.withdrawNote")}</span>
+          </div>
+        )}
+      </ConfirmSheet>
     </div>
   )
 }

@@ -437,6 +437,10 @@
   text-wrap: pretty;
 }
 
+.sheetAlert {
+  margin: var(--pad-pill) var(--space-6) 0;
+}
+
 .sheetBody {
   display: flex;
   flex-direction: column;
