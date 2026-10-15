@@ -13,6 +13,7 @@ import {
   matchesQuery,
   mergeManual,
   pickBest,
+  pickReplacements,
   pubkeyFrom,
   pinnedOf,
   sortProviders,
@@ -335,5 +336,17 @@ describe("matchesQuery", () => {
   it("matches a key fragment and rejects a foreign key", () => {
     expect(matchesQuery(base, "aaaa")).toBe(true)
     expect(matchesQuery(base, cheapDutch.pubkey)).toBe(false)
+  })
+})
+
+describe("pickReplacements", () => {
+  it("skips the providers already hired or refused in any case and those whose period does not fit", () => {
+    const picked = pickReplacements([base, cheapDutch, secondGerman, narrowSpan], {
+      skip: [base.pubkey.toUpperCase()],
+      count: 3,
+      proofDays: 7,
+      bagSize: 1024,
+    })
+    expect(picked.sort()).toEqual([cheapDutch.pubkey, secondGerman.pubkey].sort())
   })
 })

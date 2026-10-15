@@ -4,13 +4,14 @@ import type { BagInfoShort, ContractStatus, StorageContract, WalletTransaction }
 import type { Tone } from "@/types/tone"
 import { failureStatus, fetchBagDetails, notifyProviders, sessionEnded } from "./api"
 import type { ContractState } from "./contracts-cache"
-import { CONTRACT_RESERVE } from "./pricing"
+import { CONTRACT_RESERVE, paidDaysLeft, payoutDays } from "./pricing"
 import { pubkeyFrom } from "./providers"
 import { getStatuses, knownStateHash, peekState, putStates, readContractsCache, refreshState, stateOf, writeContractsCache } from "./contracts-cache"
-import { nowSeconds } from "./format"
+import { nowSeconds, SECONDS_IN_DAY } from "./format"
 import { readListView, writeListView } from "./local-storage"
 import { forgetPendingFound, readPendingPaid } from "./paid-link"
 import { ADDRESS_BATCH, ChainRequestError, fetchAccountStates, fetchMessages, type MessagesPage, type MessagesQuery } from "./ton/toncenter"
+import type { StorageProvider } from "./ton/storage-data"
 import { sendAndConfirm, walletRefused, type WalletSender } from "./ton/transactions"
 import { CONFIRM_TIMEOUT, payErrorKey } from "./errors"
 
@@ -365,6 +366,28 @@ export const LOW_BALANCE_DAYS = 3
 export const paymentTone = (paidDays: number | null): Extract<Tone, "red" | "yellow"> | null =>
   paidDays === null ? null : paidDays < 1 ? "red" : paidDays < LOW_BALANCE_DAYS ? "yellow" : null
 
+const PROOF_GRACE = SECONDS_IN_DAY
+
+export type ContractProblem = "lost" | "balance" | "replace"
+
+const missedProof = ({ lastProofTime, maxSpan }: Pick<StorageProvider, "lastProofTime" | "maxSpan">, since: number, now: number): boolean =>
+  now > (lastProofTime ? lastProofTime + maxSpan : since) + PROOF_GRACE
+
+export const silentProviders = (row: ContractRow, now: number): string[] =>
+  (row.state?.providers ?? []).filter((provider) => missedProof(provider, lastOf(row), now)).map(({ pubkey }) => pubkey)
+
+export const balanceRunsLow = (paidDays: number | null, fileSize: number, providers: Omit<StorageProvider, "pubkey">[]): boolean =>
+  paidDays !== null && paidDays <= Math.max(LOW_BALANCE_DAYS, payoutDays(fileSize, providers))
+
+export const contractProblem = (row: ContractRow, now: number): ContractProblem | null => {
+  const { state } = row
+  if (row.closed || !state) return null
+  const silent = silentProviders(row, now)
+  if (silent.length === state.providers.length) return "lost"
+  if (balanceRunsLow(paidDaysLeft(state.fileSize, state.providers, state.balance, now), state.fileSize, state.providers)) return "balance"
+  return silent.length ? "replace" : null
+}
+
 const ACTION_TIMEOUT_MS = 180_000
 
 interface ContractsOptions {
@@ -576,8 +599,13 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
     let confirmed = false
     try {
       const failure = await pending
-      if (failure === null) confirmed = true
-      else if (failure !== "refused") setFailure(failure)
+      if (failure === null) {
+        confirmed = true
+        if (providers) {
+          listRef.current = listRef.current.map((row) => (row.address === contract ? { ...row, lastEventAt: Math.max(lastOf(row), nowSeconds()) } : row))
+          setList(listRef.current)
+        }
+      } else if (failure !== "refused") setFailure(failure)
     } catch (error) {
       if (!onUnauthorized(error)) setFailure(actionFailure(error))
     } finally {

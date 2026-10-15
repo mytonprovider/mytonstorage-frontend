@@ -346,6 +346,23 @@ export const pickBest = (list: Provider[], options: PickOptions): string[] => {
   return picked
 }
 
+export const pickReplacements = (
+  catalog: Provider[],
+  { skip, count, proofDays, bagSize, seed }: { skip: string[]; count: number; proofDays: number; bagSize: number; seed?: number },
+): string[] => {
+  const skipped = new Set(skip.map((key) => key.toLowerCase()))
+  const pool = catalog.filter((provider) => !skipped.has(provider.pubkey.toLowerCase()) && matches(provider, NO_FILTERS, proofDays, "", bagSize))
+  return pickBest(pool, {
+    count,
+    criterion: "uptime",
+    diversity: "any",
+    proven: true,
+    priceMax: priceCeiling(catalog),
+    ratingMax: ratingCeiling(catalog),
+    seed,
+  })
+}
+
 export const bounds = (values: number[], step: number): [number, number] => {
   const usable = values.filter((value) => Number.isFinite(value))
   if (!usable.length) return [0, 1]

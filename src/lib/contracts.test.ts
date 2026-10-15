@@ -15,6 +15,7 @@ import {
   INDEX_LAG_SECONDS,
   STORAGE_CODE_HASH,
   actionFailure,
+  contractProblem,
   contractStatus,
   paymentTone,
   LOW_BALANCE_DAYS,
@@ -32,7 +33,7 @@ import {
 } from "./contracts"
 import { knownStateHash, peekState, putState, resetContractCachesForTests } from "./contracts-cache"
 import { state, translate } from "./fixtures"
-import type { Translate } from "./format"
+import { SECONDS_IN_DAY, type Translate } from "./format"
 import { PENDING_KEY } from "./local-storage"
 import { forgetPendingFound, markPendingLinked, writePendingPaid } from "./paid-link"
 import type { AccountState, AccountStates, ChainMessage, MessagesPage, MessagesQuery } from "./ton/toncenter"
@@ -824,5 +825,52 @@ describe("contractStatus", () => {
   it("counts the catalog rows alone when the chain answered nothing", () => {
     expect(contractStatus(row(null, ["a", "b"], ["a"]))).toEqual({ tone: "yellow", word: "files.statusPartial" })
     expect(contractStatus(row(null))).toEqual({ tone: "gray", word: "files.statusNoPeers" })
+  })
+})
+
+describe("contractProblem", () => {
+  const DAY = SECONDS_IN_DAY
+  const now = 1_800_000_000
+  const GIB = 1024 ** 3
+  const prover = (key: string, lastProofTime: number) => ({ pubkey: key, ratePerMbDay: 1_000_000, maxSpan: 7 * DAY, lastProofTime })
+  const rowOf = (providers: ReturnType<typeof prover>[], balance = 100 * 1e9, lastEventAt = now - 30 * DAY): ContractRow => ({
+    address: "EQproblem",
+    createdAt: now - 60 * DAY,
+    lastEventAt,
+    closed: false,
+    bagId: "",
+    description: "",
+    size: GIB,
+    valid: 0,
+    total: 0,
+    state: { torrentHash: "", fileSize: GIB, balance, providers },
+  })
+
+  it("stays quiet while every provider proves on time and the balance covers the next round", () => {
+    expect(contractProblem(rowOf([prover("a", now - DAY), prover("b", now - 2 * DAY)]), now)).toBe(null)
+  })
+
+  it("asks to replace a provider a day late with its proof, but not one a few hours late", () => {
+    expect(contractProblem(rowOf([prover("a", now - DAY), prover("b", now - 7 * DAY - 3 * 3600)]), now)).toBe(null)
+    expect(contractProblem(rowOf([prover("a", now - DAY), prover("b", now - 8 * DAY - 60)]), now)).toBe("replace")
+  })
+
+  it("gives a provider that never proved a day from the last change of the set", () => {
+    expect(contractProblem(rowOf([prover("a", now - DAY), prover("b", 0)], 100 * 1e9, now - 2 * 3600), now)).toBe(null)
+    expect(contractProblem(rowOf([prover("a", now - DAY), prover("b", 0)], 100 * 1e9, now - 2 * DAY), now)).toBe("replace")
+  })
+
+  it("asks to extend once the balance does not cover the next payout round, ahead of a replacement", () => {
+    expect(contractProblem(rowOf([prover("a", now - DAY), prover("b", now - 9 * DAY)], 12 * 1e9), now)).toBe("balance")
+  })
+
+  it("calls the file lost when every provider is silent or none is left, ahead of the balance", () => {
+    expect(contractProblem(rowOf([prover("a", now - 9 * DAY), prover("b", 0)], 0), now)).toBe("lost")
+    expect(contractProblem(rowOf([]), now)).toBe("lost")
+  })
+
+  it("says nothing about a closed contract or one whose state is not read yet", () => {
+    expect(contractProblem({ ...rowOf([prover("a", 0)]), closed: true }, now)).toBe(null)
+    expect(contractProblem({ ...rowOf([]), state: undefined }, now)).toBe(null)
   })
 })
