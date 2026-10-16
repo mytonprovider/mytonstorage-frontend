@@ -290,6 +290,11 @@
   composes: scrollX;
 }
 
+.scrollBare {
+  composes: scrollX;
+  --table-cols: repeat(8, max-content);
+}
+
 .scroll {
   composes: tableSubgrid from "../shared.module.css";
 }

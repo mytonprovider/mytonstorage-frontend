@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react"
-import { ArrowRight, SquareCheck } from "lucide-react"
+import { SquareCheck } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useQuote } from "@/lib/api"
 import { silentProviders, type ContractRow } from "@/lib/contracts"
 import { useContractData } from "@/lib/contracts-cache"
 import { cx } from "@/lib/cx"
-import { formatDate, nowSeconds, SECONDS_IN_DAY, shortenMiddle, tonLabel } from "@/lib/format"
+import { formatDate, nowSeconds, SECONDS_IN_DAY, tonLabel } from "@/lib/format"
 import { commonSpan, FEE_GAS, nextPaidDaysLeft, offerRates, providerFate, quotedBounties, recreateTotal, unquotedBounties, updateFee } from "@/lib/pricing"
 import { freshSeed, pickReplacements, spanAllows } from "@/lib/providers"
 import type { ProviderDecline, ProviderOffer } from "@/types/bag"
 import type { Provider } from "@/types/provider"
 import { daysLabel } from "../providers/catalog-toolbar"
+import { SelectedTable } from "../providers/selected-table"
 import { Notice } from "../notice"
 import { SheetFooter } from "../sheet"
 import { SheetField } from "../sheet-fields"
@@ -18,8 +19,6 @@ import shared from "../shared.module.css"
 import styles from "./contract-fix.module.css"
 
 const MAX_ROUNDS = 2
-const GHOST_KEY = "0".repeat(64)
-const GHOST_COUNTRY = "Netherlands"
 
 interface ContractFixProps {
   contract: ContractRow
@@ -27,13 +26,29 @@ interface ContractFixProps {
   catalogLoading: boolean
   catalogFailed: boolean
   busy: boolean
+  copied: string | null
   onRetryCatalog: () => void
+  onCopy: (value: string) => void
+  onOpen: (pubkey: string) => void
   onManual: () => void
   onSubmit: (pubkeys: string[], span: number, fileSize: number, amount: number) => void
   onGone: () => void
 }
 
-export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed, busy, onRetryCatalog, onManual, onSubmit, onGone }: ContractFixProps) => {
+export const ContractFix = ({
+  contract,
+  providers,
+  catalogLoading,
+  catalogFailed,
+  busy,
+  copied,
+  onRetryCatalog,
+  onCopy,
+  onOpen,
+  onManual,
+  onSubmit,
+  onGone,
+}: ContractFixProps) => {
   const { t, i18n } = useTranslation()
   const [seed, setSeed] = useState(0)
   const [refused, setRefused] = useState<string[]>([])
@@ -156,43 +171,20 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
           </div>
         </div>
 
-        <div className={styles.frame}>
-          {silent.map((pubkey, index) => {
-            const next = picking ? GHOST_KEY : added[index]
-            const ghost = next === GHOST_KEY
-            const old = (
-              <span title={pubkey} className={styles.key}>
-                {shortenMiddle(pubkey.toUpperCase(), 6, 6)}
-              </span>
-            )
-            const why = <span className={styles.why}>{whyOf(pubkey)}</span>
-            if (!next) {
-              return (
-                <div key={pubkey} className={styles.solo}>
-                  {old}
-                  {why}
-                </div>
-              )
-            }
-            return (
-              <div key={pubkey} className={styles.pair}>
-                <span className={styles.from}>
-                  {old}
-                  {why}
-                </span>
-                <ArrowRight className={styles.arrow} aria-hidden="true" />
-                <span className={styles.to}>
-                  <span title={ghost ? undefined : next} className={cx(styles.key, styles.fresh, ghost && shared.shape)}>
-                    {shortenMiddle(next.toUpperCase(), 6, 6)}
-                  </span>
-                  <span className={cx(styles.sub, ghost && shared.shape)}>
-                    {ghost ? GHOST_COUNTRY : (providers.find((provider) => provider.pubkey === next)?.location?.country ?? "")}
-                  </span>
-                </span>
-              </div>
-            )
-          })}
-        </div>
+        <SelectedTable
+          pinned={[...silent, ...added].map((pubkey) => ({
+            pubkey,
+            provider: providers.find((provider) => provider.pubkey.toLowerCase() === pubkey.toLowerCase()) ?? null,
+          }))}
+          proofDays={span / SECONDS_IN_DAY}
+          catalogReady={!picking}
+          declineByKey={new Map(declines.map(({ provider_key, reason }) => [provider_key.toLowerCase(), reason]))}
+          fates={fates}
+          copied={copied}
+          reasonOf={whyOf}
+          onCopy={onCopy}
+          onOpen={onOpen}
+        />
       </div>
 
       {catalogFailed && (

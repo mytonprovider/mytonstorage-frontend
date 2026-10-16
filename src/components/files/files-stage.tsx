@@ -74,6 +74,9 @@ export const FilesStage = ({
               catalogFailed={catalog.failed}
               busy={contracts.busy !== null}
               onRetryCatalog={catalog.reload}
+              copied={copied}
+              onCopy={onCopy}
+              onOpen={onOpenProvider}
               onManual={() => setEditing({ address: contract.address, kind: "edit" })}
               onGone={() => setEditing(null)}
               onSubmit={(pubkeys, span, fileSize, amount) => saveProviders(contract.address, pubkeys, span, fileSize, amount)}

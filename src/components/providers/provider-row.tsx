@@ -33,10 +33,11 @@ const COLUMNS: Column[] = [
 interface HeaderProps {
   field?: SortField
   direction?: SortDirection
+  pickable?: boolean
   onSort?: (field: SortField) => void
 }
 
-export const ProviderHeader = ({ field, direction, onSort }: HeaderProps) => {
+export const ProviderHeader = ({ field, direction, pickable = true, onSort }: HeaderProps) => {
   const { t } = useTranslation()
 
   const headCell = (column: Column) => (
@@ -53,7 +54,7 @@ export const ProviderHeader = ({ field, direction, onSort }: HeaderProps) => {
 
   return (
     <div className={styles.headerRow}>
-      <span className={styles.pickCell} />
+      {pickable && <span className={styles.pickCell} />}
       {COLUMNS.map(headCell)}
     </div>
   )
@@ -170,7 +171,7 @@ interface ProviderRowProps {
   note?: ReactNode
   proofDays: number
   copied: boolean
-  onToggle: (pubkey: string) => void
+  onToggle?: (pubkey: string) => void
   onOpen: (pubkey: string) => void
   onCopy: (value: string) => void
 }
@@ -204,7 +205,7 @@ export const ProviderRow = ({
 
   const toggle = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    onToggle(provider.pubkey)
+    onToggle?.(provider.pubkey)
   }
 
   const openRef = useRef<HTMLButtonElement>(null)
@@ -231,22 +232,24 @@ export const ProviderRow = ({
         className={styles.open}
       />
 
-      <span className={styles.pickCell}>
-        <button
-          type="button"
-          onClick={toggle}
-          role="checkbox"
-          aria-checked={selected}
-          aria-label={pickLabel}
-          title={blocked ? t("catalog.limitShort", { max: MAX_SELECTED }) : pickLabel}
-          aria-disabled={blocked || undefined}
-          className={styles.pick}
-        >
-          <span className={cx(shared.check, selected && shared.checkOn)}>
-            {selected && <Check strokeWidth={3.5} className={shared.checkIcon} aria-hidden="true" />}
-          </span>
-        </button>
-      </span>
+      {onToggle && (
+        <span className={styles.pickCell}>
+          <button
+            type="button"
+            onClick={toggle}
+            role="checkbox"
+            aria-checked={selected}
+            aria-label={pickLabel}
+            title={blocked ? t("catalog.limitShort", { max: MAX_SELECTED }) : pickLabel}
+            aria-disabled={blocked || undefined}
+            className={styles.pick}
+          >
+            <span className={cx(shared.check, selected && shared.checkOn)}>
+              {selected && <Check strokeWidth={3.5} className={shared.checkIcon} aria-hidden="true" />}
+            </span>
+          </button>
+        </span>
+      )}
 
       <div className={styles.keyCell}>
         <div className={styles.key}>
