@@ -13,7 +13,7 @@ interface SheetSectionProps {
 }
 
 export const SheetSection = ({ icon: Icon, title, children }: SheetSectionProps) => (
-  <section className={shared.panel}>
+  <section className={styles.section}>
     <h3 className={styles.title}>
       <Icon className={shared.titleIcon} aria-hidden="true" />
       <span>{title}</span>

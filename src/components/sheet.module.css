@@ -117,8 +117,8 @@
 
 @media (max-width: 1119px) {
   .sheet {
-    width: 100%;
-    max-width: 100%;
+    width: 100vw;
+    max-width: 100vw;
     top: auto;
     bottom: 0;
     height: auto;
