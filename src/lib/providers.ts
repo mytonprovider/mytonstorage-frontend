@@ -348,10 +348,14 @@ export const pickBest = (list: Provider[], options: PickOptions): string[] => {
 
 export const pickReplacements = (
   catalog: Provider[],
-  { skip, count, proofDays, bagSize, seed }: { skip: string[]; count: number; proofDays: number; bagSize: number; seed?: number },
+  { skip, count, proofDays, bagSize, seed }: { skip: string[]; count: number; proofDays: number | null; bagSize: number; seed?: number },
 ): string[] => {
   const skipped = new Set(skip.map((key) => key.toLowerCase()))
-  const pool = catalog.filter((provider) => !skipped.has(provider.pubkey.toLowerCase()) && matches(provider, NO_FILTERS, proofDays, "", bagSize))
+  const pool = catalog.filter(
+    (provider) =>
+      !skipped.has(provider.pubkey.toLowerCase()) &&
+      (proofDays === null ? matchesApartFromSpan(provider, NO_FILTERS, "", bagSize) : matches(provider, NO_FILTERS, proofDays, "", bagSize)),
+  )
   return pickBest(pool, {
     count,
     criterion: "uptime",

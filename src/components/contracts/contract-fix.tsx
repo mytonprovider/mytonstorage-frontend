@@ -10,6 +10,7 @@ import { commonSpan, FEE_GAS, nextPaidDaysLeft, offerRates, providerFate, quoted
 import { freshSeed, pickReplacements, spanAllows } from "@/lib/providers"
 import type { ProviderDecline, ProviderOffer } from "@/types/bag"
 import type { Provider } from "@/types/provider"
+import { daysLabel } from "../providers/catalog-toolbar"
 import { Notice } from "../notice"
 import { SheetFooter } from "../sheet"
 import { SheetField } from "../sheet-fields"
@@ -50,15 +51,14 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
   const span = state ? commonSpan(state.providers) : 0
   const fileSize = state?.fileSize ?? 0
   const kept = (state?.providers ?? []).map(({ pubkey }) => pubkey).filter((key) => !silent.includes(key))
-  const added = state
-    ? pickReplacements(providers, {
-        skip: [...state.providers.map(({ pubkey }) => pubkey), ...refused],
-        count: Math.max(0, silent.length - dropped),
-        proofDays: span / SECONDS_IN_DAY,
-        bagSize: fileSize,
-        seed,
-      })
-    : []
+  const wanted = {
+    skip: [...(state?.providers ?? []).map(({ pubkey }) => pubkey), ...refused],
+    count: Math.max(0, silent.length - dropped),
+    bagSize: fileSize,
+    seed,
+  }
+  const added = state ? pickReplacements(providers, { ...wanted, proofDays: span / SECONDS_IN_DAY }) : []
+  const spanLimited = added.length < wanted.count && pickReplacements(providers, { ...wanted, proofDays: null }).length > added.length
   const bagId = contract.bagId || state?.torrentHash || ""
   const picking = catalogLoading || catalogFailed
   const keptKey = kept.join(",")
@@ -119,6 +119,7 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
       : !picking && added.length < silent.length
         ? t("fix.leadShort", { count: silent.length, total, found: added.length })
         : t("fix.leadReplace", { count: silent.length, total })
+  const reason = !picking && spanLimited ? ` ${t("fix.spanRare", { days: daysLabel(t, span / SECONDS_IN_DAY) })}` : ""
 
   const whyOf = (pubkey: string): string => {
     const { lastProofTime } = state.providers.find((provider) => provider.pubkey === pubkey) ?? { lastProofTime: 0 }
@@ -135,7 +136,7 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
 
   return (
     <div className={styles.body}>
-      <Notice tone="yellow">{lead}</Notice>
+      <Notice tone="yellow">{lead + reason}</Notice>
 
       <div>
         <div className={styles.head} data-sheet="">

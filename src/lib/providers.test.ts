@@ -349,4 +349,9 @@ describe("pickReplacements", () => {
     })
     expect(picked.sort()).toEqual([cheapDutch.pubkey, secondGerman.pubkey].sort())
   })
+
+  it("ignores the period when none is given", () => {
+    const picked = pickReplacements([base, narrowSpan], { skip: [base.pubkey], count: 1, proofDays: null, bagSize: 1024 })
+    expect(picked).toEqual([narrowSpan.pubkey])
+  })
 })
