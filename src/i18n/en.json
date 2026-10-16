@@ -370,8 +370,7 @@
     "remove": "Remove",
     "why": {
       "silent": "Not proving",
-      "neverTook": "Never took",
-      "spanRefused": "Period too long"
+      "neverTook": "Never took"
     },
     "lostNote": "No provider is proving storage — close the contract.",
     "lostConfirm": "No provider is proving storage.",

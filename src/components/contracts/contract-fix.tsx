@@ -140,7 +140,9 @@ export const ContractFix = ({
     const { lastProofTime } = state.providers.find((provider) => provider.pubkey === pubkey) ?? { lastProofTime: 0 }
     if (lastProofTime) return t("fix.why.silent")
     const listed = providers.find((provider) => provider.pubkey.toLowerCase() === pubkey.toLowerCase())
-    return listed && !spanAllows(listed, span / SECONDS_IN_DAY) ? t("fix.why.spanRefused") : t("fix.why.neverTook")
+    return listed && !spanAllows(listed, span / SECONDS_IN_DAY)
+      ? t("catalog.spanShort", { days: daysLabel(t, span / SECONDS_IN_DAY) })
+      : t("fix.why.neverTook")
   }
 
   const pickAgain = () => {
