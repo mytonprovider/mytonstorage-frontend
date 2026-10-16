@@ -67,6 +67,7 @@ interface ContractsListProps {
   onShown: (addresses: string[]) => void
   onHideClosed: (value: boolean) => void
   onCopy: (value: string) => void
+  onOpenProvider: (pubkey: string) => void
   onEditingChange: (editor: OpenEditor | null) => void
   onWithdraw: (address: string) => void
 }
@@ -89,6 +90,7 @@ export const ContractsList = ({
   onShown,
   onHideClosed,
   onCopy,
+  onOpenProvider,
   onEditingChange,
   onWithdraw,
 }: ContractsListProps) => {
@@ -336,6 +338,7 @@ export const ContractsList = ({
             contract={infoContract}
             copied={copied}
             onCopy={onCopy}
+            onOpenProvider={onOpenProvider}
             onAction={(kind) => {
               setInfoFor(null)
               onEditingChange({ address: infoContract.address, kind })

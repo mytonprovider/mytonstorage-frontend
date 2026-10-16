@@ -11,7 +11,7 @@ import { Hint } from "../hint"
 import { Notice } from "../notice"
 import type { EditorKind } from "./contract-row"
 import { SheetField, SheetSection } from "../sheet-fields"
-import { Ratio, TableCell, TableFrame, TableHead, TableLead, TableRows, TableScroll } from "../table"
+import { Ratio, TableCell, TableFrame, TableHead, TableLead, TableRows, TableScroll, activateOnKey } from "../table"
 import shared from "../shared.module.css"
 import styles from "./contract-details.module.css"
 
@@ -23,11 +23,12 @@ interface ContractDetailsProps {
   contract: ContractRow
   copied: string | null
   onCopy: (value: string) => void
+  onOpenProvider: (pubkey: string) => void
   onAction: (kind: EditorKind) => void
   onAskWithdraw: () => void
 }
 
-export const ContractDetails = ({ contract, copied, onCopy, onAction, onAskWithdraw }: ContractDetailsProps) => {
+export const ContractDetails = ({ contract, copied, onCopy, onOpenProvider, onAction, onAskWithdraw }: ContractDetailsProps) => {
   const { t, i18n } = useTranslation()
   const { state, statuses, unreadable, offline, retry } = useContractData(contract.address, true)
 
@@ -188,11 +189,22 @@ export const ContractDetails = ({ contract, copied, onCopy, onAction, onAskWithd
                   const nextProof = lastProof ? lastProof + maxSpan : null
                   const perDayLabel = tonLabel(dailyCost(state.fileSize, [provider]), 6)
                   const spanLabel = formatDuration(maxSpan, t)
+                  const keyShort = shortenMiddle(pubkey, 6, 6)
+                  const open = () => onOpenProvider(pubkey)
 
                   return (
-                    <div key={pubkey} className={styles.row}>
+                    <div
+                      key={pubkey}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${t("catalog.providerDetails")} ${keyShort}`}
+                      aria-haspopup="dialog"
+                      onClick={open}
+                      onKeyDown={activateOnKey(open)}
+                      className={styles.row}
+                    >
                       <TableLead
-                        shortValue={shortenMiddle(pubkey, 6, 6)}
+                        shortValue={keyShort}
                         title={pubkey}
                         upper
                         copy={pubkey}

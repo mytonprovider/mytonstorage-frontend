@@ -110,6 +110,7 @@ export const FilesStage = ({
         onShown={contracts.onShown}
         onHideClosed={contracts.onHideClosed}
         onCopy={onCopy}
+        onOpenProvider={onOpenProvider}
         onEditingChange={setEditing}
         onWithdraw={(contract) => void contracts.run(contract, () => withdrawContract(contract))}
       />
