@@ -58,7 +58,7 @@ export const ContractDetails = ({ contract, copied, onCopy, onAction, onAskWithd
   const paidUntil = formatDate(now + (paidDays ?? 0) * SECONDS_IN_DAY, i18n.language)
   const problemNote =
     problem === "lost"
-      ? t("fix.lostConfirm")
+      ? t(row.state?.providers.length === 0 ? "fix.emptyConfirm" : "fix.lostConfirm")
       : problem === "balance"
         ? t((paidDays ?? 0) > 0 ? "fix.noteBalance" : "fix.noteBalanceOut", { date: paidUntil })
         : t("fix.noteReplace", { count: silentProviders(row, now).length, total: row.state?.providers.length ?? 0 })

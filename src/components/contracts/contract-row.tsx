@@ -178,7 +178,7 @@ export const ContractRow = ({ contract, index, openKind, active, busy, copied, o
 
   const problemLabel = (): string => {
     const state = contract.state
-    if (problem === "lost" || !state) return t("fix.lostNote")
+    if (problem === "lost" || !state) return t(state?.providers.length === 0 ? "fix.emptyNote" : "fix.lostNote")
     if (problem === "replace") return t("fix.summary", { count: silentProviders(contract, now).length, total: state.providers.length })
     const paidDays = paidDaysLeft(state.fileSize, state.providers, state.balance, now) ?? 0
     return t(paidDays > 0 ? "fix.balanceLow" : "fix.balanceOut", { date: formatDate(now + paidDays * SECONDS_IN_DAY, i18n.language) })

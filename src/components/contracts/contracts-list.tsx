@@ -364,7 +364,7 @@ export const ContractsList = ({
         open={withdrawFor !== null}
         title={t("files.withdrawTitle")}
         subject={withdrawFor ? shortenMiddle(withdrawFor, 6, 6) : undefined}
-        alert={withdrawLost ? t("fix.lostNote") : undefined}
+        alert={withdrawLost ? t(withdrawContract?.state?.providers.length === 0 ? "fix.emptyNote" : "fix.lostNote") : undefined}
         note={withdrawContract?.state ? undefined : t("files.withdrawNote")}
         confirmLabel={t(withdrawLost ? "files.withdrawTitle" : "files.withdraw")}
         onConfirm={() => {

@@ -98,7 +98,6 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
 
   const selected = [...kept, ...added]
   const total = state.providers.length
-  const days = String(Math.round(span / SECONDS_IN_DAY))
   const ready = !picking && (bagId ? offers !== null && declines.length === 0 && quoteError === null : true)
 
   const fates = providerFate(state.providers, selected, span, offers)
@@ -111,9 +110,9 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
 
   const lead =
     !picking && added.length === 0
-      ? t("fix.leadRemove", { count: silent.length, total, days })
+      ? t("fix.leadRemove", { count: silent.length, total })
       : !picking && added.length < silent.length
-        ? t("fix.leadShort", { count: silent.length, total, found: added.length, days })
+        ? t("fix.leadShort", { count: silent.length, total, found: added.length })
         : t("fix.leadReplace", { count: silent.length, total })
 
   const whyOf = (pubkey: string): string => {
@@ -202,7 +201,7 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
           {t("errors.failedToLoadProviders")}
         </Notice>
       )}
-      {declines.length > 0 && <Notice tone="red">{t("catalog.declinedSummary", { count: declines.length, total: selected.length })}</Notice>}
+      {declines.length > 0 && <Notice tone="red">{t("fix.declined", { count: declines.length, total: selected.length })}</Notice>}
       {quoteError && <Notice tone="red">{t(quoteError)}</Notice>}
       {ready && recreated.size > 0 && (
         <Notice tone="yellow">{t("providers.recreateSummary", { count: recreated.size, amount: tonLabel(recreateTotal(fileSize, span, recreated, rates)) })}</Notice>
