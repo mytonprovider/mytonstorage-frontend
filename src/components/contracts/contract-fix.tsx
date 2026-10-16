@@ -3,6 +3,7 @@ import { ArrowRight, SquareCheck } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useQuote } from "@/lib/api"
 import { silentProviders, type ContractRow } from "@/lib/contracts"
+import { useContractData } from "@/lib/contracts-cache"
 import { cx } from "@/lib/cx"
 import { formatDate, nowSeconds, SECONDS_IN_DAY, shortenMiddle, tonLabel } from "@/lib/format"
 import { commonSpan, FEE_GAS, nextPaidDaysLeft, offerRates, providerFate, quotedBounties, recreateTotal, unquotedBounties, updateFee } from "@/lib/pricing"
@@ -15,7 +16,7 @@ import { SheetField } from "../sheet-fields"
 import shared from "../shared.module.css"
 import styles from "./contract-fix.module.css"
 
-const MAX_ROUNDS = 3
+const MAX_ROUNDS = 2
 const GHOST_KEY = "0".repeat(64)
 const GHOST_COUNTRY = "Netherlands"
 
@@ -35,21 +36,23 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
   const [seed, setSeed] = useState(0)
   const [refused, setRefused] = useState<string[]>([])
   const [rounds, setRounds] = useState(0)
+  const [dropped, setDropped] = useState(0)
   const [offers, setOffers] = useState<ProviderOffer[] | null>(null)
   const [declines, setDeclines] = useState<ProviderDecline[]>([])
   const [quoteError, setQuoteError] = useState<string | null>(null)
   const { checking, invalidate, request } = useQuote()
+  const { state: latest } = useContractData(contract.address)
 
   const now = nowSeconds()
-  const state = contract.state
-  const silent = state ? silentProviders(contract, now) : []
+  const state = latest ?? contract.state
+  const silent = state ? silentProviders({ ...contract, state }, now) : []
   const span = state ? commonSpan(state.providers) : 0
   const fileSize = state?.fileSize ?? 0
   const kept = (state?.providers ?? []).map(({ pubkey }) => pubkey).filter((key) => !silent.includes(key))
   const added = state
     ? pickReplacements(providers, {
         skip: [...state.providers.map(({ pubkey }) => pubkey), ...refused],
-        count: silent.length,
+        count: Math.max(0, silent.length - dropped),
         proofDays: span / SECONDS_IN_DAY,
         bagSize: fileSize,
         seed,
@@ -59,6 +62,7 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
   const picking = catalogLoading || catalogFailed
   const keptKey = kept.join(",")
   const addedKey = added.join(",")
+  const silentKey = silent.join(",")
 
   useEffect(() => {
     invalidate()
@@ -66,7 +70,7 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
     setDeclines([])
     setQuoteError(null)
     const keys = [...keptKey.split(","), ...addedKey.split(",")].filter(Boolean)
-    if (picking || !bagId || keys.length === 0) return
+    if (picking || !bagId || !silentKey || keys.length === 0) return
     const fresh = new Set(addedKey.split(",").map((key) => key.toLowerCase()))
 
     request(
@@ -76,9 +80,10 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
       fileSize,
       ({ offers: quoted, declines: refusedNow, complete }) => {
         const freshRefused = refusedNow.map(({ provider_key }) => provider_key.toLowerCase()).filter((key) => fresh.has(key))
-        if (freshRefused.length === refusedNow.length && freshRefused.length > 0 && rounds < MAX_ROUNDS) {
+        if (freshRefused.length === refusedNow.length && freshRefused.length > 0) {
           setRefused((known) => [...known, ...freshRefused])
-          setRounds((count) => count + 1)
+          if (rounds < MAX_ROUNDS) setRounds((count) => count + 1)
+          else setDropped((count) => count + freshRefused.length)
           return
         }
         setOffers(quoted)
@@ -87,7 +92,7 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
       },
       () => setQuoteError("errors.offersFailed"),
     )
-  }, [picking, bagId, span, fileSize, keptKey, addedKey, rounds, request, invalidate])
+  }, [picking, bagId, span, fileSize, silentKey, keptKey, addedKey, rounds, request, invalidate])
 
   if (!state || silent.length === 0) return null
 
@@ -115,12 +120,13 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
     const { lastProofTime } = state.providers.find((provider) => provider.pubkey === pubkey) ?? { lastProofTime: 0 }
     if (lastProofTime) return t("fix.why.silent")
     const listed = providers.find((provider) => provider.pubkey.toLowerCase() === pubkey.toLowerCase())
-    return listed && listed.max_span > 0 && listed.max_span < span ? t("fix.why.spanRefused") : t("fix.why.neverTook")
+    return listed && ((listed.max_span > 0 && listed.max_span < span) || listed.min_span > span) ? t("fix.why.spanRefused") : t("fix.why.neverTook")
   }
 
   const pickAgain = () => {
     setSeed(freshSeed())
     setRounds(0)
+    setDropped(0)
   }
 
   return (

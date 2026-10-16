@@ -73,6 +73,12 @@ export const mergeRows = (rows: ContractRow[], scanned: ScannedContract[]): Cont
   return [...byAddress.values()].sort((a, b) => b.createdAt - a.createdAt)
 }
 
+export const withTouched = (rows: ContractRow[], touched: Map<string, number>): ContractRow[] =>
+  rows.map((row) => {
+    const at = touched.get(row.address)
+    return at && at > lastOf(row) ? { ...row, lastEventAt: at } : row
+  })
+
 export const withPending = (rows: ContractRow[], owner: string): ContractRow[] => {
   const pending = readPendingPaid()
   if (!owner || !pending?.linked || pending.owner !== owner) return rows
@@ -490,6 +496,7 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
   const running = useRef<AbortController | null>(null)
   const syncing = useRef<AbortController | null>(null)
   const shown = useRef<string[]>([])
+  const touched = useRef(new Map<string, number>())
   const swept = useRef(false)
   const unnotified = useRef<{ contract: string; providers: string[] } | null>(null)
 
@@ -535,7 +542,8 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
           signal,
           onUnauthorized,
           focus: everything ? undefined : shown.current,
-          onRows: (rows) => {
+          onRows: (passed) => {
+            const rows = withTouched(passed, touched.current)
             listRef.current = rows
             setList(rows)
             if (rows.length) setLoading(false)
@@ -599,7 +607,8 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
       if (failure === null) {
         confirmed = true
         if (providers) {
-          listRef.current = listRef.current.map((row) => (row.address === contract ? { ...row, lastEventAt: Math.max(lastOf(row), nowSeconds()) } : row))
+          touched.current.set(contract, nowSeconds())
+          listRef.current = withTouched(listRef.current, touched.current)
           setList(listRef.current)
         }
       } else if (failure !== "refused") setFailure(failure)

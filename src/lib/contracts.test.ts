@@ -29,6 +29,7 @@ import {
   runContractAction,
   runPass,
   withPending,
+  withTouched,
   type ContractRow,
 } from "./contracts"
 import { knownStateHash, peekState, putState, resetContractCachesForTests } from "./contracts-cache"
@@ -878,5 +879,17 @@ describe("contractProblem", () => {
   it("says nothing about a closed contract or one whose state is not read yet", () => {
     expect(contractProblem({ ...rowOf([prover("a", 0)]), closed: true }, now)).toBe(null)
     expect(contractProblem({ ...rowOf([]), state: undefined }, now)).toBe(null)
+  })
+
+  it("keeps the time of a replacement over a list snapshot taken before it", () => {
+    const replaced = rowOf([prover("a", now - DAY), prover("b", 0)], 100 * 1e9, now - 30 * DAY)
+    const other = { ...replaced, address: "EQother" }
+    const later = { ...replaced, address: "EQlater", lastEventAt: now }
+    const touched = new Map([[replaced.address, now - 3600], [later.address, now - 3600]])
+    expect(contractProblem(replaced, now)).toBe("replace")
+    const [kept, untouched, newer] = withTouched([replaced, other, later], touched)
+    expect(contractProblem(kept, now)).toBe(null)
+    expect(untouched).toBe(other)
+    expect(newer.lastEventAt).toBe(now)
   })
 })
