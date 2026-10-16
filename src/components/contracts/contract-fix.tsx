@@ -7,7 +7,7 @@ import { useContractData } from "@/lib/contracts-cache"
 import { cx } from "@/lib/cx"
 import { formatDate, nowSeconds, SECONDS_IN_DAY, shortenMiddle, tonLabel } from "@/lib/format"
 import { commonSpan, FEE_GAS, nextPaidDaysLeft, offerRates, providerFate, quotedBounties, recreateTotal, unquotedBounties, updateFee } from "@/lib/pricing"
-import { freshSeed, pickReplacements } from "@/lib/providers"
+import { freshSeed, pickReplacements, spanAllows } from "@/lib/providers"
 import type { ProviderDecline, ProviderOffer } from "@/types/bag"
 import type { Provider } from "@/types/provider"
 import { Notice } from "../notice"
@@ -29,9 +29,10 @@ interface ContractFixProps {
   onRetryCatalog: () => void
   onManual: () => void
   onSubmit: (pubkeys: string[], span: number, fileSize: number, amount: number) => void
+  onGone: () => void
 }
 
-export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed, busy, onRetryCatalog, onManual, onSubmit }: ContractFixProps) => {
+export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed, busy, onRetryCatalog, onManual, onSubmit, onGone }: ContractFixProps) => {
   const { t, i18n } = useTranslation()
   const [seed, setSeed] = useState(0)
   const [refused, setRefused] = useState<string[]>([])
@@ -62,7 +63,7 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
   const picking = catalogLoading || catalogFailed
   const keptKey = kept.join(",")
   const addedKey = added.join(",")
-  const silentKey = silent.join(",")
+  const gone = !state || silent.length === 0 || silent.length === state.providers.length
 
   useEffect(() => {
     invalidate()
@@ -70,7 +71,7 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
     setDeclines([])
     setQuoteError(null)
     const keys = [...keptKey.split(","), ...addedKey.split(",")].filter(Boolean)
-    if (picking || !bagId || !silentKey || keys.length === 0) return
+    if (gone || picking || !bagId || keys.length === 0) return
     const fresh = new Set(addedKey.split(",").map((key) => key.toLowerCase()))
 
     request(
@@ -92,9 +93,13 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
       },
       () => setQuoteError("errors.offersFailed"),
     )
-  }, [picking, bagId, span, fileSize, silentKey, keptKey, addedKey, rounds, request, invalidate])
+  }, [gone, picking, bagId, span, fileSize, keptKey, addedKey, rounds, request, invalidate])
 
-  if (!state || silent.length === 0) return null
+  useEffect(() => {
+    if (gone) onGone()
+  }, [gone, onGone])
+
+  if (!state || gone) return null
 
   const selected = [...kept, ...added]
   const total = state.providers.length
@@ -119,7 +124,7 @@ export const ContractFix = ({ contract, providers, catalogLoading, catalogFailed
     const { lastProofTime } = state.providers.find((provider) => provider.pubkey === pubkey) ?? { lastProofTime: 0 }
     if (lastProofTime) return t("fix.why.silent")
     const listed = providers.find((provider) => provider.pubkey.toLowerCase() === pubkey.toLowerCase())
-    return listed && ((listed.max_span > 0 && listed.max_span < span) || listed.min_span > span) ? t("fix.why.spanRefused") : t("fix.why.neverTook")
+    return listed && !spanAllows(listed, span / SECONDS_IN_DAY) ? t("fix.why.spanRefused") : t("fix.why.neverTook")
   }
 
   const pickAgain = () => {

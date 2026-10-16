@@ -610,6 +610,7 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
           touched.current.set(contract, nowSeconds())
           listRef.current = withTouched(listRef.current, touched.current)
           setList(listRef.current)
+          writeContractsCache(owner, { ...cursors.current, rows: listRef.current })
         }
       } else if (failure !== "refused") setFailure(failure)
     } catch (error) {

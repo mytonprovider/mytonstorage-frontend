@@ -75,6 +75,7 @@ export const FilesStage = ({
               busy={contracts.busy !== null}
               onRetryCatalog={catalog.reload}
               onManual={() => setEditing({ address: contract.address, kind: "edit" })}
+              onGone={() => setEditing(null)}
               onSubmit={(pubkeys, span, fileSize, amount) => saveProviders(contract.address, pubkeys, span, fileSize, amount)}
             />
           ) : kind === "extend" ? (
