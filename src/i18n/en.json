@@ -390,8 +390,14 @@
     "leadShort_other": "{{count}} of {{total}} providers missed a storage proof — a replacement was found for {{found}}, the rest will be removed.",
     "leadRemove_one": "{{count}} of {{total}} providers missed a storage proof — no replacement found, it will be removed.",
     "leadRemove_other": "{{count}} of {{total}} providers missed a storage proof — no replacement found, they will be removed.",
-    "declined_one": "{{count}} of {{total}} declined — pick providers manually.",
-    "declined_other": "{{count}} of {{total}} declined — pick providers manually.",
+    "leadReplaceMixed_one": "{{count}} of {{total}} providers missed a storage proof or don't respond — replace it with the one picked below.",
+    "leadReplaceMixed_other": "{{count}} of {{total}} providers missed a storage proof or don't respond — replace them with the ones picked below.",
+    "leadShortMixed_one": "{{count}} of {{total}} providers missed a storage proof or don't respond — a replacement was found for {{found}}, the rest will be removed.",
+    "leadShortMixed_other": "{{count}} of {{total}} providers missed a storage proof or don't respond — a replacement was found for {{found}}, the rest will be removed.",
+    "leadRemoveMixed_one": "{{count}} of {{total}} providers missed a storage proof or don't respond — no replacement found, it will be removed.",
+    "leadRemoveMixed_other": "{{count}} of {{total}} providers missed a storage proof or don't respond — no replacement found, they will be removed.",
+    "unanswered_one": "The remaining provider doesn't respond — try again later.",
+    "unanswered_other": "The remaining providers don't respond — try again later.",
     "spanRare": "Few providers support a {{days}} proof period."
   }
 }
