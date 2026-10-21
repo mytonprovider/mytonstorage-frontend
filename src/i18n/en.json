@@ -338,7 +338,7 @@
   "declines": {
     "invalidPubkey": "Invalid key",
     "longResponse": "Slow response",
-    "noRates": "No rates",
+    "noRates": "No response",
     "unreachable": "Unreachable",
     "notAvailable": "Not available",
     "noSpace": "No space"

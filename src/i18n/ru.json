@@ -350,7 +350,7 @@
   "declines": {
     "invalidPubkey": "Неверный ключ",
     "longResponse": "Долгий ответ",
-    "noRates": "Нет тарифов",
+    "noRates": "Не отвечает",
     "unreachable": "Нет связи",
     "notAvailable": "Недоступен",
     "noSpace": "Нет места"
