@@ -1,0 +1,30 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+  padding: var(--pad-pill) var(--space-8) var(--space-8);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.text {
+  font-size: var(--font-base);
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
+@media (pointer: coarse) {
+  .text a {
+    position: relative;
+  }
+
+  .text a::after {
+    content: "";
+    position: absolute;
+    inset: calc((100% - var(--control-input)) / 2) 0;
+  }
+}

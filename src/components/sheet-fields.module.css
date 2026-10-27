@@ -1,3 +1,10 @@
+.section {
+  --field-fill: var(--bg);
+  padding: var(--row-py) 15px;
+  border-radius: var(--radius-lg);
+  background: var(--panel-bg, var(--surface));
+}
+
 .title {
   composes: sheetTitle from "./shared.module.css";
   margin: 0 0 var(--space-4);

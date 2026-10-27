@@ -38,9 +38,10 @@ interface SelectedTableProps {
   fates?: Map<string, ProviderFate>
   copied: string | null
   warnOf?: (pubkey: string) => CheckWarn | undefined
+  reasonOf?: (pubkey: string) => string
   onCopy: (value: string) => void
   onOpen: (pubkey: string) => void
-  onRemove: (pubkey: string) => void
+  onRemove?: (pubkey: string) => void
 }
 
 export const SelectedTable = ({
@@ -51,6 +52,7 @@ export const SelectedTable = ({
   fates,
   copied,
   warnOf,
+  reasonOf,
   onCopy,
   onOpen,
   onRemove,
@@ -62,7 +64,7 @@ export const SelectedTable = ({
 
   const stateOf = ({ pubkey, provider }: PinnedProvider): RowState => {
     const fate = fateOf(pubkey)
-    if (fate === "removed") return { kind: "fate", fate, label: t(FATE_KEYS[fate]) }
+    if (fate === "removed") return { kind: "fate", fate, label: reasonOf?.(pubkey) ?? t(FATE_KEYS[fate]) }
 
     const decline = declineByKey.get(pubkey.toLowerCase())
     if (decline) {
@@ -110,8 +112,8 @@ export const SelectedTable = ({
 
   return (
     <TableFrame>
-      <TableScroll className={styles.scrollX}>
-        <ProviderHeader />
+      <TableScroll className={onRemove ? styles.scrollX : styles.scrollBare}>
+        <ProviderHeader pickable={onRemove !== undefined} />
         <TableRows className={styles.selRows}>
           {pinned.map(({ pubkey, provider }) => {
             const state = stateOf({ pubkey, provider })

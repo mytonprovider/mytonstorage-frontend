@@ -6,16 +6,17 @@ interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 
   label: string
   size?: "xs" | "sm" | "md" | "lg"
   danger?: boolean
+  warn?: boolean
   ok?: boolean
   children: ReactNode
 }
 
-export const IconButton = ({ label, size = "md", danger, ok, children, className, ...rest }: IconButtonProps) => (
+export const IconButton = ({ label, size = "md", danger, warn, ok, children, className, ...rest }: IconButtonProps) => (
   <button
     type="button"
     title={label}
     aria-label={label}
-    className={cx(styles.button, styles[size], danger && styles.danger, ok && styles.ok, className)}
+    className={cx(styles.button, styles[size], danger && styles.danger, warn && styles.warn, ok && styles.ok, className)}
     {...rest}
   >
     {children}

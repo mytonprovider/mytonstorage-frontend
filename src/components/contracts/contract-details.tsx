@@ -2,16 +2,16 @@ import { FileText, Server, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { gatewayUrl } from "@/lib/api"
 import { useCheckLabel } from "@/lib/check-label"
-import { contractStatus, countChecks, paymentTone, scanUrl, shownChecks } from "@/lib/contracts"
+import { contractProblem, contractStatus, countChecks, paymentTone, scanUrl, shownChecks, silentProviders, type ContractRow } from "@/lib/contracts"
 import { useContractData, type ContractState } from "@/lib/contracts-cache"
 import { cx } from "@/lib/cx"
 import { GHOST_TON, SECONDS_IN_DAY, formatBytes, formatDate, formatDateTime, formatDuration, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
-import { PROOF_STEPS, dailyCost, paidDaysLeft } from "@/lib/pricing"
-import type { StorageContract } from "@/types/contract"
+import { PROOF_STEPS, dailyCost, paidDaysLeft, payoutDays } from "@/lib/pricing"
 import { Hint } from "../hint"
 import { Notice } from "../notice"
+import type { EditorKind } from "./contract-row"
 import { SheetField, SheetSection } from "../sheet-fields"
-import { Ratio, TableCell, TableFrame, TableHead, TableLead, TableRows, TableScroll } from "../table"
+import { Ratio, TableCell, TableFrame, TableHead, TableLead, TableRows, TableScroll, activateOnKey } from "../table"
 import shared from "../shared.module.css"
 import styles from "./contract-details.module.css"
 
@@ -20,12 +20,15 @@ const MIDDLE_PROOF_DAYS = PROOF_STEPS[Math.floor(PROOF_STEPS.length / 2)]
 const HEAD_KEYS = ["table.key", "details.priceDay", "details.span", "details.check", "details.checked", "details.lastProof", "details.nextProof"]
 
 interface ContractDetailsProps {
-  contract: StorageContract
+  contract: ContractRow
   copied: string | null
   onCopy: (value: string) => void
+  onOpenProvider: (pubkey: string) => void
+  onAction: (kind: EditorKind) => void
+  onAskWithdraw: () => void
 }
 
-export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsProps) => {
+export const ContractDetails = ({ contract, copied, onCopy, onOpenProvider, onAction, onAskWithdraw }: ContractDetailsProps) => {
   const { t, i18n } = useTranslation()
   const { state, statuses, unreadable, offline, retry } = useContractData(contract.address, true)
 
@@ -39,6 +42,7 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
 
   const perDay = state ? dailyCost(state.fileSize, state.providers) : 0
   const paidDays = state ? paidDaysLeft(state.fileSize, state.providers, state.balance, now) : null
+  const payTone = state ? paymentTone(paidDays, payoutDays(state.fileSize, state.providers)) : null
 
   const spanRange = (providers: ContractState["providers"]): string => {
     const spans = providers.map(({ maxSpan }) => maxSpan)
@@ -50,6 +54,15 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
   const shaped = { ...contract, ...checks, state }
   const status = contractStatus(shaped)
   const stateWord = t(status?.word ?? "status.noData")
+  const row = { ...contract, state }
+  const problem = contractProblem(row, now)
+  const paidUntil = formatDate(now + (paidDays ?? 0) * SECONDS_IN_DAY, i18n.language)
+  const problemNote =
+    problem === "lost"
+      ? t(row.state?.providers.length === 0 ? "fix.emptyConfirm" : "fix.lostConfirm")
+      : problem === "balance"
+        ? t((paidDays ?? 0) > 0 ? "fix.noteBalance" : "fix.noteBalanceOut", { date: paidUntil })
+        : t("fix.noteReplace", { count: silentProviders(row, now).length, total: row.state?.providers.length ?? 0 })
 
   return (
     <div className={styles.body}>
@@ -71,6 +84,19 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
           )}
         </div>
       </section>
+
+      {problem && (
+        <Notice
+          tone={problem === "lost" || (problem === "balance" && payTone === "red") ? "red" : "yellow"}
+          action={
+            <button type="button" onClick={problem === "lost" ? onAskWithdraw : () => onAction(problem === "balance" ? "extend" : "fix")}>
+              {t(problem === "lost" ? "files.withdrawTitle" : problem === "balance" ? "files.topup" : "fix.replace")}
+            </button>
+          }
+        >
+          {problemNote}
+        </Notice>
+      )}
 
       <SheetSection icon={FileText} title={t("details.contract")}>
         <SheetField
@@ -134,8 +160,8 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
             <SheetField
               label={t("files.paidUntil")}
               value={paidDays === null ? "" : formatDate(now + paidDays * SECONDS_IN_DAY, i18n.language)}
-              alert={paymentTone(paidDays) === "red"}
-              warn={paymentTone(paidDays) === "yellow"}
+              alert={payTone === "red"}
+              warn={payTone === "yellow"}
             />
             <SheetField label={t("details.span")} value={spanRange(state.providers)} />
           </>
@@ -163,11 +189,22 @@ export const ContractDetails = ({ contract, copied, onCopy }: ContractDetailsPro
                   const nextProof = lastProof ? lastProof + maxSpan : null
                   const perDayLabel = tonLabel(dailyCost(state.fileSize, [provider]), 6)
                   const spanLabel = formatDuration(maxSpan, t)
+                  const keyShort = shortenMiddle(pubkey, 6, 6)
+                  const open = () => onOpenProvider(pubkey)
 
                   return (
-                    <div key={pubkey} className={styles.row}>
+                    <div
+                      key={pubkey}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${t("catalog.providerDetails")} ${keyShort}`}
+                      aria-haspopup="dialog"
+                      onClick={open}
+                      onKeyDown={activateOnKey(open)}
+                      className={styles.row}
+                    >
                       <TableLead
-                        shortValue={shortenMiddle(pubkey, 6, 6)}
+                        shortValue={keyShort}
                         title={pubkey}
                         upper
                         copy={pubkey}

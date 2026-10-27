@@ -4,6 +4,7 @@ import type { ContractsState } from "@/lib/contracts"
 import type { ProviderCatalog } from "@/lib/providers"
 import type { UnpaidBagsState } from "@/lib/unpaid-bags"
 import type { UserBag } from "@/types/bag"
+import { ContractFix } from "../contracts/contract-fix"
 import { ContractProviders } from "../contracts/contract-providers"
 import { ContractsList, type OpenEditor } from "../contracts/contracts-list"
 import { ExtendForm } from "../contracts/extend-form"
@@ -33,6 +34,11 @@ export const FilesStage = ({
 }: FilesStageProps) => {
   const [editing, setEditing] = useState<OpenEditor | null>(null)
 
+  const saveProviders = (address: string, pubkeys: string[], span: number, fileSize: number, amount: number) => {
+    void contracts.run(address, () => updateContract({ address, providers: pubkeys, bag_size: fileSize, amount, span }), pubkeys)
+    setEditing(null)
+  }
+
   return (
     <div className={styles.files}>
       <UnpaidList
@@ -60,7 +66,22 @@ export const FilesStage = ({
         copied={copied}
         editing={editing}
         renderEditor={(contract, kind) =>
-          kind === "extend" ? (
+          kind === "fix" ? (
+            <ContractFix
+              contract={contract}
+              providers={catalog.providers}
+              catalogLoading={catalog.loading}
+              catalogFailed={catalog.failed}
+              busy={contracts.busy !== null}
+              onRetryCatalog={catalog.reload}
+              copied={copied}
+              onCopy={onCopy}
+              onOpen={onOpenProvider}
+              onManual={() => setEditing({ address: contract.address, kind: "edit" })}
+              onGone={() => setEditing(null)}
+              onSubmit={(pubkeys, span, fileSize, amount) => saveProviders(contract.address, pubkeys, span, fileSize, amount)}
+            />
+          ) : kind === "extend" ? (
             <ExtendForm
               address={contract.address}
               onSubmit={(nanotons) => {
@@ -82,21 +103,7 @@ export const FilesStage = ({
               onCopy={onCopy}
               onOpen={onOpenProvider}
               onAddManual={catalog.addManual}
-              onSubmit={(pubkeys, span, fileSize, amount) => {
-                void contracts.run(
-                  contract.address,
-                  () =>
-                    updateContract({
-                      address: contract.address,
-                      providers: pubkeys,
-                      bag_size: fileSize,
-                      amount,
-                      span,
-                    }),
-                  pubkeys,
-                )
-                setEditing(null)
-              }}
+              onSubmit={(pubkeys, span, fileSize, amount) => saveProviders(contract.address, pubkeys, span, fileSize, amount)}
             />
           )
         }
@@ -106,6 +113,7 @@ export const FilesStage = ({
         onShown={contracts.onShown}
         onHideClosed={contracts.onHideClosed}
         onCopy={onCopy}
+        onOpenProvider={onOpenProvider}
         onEditingChange={setEditing}
         onWithdraw={(contract) => void contracts.run(contract, () => withdrawContract(contract))}
       />

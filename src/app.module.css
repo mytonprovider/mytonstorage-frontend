@@ -35,6 +35,30 @@
   text-wrap: pretty;
 }
 
+.heroMore {
+  color: var(--accent-text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .heroMore:hover {
+    text-decoration: underline;
+  }
+}
+
+@media (pointer: coarse) {
+  .heroMore {
+    position: relative;
+  }
+
+  .heroMore::after {
+    content: "";
+    position: absolute;
+    inset: calc((100% - var(--control-input)) / 2) 0;
+  }
+}
+
 .tabs {
   display: flex;
   justify-content: center;

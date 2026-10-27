@@ -58,6 +58,19 @@
 
 .row {
   composes: tableRow from "../shared.module.css";
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .row:hover {
+    background: var(--row-hover);
+  }
+}
+
+.row:focus-visible {
+  outline: none;
+  background: var(--row-deep);
+  box-shadow: inset 0 0 0 1px var(--focus-edge);
 }
 
 .row > :has(.checkCell) {

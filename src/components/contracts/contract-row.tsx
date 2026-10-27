@@ -1,18 +1,18 @@
 import type { CSSProperties, MouseEvent, ReactNode } from "react"
-import { CircleX, Loader, Pencil, Wallet } from "lucide-react"
+import { CircleX, Loader, Pencil, TriangleAlert, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { gatewayUrl } from "@/lib/api"
 import { cx } from "@/lib/cx"
-import { contractStatus, paymentTone, scanUrl, shownChecks, verdictWord, type ContractRow as ContractRowData, type ContractVerdict } from "@/lib/contracts"
+import { contractProblem, contractStatus, paymentTone, scanUrl, shownChecks, silentProviders, verdictWord, type ContractRow as ContractRowData, type ContractVerdict } from "@/lib/contracts"
 import type { ContractSortField } from "@/lib/contracts-view"
 import { MIB, SECONDS_IN_DAY, formatBytes, formatDate, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
-import { dailyCost, paidDaysLeft } from "@/lib/pricing"
+import { dailyCost, paidDaysLeft, payoutDays } from "@/lib/pricing"
 import { IconButton } from "../icon-button"
 import { GhostCopy, GhostIcon, GhostValue, Ratio, TableCell, TableLead, activateOnKey } from "../table"
 import shared from "../shared.module.css"
 import styles from "./contracts-list.module.css"
 
-export type EditorKind = "edit" | "extend"
+export type EditorKind = "edit" | "extend" | "fix"
 
 export const COLUMNS: { word: string; field?: ContractSortField; hint?: string }[] = [
   { word: "files.bagId", field: "bagId" },
@@ -141,7 +141,7 @@ const PaidUntil = ({ contract }: { contract: ContractRowData }) => {
   const paidDays = state ? paidDaysLeft(state.fileSize, state.providers, state.balance, now) : null
   if (!state || paidDays === null) return <TableCell label={label} value="" />
 
-  const tone = paymentTone(paidDays)
+  const tone = paymentTone(paidDays, payoutDays(state.fileSize, state.providers))
   const perDay = dailyCost(state.fileSize, state.providers)
   const title = `${t("details.balance")}: ${tonLabel(state.balance)} · ${t("details.perDay")}: ${tonLabel(perDay, 6)}`
 
@@ -168,11 +168,21 @@ interface ContractRowProps {
 }
 
 export const ContractRow = ({ contract, index, openKind, active, busy, copied, onCopy, onOpen, onAction, onAskWithdraw }: ContractRowProps) => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const sample = useSkeletonSample()
   const status = contractStatus(contract)
   const checks = shownChecks(contract)
   const ratio = !contract.closed && checks !== null && checks.ran > 0 ? checks : null
+  const now = nowSeconds()
+  const problem = contractProblem(contract, now)
+
+  const problemLabel = (): string => {
+    const state = contract.state
+    if (problem === "lost" || !state) return t(state?.providers.length === 0 ? "fix.emptyNote" : "fix.lostNote")
+    if (problem === "replace") return t("fix.summary", { count: silentProviders(contract, now).length, total: state.providers.length })
+    const paidDays = paidDaysLeft(state.fileSize, state.providers, state.balance, now) ?? 0
+    return t(paidDays > 0 ? "fix.balanceLow" : "fix.balanceOut", { date: formatDate(now + paidDays * SECONDS_IN_DAY, i18n.language) })
+  }
 
   const act = (run: () => void) => (event: MouseEvent) => {
     event.stopPropagation()
@@ -253,6 +263,20 @@ export const ContractRow = ({ contract, index, openKind, active, busy, copied, o
             <Loader strokeWidth={2.5} aria-hidden="true" className={cx(shared.spinner, styles.actionsWait)} />
           ) : (
             <>
+              {problem && (
+                <IconButton
+                  size="sm"
+                  warn
+                  data-problem={problem}
+                  label={problemLabel()}
+                  disabled={busy}
+                  data-active={(problem === "replace" && openKind === "fix") || (problem === "balance" && openKind === "extend") ? "" : undefined}
+                  className={styles.opened}
+                  onClick={act(problem === "lost" ? onAskWithdraw : () => onAction(problem === "balance" ? "extend" : "fix"))}
+                >
+                  <TriangleAlert className={styles.actionIcon} aria-hidden="true" />
+                </IconButton>
+              )}
               <IconButton
                 size="sm"
                 label={t("files.topup")}

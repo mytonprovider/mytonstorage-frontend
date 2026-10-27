@@ -4,13 +4,14 @@ import type { BagInfoShort, ContractStatus, StorageContract, WalletTransaction }
 import type { Tone } from "@/types/tone"
 import { failureStatus, fetchBagDetails, notifyProviders, sessionEnded } from "./api"
 import type { ContractState } from "./contracts-cache"
-import { CONTRACT_RESERVE } from "./pricing"
+import { CONTRACT_RESERVE, paidDaysLeft, payoutDays } from "./pricing"
 import { pubkeyFrom } from "./providers"
 import { getStatuses, knownStateHash, peekState, putStates, readContractsCache, refreshState, stateOf, writeContractsCache } from "./contracts-cache"
-import { nowSeconds } from "./format"
+import { nowSeconds, SECONDS_IN_DAY } from "./format"
 import { readListView, writeListView } from "./local-storage"
 import { forgetPendingFound, readPendingPaid } from "./paid-link"
 import { ADDRESS_BATCH, ChainRequestError, fetchAccountStates, fetchMessages, type MessagesPage, type MessagesQuery } from "./ton/toncenter"
+import type { StorageProvider } from "./ton/storage-data"
 import { sendAndConfirm, walletRefused, type WalletSender } from "./ton/transactions"
 import { CONFIRM_TIMEOUT, payErrorKey } from "./errors"
 
@@ -71,6 +72,12 @@ export const mergeRows = (rows: ContractRow[], scanned: ScannedContract[]): Cont
 
   return [...byAddress.values()].sort((a, b) => b.createdAt - a.createdAt)
 }
+
+export const withTouched = (rows: ContractRow[], touched: Map<string, number>): ContractRow[] =>
+  rows.map((row) => {
+    const at = touched.get(row.address)
+    return at && at > lastOf(row) ? { ...row, lastEventAt: at } : row
+  })
 
 export const withPending = (rows: ContractRow[], owner: string): ContractRow[] => {
   const pending = readPendingPaid()
@@ -362,8 +369,27 @@ export const txUrl = (hash: string): string => `https://tonscan.org/tx/${hash}`
 
 export const LOW_BALANCE_DAYS = 3
 
-export const paymentTone = (paidDays: number | null): Extract<Tone, "red" | "yellow"> | null =>
-  paidDays === null ? null : paidDays < 1 ? "red" : paidDays < LOW_BALANCE_DAYS ? "yellow" : null
+export const paymentTone = (paidDays: number | null, roundDays = 0): Extract<Tone, "red" | "yellow"> | null =>
+  paidDays === null ? null : paidDays < 1 ? "red" : paidDays <= Math.max(LOW_BALANCE_DAYS, roundDays) ? "yellow" : null
+
+const PROOF_GRACE = SECONDS_IN_DAY
+
+export type ContractProblem = "lost" | "balance" | "replace"
+
+const missedProof = ({ lastProofTime, maxSpan }: Pick<StorageProvider, "lastProofTime" | "maxSpan">, since: number, now: number): boolean =>
+  now > (lastProofTime ? lastProofTime + maxSpan : since) + PROOF_GRACE
+
+export const silentProviders = (row: ContractRow, now: number): string[] =>
+  (row.state?.providers ?? []).filter((provider) => missedProof(provider, lastOf(row), now)).map(({ pubkey }) => pubkey)
+
+export const contractProblem = (row: ContractRow, now: number): ContractProblem | null => {
+  const { state } = row
+  if (row.closed || !state) return null
+  const silent = silentProviders(row, now)
+  if (silent.length === state.providers.length) return "lost"
+  if (paymentTone(paidDaysLeft(state.fileSize, state.providers, state.balance, now), payoutDays(state.fileSize, state.providers))) return "balance"
+  return silent.length ? "replace" : null
+}
 
 const ACTION_TIMEOUT_MS = 180_000
 
@@ -470,6 +496,7 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
   const running = useRef<AbortController | null>(null)
   const syncing = useRef<AbortController | null>(null)
   const shown = useRef<string[]>([])
+  const touched = useRef(new Map<string, number>())
   const swept = useRef(false)
   const unnotified = useRef<{ contract: string; providers: string[] } | null>(null)
 
@@ -515,7 +542,8 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
           signal,
           onUnauthorized,
           focus: everything ? undefined : shown.current,
-          onRows: (rows) => {
+          onRows: (passed) => {
+            const rows = withTouched(passed, touched.current)
             listRef.current = rows
             setList(rows)
             if (rows.length) setLoading(false)
@@ -576,8 +604,15 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
     let confirmed = false
     try {
       const failure = await pending
-      if (failure === null) confirmed = true
-      else if (failure !== "refused") setFailure(failure)
+      if (failure === null) {
+        confirmed = true
+        if (providers && hydratedFor.current === owner) {
+          touched.current.set(contract, nowSeconds())
+          listRef.current = withTouched(listRef.current, touched.current)
+          setList(listRef.current)
+          writeContractsCache(owner, { ...cursors.current, rows: listRef.current })
+        }
+      } else if (failure !== "refused") setFailure(failure)
     } catch (error) {
       if (!onUnauthorized(error)) setFailure(actionFailure(error))
     } finally {

@@ -5,7 +5,19 @@
   "no": "No",
   "hero": {
     "title": "File storage in TON Storage",
-    "sub": "Upload, provider selection and storage tracking in TON Storage."
+    "sub": "Upload, provider selection and storage tracking in TON Storage.",
+    "more": "How does it work?"
+  },
+  "about": {
+    "title": "How it works",
+    "bagTitle": "Files are packed into a bag",
+    "bagText": "A bag is a set of files in the <a>TON Storage</a> network with a permanent address, the Bag ID. While you choose providers and pay for the contract, the bag is stored for free for a limited time.",
+    "publicTitle": "Anyone with the link can open the bag",
+    "publicText": "The bag opens for anyone who has the link or the Bag ID. The site does not encrypt files, so encrypt anything private before uploading.",
+    "providersTitle": "Independent providers store it",
+    "providersText": "You choose the providers. They keep copies of the bag and prove on the blockchain every check period that the files are in place.",
+    "contractTitle": "A storage contract pays them",
+    "contractText": "You top up the contract from your wallet, and it pays providers for each check. Closing the contract returns the remaining balance. Your wallet address is written in the contract and visible to everyone."
   },
   "nav": {
     "upload": "Upload",
@@ -164,11 +176,12 @@
     "nextStored": "Your files are now being stored on TON Storage",
     "nextProviders": "Providers need some time to download and distribute your files",
     "nextTrack": "You can track the storage status in the My files tab above",
+    "nextPublic": "Anyone with the link or Bag ID can open the files, and your wallet address is visible in the contract",
     "finish": "Finish",
     "bag": "Bag",
     "tx": "Transaction",
     "filesCount": "Files count",
-    "gateway": "Files"
+    "gateway": "Public link"
   },
   "files": {
     "title": "Storage contracts",
@@ -338,7 +351,7 @@
   "declines": {
     "invalidPubkey": "Invalid key",
     "longResponse": "Slow response",
-    "noRates": "No rates",
+    "noRates": "No response",
     "unreachable": "Unreachable",
     "notAvailable": "Not available",
     "noSpace": "No space"
@@ -361,5 +374,43 @@
     "checkAgo": "Last check: {{time}} ago",
     "check": "Check",
     "checkHint": "Whether the provider passed the storage check. Updated hourly by mytonprovider.org."
+  },
+  "fix": {
+    "titleReplace": "Replacing providers",
+    "newTitle": "Replacement",
+    "manual": "Pick manually",
+    "replace": "Replace",
+    "remove": "Remove",
+    "why": {
+      "silent": "Not proving",
+      "neverTook": "Never took"
+    },
+    "lostNote": "No provider is proving storage — close the contract.",
+    "lostConfirm": "No provider is proving storage.",
+    "balanceLow": "The balance lasts until {{date}}, then providers stop storing the file — extend the contract.",
+    "balanceOut": "The balance ran out on {{date}} and providers are stopping storage — extend the contract.",
+    "noteBalance": "The balance lasts until {{date}}, then providers stop storing the file.",
+    "noteBalanceOut": "The balance ran out on {{date}} and providers are stopping storage.",
+    "emptyNote": "The contract has no providers left — close the contract.",
+    "emptyConfirm": "The contract has no providers left.",
+    "summary_one": "{{count}} of {{total}} providers missed a storage proof — replace it.",
+    "summary_other": "{{count}} of {{total}} providers missed a storage proof — replace them.",
+    "noteReplace_one": "{{count}} of {{total}} providers missed a storage proof.",
+    "noteReplace_other": "{{count}} of {{total}} providers missed a storage proof.",
+    "leadReplace_one": "{{count}} of {{total}} providers missed a storage proof — replace it with the one picked below.",
+    "leadReplace_other": "{{count}} of {{total}} providers missed a storage proof — replace them with the ones picked below.",
+    "leadShort_one": "{{count}} of {{total}} providers missed a storage proof — a replacement was found for {{found}}, the rest will be removed.",
+    "leadShort_other": "{{count}} of {{total}} providers missed a storage proof — a replacement was found for {{found}}, the rest will be removed.",
+    "leadRemove_one": "{{count}} of {{total}} providers missed a storage proof — no replacement found, it will be removed.",
+    "leadRemove_other": "{{count}} of {{total}} providers missed a storage proof — no replacement found, they will be removed.",
+    "leadReplaceMixed_one": "{{count}} of {{total}} providers missed a storage proof or don't respond — replace it with the one picked below.",
+    "leadReplaceMixed_other": "{{count}} of {{total}} providers missed a storage proof or don't respond — replace them with the ones picked below.",
+    "leadShortMixed_one": "{{count}} of {{total}} providers missed a storage proof or don't respond — a replacement was found for {{found}}, the rest will be removed.",
+    "leadShortMixed_other": "{{count}} of {{total}} providers missed a storage proof or don't respond — a replacement was found for {{found}}, the rest will be removed.",
+    "leadRemoveMixed_one": "{{count}} of {{total}} providers missed a storage proof or don't respond — no replacement found, it will be removed.",
+    "leadRemoveMixed_other": "{{count}} of {{total}} providers missed a storage proof or don't respond — no replacement found, they will be removed.",
+    "unanswered_one": "The remaining provider doesn't respond — try again later.",
+    "unanswered_other": "The remaining providers don't respond — try again later.",
+    "spanRare": "Few providers support a {{days}} proof period."
   }
 }

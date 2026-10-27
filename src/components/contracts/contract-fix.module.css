@@ -1,0 +1,33 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.head {
+  composes: sectionHead from "../providers/providers-step.module.css";
+}
+
+.headActions {
+  composes: headActions from "../providers/providers-step.module.css";
+}
+
+.count {
+  composes: sectionCount from "../providers/providers-step.module.css";
+}
+
+.panel {
+  composes: panel from "../shared.module.css";
+}
+
+.fields {
+  composes: fields from "../sheet-fields.module.css";
+}
+
+.total {
+  composes: total from "../wizard/period-step.module.css";
+}
+
+.totalValue {
+  composes: totalValue from "../wizard/period-step.module.css";
+}

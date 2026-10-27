@@ -223,3 +223,21 @@
     gap: var(--space-4);
   }
 }
+
+.closeCard {
+  composes: panel from "../shared.module.css";
+  composes: fields from "../sheet-fields.module.css";
+  margin: var(--pad-pill) var(--space-6) var(--space-6);
+}
+
+.closeTotal {
+  composes: total from "../wizard/period-step.module.css";
+}
+
+.closeBalance {
+  composes: totalValue from "../wizard/period-step.module.css";
+}
+
+.closeNote {
+  composes: label from "../sheet-fields.module.css";
+}

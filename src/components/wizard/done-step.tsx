@@ -43,6 +43,7 @@ export const DoneStep = ({
           <li>{t("done.nextStored")}</li>
           <li>{t("done.nextProviders")}</li>
           <li>{t("done.nextTrack")}</li>
+          <li>{t("done.nextPublic")}</li>
         </ul>
       </div>
 

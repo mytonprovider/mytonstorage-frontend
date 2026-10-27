@@ -21,6 +21,12 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+@media (max-width: 1119px) {
+  html:has(dialog[open]) {
+    scrollbar-gutter: auto;
+  }
+}
+
 button,
 select,
 summary,

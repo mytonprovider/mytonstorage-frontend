@@ -221,3 +221,8 @@
 .card[data-fate="removed"] .pubkey {
   opacity: 0.55;
 }
+
+.card[data-fate="removed"] .cellValue,
+.card[data-fate="removed"] .status {
+  pointer-events: none;
+}
