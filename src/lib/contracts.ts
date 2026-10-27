@@ -606,7 +606,7 @@ export const useContracts = ({ owner, onUnauthorized }: ContractsOptions): Contr
       const failure = await pending
       if (failure === null) {
         confirmed = true
-        if (providers) {
+        if (providers && hydratedFor.current === owner) {
           touched.current.set(contract, nowSeconds())
           listRef.current = withTouched(listRef.current, touched.current)
           setList(listRef.current)
