@@ -12,6 +12,7 @@ import { BackToTop } from "@/components/back-to-top"
 import { FilesStage } from "@/components/files/files-stage"
 import { Footer } from "@/components/footer"
 import { Header } from "@/components/header"
+import { HowItWorks } from "@/components/how-it-works"
 import { Notice } from "@/components/notice"
 import { ProviderDetails } from "@/components/providers/provider-details"
 import { Sheet } from "@/components/sheet"
@@ -32,6 +33,7 @@ export const App = () => {
 
   const [tab, setTab] = useState<Tab>("upload")
   const [openProviderKey, setOpenProviderKey] = useState<string | null>(null)
+  const [aboutOpen, setAboutOpen] = useState(false)
 
   const catalog = useProviderCatalog()
   const { copied, copy } = useCopyFeedback()
@@ -74,7 +76,12 @@ export const App = () => {
       <main id="top" tabIndex={-1} className={styles.main}>
         <div className={styles.hero}>
           <h1 className={styles.heroTitle}>{t("hero.title")}</h1>
-          <p className={styles.heroSub}>{t("hero.sub")}</p>
+          <p className={styles.heroSub}>
+            {t("hero.sub")}{" "}
+            <button type="button" onClick={() => setAboutOpen(true)} className={styles.heroMore}>
+              {t("hero.more")}
+            </button>
+          </p>
         </div>
 
         {pendingWallet && <div aria-hidden="true" className={styles.tabs} />}
@@ -149,6 +156,10 @@ export const App = () => {
             onCopy={copy}
           />
         )}
+      </Sheet>
+
+      <Sheet open={aboutOpen} prose title={t("about.title")} onClose={() => setAboutOpen(false)}>
+        <HowItWorks />
       </Sheet>
 
       <UploadGateSheet

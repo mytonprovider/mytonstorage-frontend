@@ -5,7 +5,19 @@
   "no": "No",
   "hero": {
     "title": "File storage in TON Storage",
-    "sub": "Upload, provider selection and storage tracking in TON Storage."
+    "sub": "Upload, provider selection and storage tracking in TON Storage.",
+    "more": "How does it work?"
+  },
+  "about": {
+    "title": "How it works",
+    "bagTitle": "Files are packed into a bag",
+    "bagText": "A bag is a set of files in the <a>TON Storage</a> network with a permanent address, the Bag ID. While you choose providers and pay for the contract, the bag is stored for free for a limited time.",
+    "publicTitle": "Anyone with the link can open the bag",
+    "publicText": "The bag opens for anyone who has the link or the Bag ID. The site does not encrypt files, so encrypt anything private before uploading.",
+    "providersTitle": "Independent providers store it",
+    "providersText": "You choose the providers. They keep copies of the bag and prove on the blockchain every check period that the files are in place.",
+    "contractTitle": "A storage contract pays them",
+    "contractText": "You top up the contract from your wallet, and it pays providers for each check. Closing the contract returns the remaining balance. Your wallet address is written in the contract and visible to everyone."
   },
   "nav": {
     "upload": "Upload",
