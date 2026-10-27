@@ -225,7 +225,18 @@ export const ContractFix = ({
           {t("fix.unanswered", { count: unanswered.length })}
         </Notice>
       )}
-      {quoteError && <Notice tone="red">{t(quoteError)}</Notice>}
+      {quoteError && (
+        <Notice
+          tone="red"
+          action={
+            <button type="button" onClick={askAgain}>
+              {t("ui.retry")}
+            </button>
+          }
+        >
+          {t(quoteError)}
+        </Notice>
+      )}
       {ready && recreated.size > 0 && (
         <Notice tone="yellow">{t("providers.recreateSummary", { count: recreated.size, amount: tonLabel(recreateTotal(fileSize, span, recreated, rates)) })}</Notice>
       )}
