@@ -164,11 +164,12 @@
     "nextStored": "Your files are now being stored on TON Storage",
     "nextProviders": "Providers need some time to download and distribute your files",
     "nextTrack": "You can track the storage status in the My files tab above",
+    "nextPublic": "Anyone with the link or Bag ID can open the files, and your wallet address is visible in the contract",
     "finish": "Finish",
     "bag": "Bag",
     "tx": "Transaction",
     "filesCount": "Files count",
-    "gateway": "Files"
+    "gateway": "Public link"
   },
   "files": {
     "title": "Storage contracts",
