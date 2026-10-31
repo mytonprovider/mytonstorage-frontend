@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Provider } from "@/types/provider"
 import type { Tone } from "@/types/tone"
 import { failureStatus, fetchProviders } from "./api"
-import { BYTES_IN_GIB, NANO, SECONDS_IN_DAY, nowSeconds } from "./format"
+import { BYTES_IN_GIB, NANO, nowSeconds, SECONDS_IN_DAY } from "./format"
 import { MAX_SELECTED } from "./pricing"
 
 export interface ProviderFilters {
@@ -36,11 +36,11 @@ export const NO_FILTERS: ProviderFilters = {
 
 export const MIN_UPTIME = 50
 
-export const ONLINE_WINDOW = 5 * 60
+export const ONLINE_WINDOW_SECONDS = 300
 
 export const MIN_PROVEN_DAYS = 30
 
-const CATALOG_MAX_AGE = 5 * 60
+const CATALOG_MAX_AGE_SECONDS = 300
 
 const CATALOG_TICK_MS = 60_000
 
@@ -143,7 +143,7 @@ const withinFilters = (provider: Provider, filters: ProviderFilters): boolean =>
 }
 
 export const onlineSince = (list: Provider[]): number =>
-  list.reduce((newest, provider) => Math.max(newest, provider.last_online_check_time ?? 0), 0) - ONLINE_WINDOW
+  list.reduce((newest, provider) => Math.max(newest, provider.last_online_check_time ?? 0), 0) - ONLINE_WINDOW_SECONDS
 
 const canHostBag = (provider: Provider, bagSize: number, since: number): boolean => {
   if ((provider.uptime || 0) <= MIN_UPTIME) return false
@@ -464,7 +464,7 @@ export const useProviderCatalog = (): ProviderCatalog => {
   useEffect(() => {
     const controller = new AbortController()
     const tick = (): void => {
-      if (document.visibilityState === "visible" && nowSeconds() - triedAt.current >= CATALOG_MAX_AGE) load(controller.signal, true)
+      if (document.visibilityState === "visible" && nowSeconds() - triedAt.current >= CATALOG_MAX_AGE_SECONDS) load(controller.signal, true)
     }
     const timer = window.setInterval(tick, CATALOG_TICK_MS)
     document.addEventListener("visibilitychange", tick)

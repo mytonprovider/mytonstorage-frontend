@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 import {
   MIN_UPTIME,
-  ONLINE_WINDOW,
   NO_FILTERS,
+  ONLINE_WINDOW_SECONDS,
   bounds,
   countMatching,
   countSpanMismatched,
@@ -10,8 +10,8 @@ import {
   freeSpace,
   matches,
   matchesQuery,
-  onlineSince,
   mergeManual,
+  onlineSince,
   pickBest,
   pickReplacements,
   pubkeyFrom,
@@ -242,11 +242,11 @@ describe("the strategy reshuffle", () => {
 
 describe("the online window", () => {
   const checked = base.last_online_check_time ?? 0
-  const stale = { ...cheapDutch, last_online_check_time: checked - ONLINE_WINDOW - 1 }
+  const stale = { ...cheapDutch, last_online_check_time: checked - ONLINE_WINDOW_SECONDS - 1 }
 
   it("hides a provider whose last check is older than the window behind the freshest one", () => {
     const since = onlineSince([base, stale])
-    expect(matches({ ...cheapDutch, last_online_check_time: checked - ONLINE_WINDOW }, NO_FILTERS, 7, "", 0, since)).toBe(true)
+    expect(matches({ ...cheapDutch, last_online_check_time: checked - ONLINE_WINDOW_SECONDS }, NO_FILTERS, 7, "", 0, since)).toBe(true)
     expect(matches(stale, NO_FILTERS, 7, "", 0, since)).toBe(false)
     expect(countMatching([base, stale], NO_FILTERS, 7)).toBe(1)
   })
