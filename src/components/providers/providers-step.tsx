@@ -13,6 +13,7 @@ import {
   freshSeed,
   hasFilters,
   matches,
+  onlineSince,
   pickBest,
   pinnedOf,
   priceCeiling,
@@ -135,18 +136,20 @@ export const ProvidersStep = ({
   const priceMax = useMemo(() => priceCeiling(providers), [providers])
   const ratingMax = useMemo(() => ratingCeiling(providers), [providers])
 
+  const since = useMemo(() => onlineSince(providers), [providers])
+
   const pool = useMemo(
-    () => sortProviders(providers.filter((provider) => matches(provider, filters, proofDays, "", bagSize)), sortField, sortDirection),
-    [providers, filters, proofDays, bagSize, sortField, sortDirection],
+    () => sortProviders(providers.filter((provider) => matches(provider, filters, proofDays, "", bagSize, since)), sortField, sortDirection),
+    [providers, filters, proofDays, bagSize, since, sortField, sortDirection],
   )
 
   const filtered = useMemo(() => {
     if (!query.trim()) return pool
-    const found = pool.filter((provider) => matches(provider, filters, proofDays, query, bagSize))
+    const found = pool.filter((provider) => matches(provider, filters, proofDays, query, bagSize, since))
     if (found.length > 0) return found
     const hit = queryKey ? providers.find((provider) => provider.pubkey.toLowerCase() === queryKey) : undefined
     return hit ? [hit] : found
-  }, [pool, providers, filters, proofDays, query, queryKey, bagSize])
+  }, [pool, providers, filters, proofDays, query, queryKey, bagSize, since])
 
   const spanMismatchedCount = useMemo(
     () => countSpanMismatched(providers, filters, proofDays, bagSize),

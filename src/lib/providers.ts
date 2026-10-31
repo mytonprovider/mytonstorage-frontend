@@ -34,9 +34,9 @@ export const NO_FILTERS: ProviderFilters = {
   priceMax: null,
 }
 
-export const MIN_UPTIME = 20
+export const MIN_UPTIME = 50
 
-export const MIN_AUTOPICK_UPTIME = 50
+export const ONLINE_WINDOW = 5 * 60
 
 export const MIN_PROVEN_DAYS = 30
 
@@ -138,8 +138,12 @@ const withinFilters = (provider: Provider, filters: ProviderFilters): boolean =>
   return true
 }
 
-const canHostBag = (provider: Provider, bagSize: number): boolean => {
+export const onlineSince = (list: Provider[]): number =>
+  list.reduce((newest, provider) => Math.max(newest, provider.last_online_check_time ?? 0), 0) - ONLINE_WINDOW
+
+const canHostBag = (provider: Provider, bagSize: number, since: number): boolean => {
   if ((provider.uptime || 0) <= MIN_UPTIME) return false
+  if ((provider.last_online_check_time ?? 0) < since) return false
 
   const free = freeSpace(provider)
   if (free == null || free === 0) return false
@@ -154,7 +158,8 @@ const matchesApartFromSpan = (
   filters: ProviderFilters,
   query: string,
   bagSize: number,
-): boolean => matchesQuery(provider, query) && withinFilters(provider, filters) && canHostBag(provider, bagSize)
+  since: number,
+): boolean => matchesQuery(provider, query) && withinFilters(provider, filters) && canHostBag(provider, bagSize, since)
 
 export const matches = (
   provider: Provider,
@@ -162,18 +167,23 @@ export const matches = (
   proofDays: number,
   query: string,
   bagSize = 0,
-): boolean => matchesApartFromSpan(provider, filters, query, bagSize) && spanAllows(provider, proofDays)
+  since = 0,
+): boolean => matchesApartFromSpan(provider, filters, query, bagSize, since) && spanAllows(provider, proofDays)
 
 export const countSpanMismatched = (
   all: Provider[],
   filters: ProviderFilters,
   proofDays: number,
   bagSize = 0,
-): number =>
-  all.filter((provider) => matchesApartFromSpan(provider, filters, "", bagSize) && !spanAllows(provider, proofDays)).length
+): number => {
+  const since = onlineSince(all)
+  return all.filter((provider) => matchesApartFromSpan(provider, filters, "", bagSize, since) && !spanAllows(provider, proofDays)).length
+}
 
-export const countMatching = (all: Provider[], filters: ProviderFilters, proofDays: number, bagSize = 0): number =>
-  all.filter((provider) => matches(provider, filters, proofDays, "", bagSize)).length
+export const countMatching = (all: Provider[], filters: ProviderFilters, proofDays: number, bagSize = 0): number => {
+  const since = onlineSince(all)
+  return all.filter((provider) => matches(provider, filters, proofDays, "", bagSize, since)).length
+}
 
 const DECLINE_KEYS: [string, string][] = [
   ["context deadline exceeded", "declines.longResponse"],
@@ -318,9 +328,7 @@ const orderedFor = (pool: Provider[], options: PickOptions): Provider[] => {
 }
 
 export const pickBest = (list: Provider[], options: PickOptions): string[] => {
-  const eligible = eligibleFor(list)
-  const steady = eligible.filter((provider) => (provider.uptime || 0) >= MIN_AUTOPICK_UPTIME)
-  const base = steady.length ? steady : eligible
+  const base = eligibleFor(list)
   if (!base.length) return []
 
   const want = Math.min(options.count, MAX_SELECTED, base.length)
@@ -351,10 +359,13 @@ export const pickReplacements = (
   { skip, count, proofDays, bagSize, seed }: { skip: string[]; count: number; proofDays: number | null; bagSize: number; seed?: number },
 ): string[] => {
   const skipped = new Set(skip.map((key) => key.toLowerCase()))
+  const since = onlineSince(catalog)
   const pool = catalog.filter(
     (provider) =>
       !skipped.has(provider.pubkey.toLowerCase()) &&
-      (proofDays === null ? matchesApartFromSpan(provider, NO_FILTERS, "", bagSize) : matches(provider, NO_FILTERS, proofDays, "", bagSize)),
+      (proofDays === null
+        ? matchesApartFromSpan(provider, NO_FILTERS, "", bagSize, since)
+        : matches(provider, NO_FILTERS, proofDays, "", bagSize, since)),
   )
   return pickBest(pool, {
     count,
