@@ -74,7 +74,7 @@ export const ProviderDetails = ({ provider, unlisted = false, catalogReady = tru
 
   const dominant = dominantReason()
 
-  const now = Math.floor(fetchedAt / 1000)
+  const now = fetchedAt
   const telemetry = provider.telemetry
   const address = provider.address ? toNonBounceable(provider.address) : null
 

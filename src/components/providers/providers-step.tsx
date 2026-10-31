@@ -52,6 +52,18 @@ const orderPinned = (list: Provider[], strategy: Strategy | null): Provider[] =>
   return sortProviders(list, "rating", "desc")
 }
 
+const poolOf = (
+  list: Provider[],
+  filters: ProviderFilters,
+  proofDays: number,
+  bagSize: number,
+  sortField: SortField,
+  sortDirection: SortDirection,
+): Provider[] => {
+  const since = onlineSince(list)
+  return sortProviders(list.filter((provider) => matches(provider, filters, proofDays, "", bagSize, since)), sortField, sortDirection)
+}
+
 interface ProvidersStepProps {
   providers: Provider[]
   loading: boolean
@@ -136,20 +148,18 @@ export const ProvidersStep = ({
   const priceMax = useMemo(() => priceCeiling(providers), [providers])
   const ratingMax = useMemo(() => ratingCeiling(providers), [providers])
 
-  const since = useMemo(() => onlineSince(providers), [providers])
-
   const pool = useMemo(
-    () => sortProviders(providers.filter((provider) => matches(provider, filters, proofDays, "", bagSize, since)), sortField, sortDirection),
-    [providers, filters, proofDays, bagSize, since, sortField, sortDirection],
+    () => poolOf(providers, filters, proofDays, bagSize, sortField, sortDirection),
+    [providers, filters, proofDays, bagSize, sortField, sortDirection],
   )
 
   const filtered = useMemo(() => {
     if (!query.trim()) return pool
-    const found = pool.filter((provider) => matches(provider, filters, proofDays, query, bagSize, since))
+    const found = pool.filter((provider) => matches(provider, filters, proofDays, query, bagSize))
     if (found.length > 0) return found
     const hit = queryKey ? providers.find((provider) => provider.pubkey.toLowerCase() === queryKey) : undefined
     return hit ? [hit] : found
-  }, [pool, providers, filters, proofDays, query, queryKey, bagSize, since])
+  }, [pool, providers, filters, proofDays, query, queryKey, bagSize])
 
   const spanMismatchedCount = useMemo(
     () => countSpanMismatched(providers, filters, proofDays, bagSize),
@@ -193,22 +203,24 @@ export const ProvidersStep = ({
     if (lookupKey) onSelected([...selected, lookupKey])
   }
 
-  const picks = useMemo(
-    () =>
-      Object.fromEntries(
-        STRATEGIES.map((option) => [
-          option,
-          pickBest(pool, {
-            count: pickCount,
-            ...RECIPES[option],
-            priceMax,
-            ratingMax,
-            seed: option === strategy ? seed : 0,
-          }),
-        ]),
-      ) as Record<Strategy, string[]>,
-    [pool, pickCount, priceMax, ratingMax, strategy, seed],
-  )
+  const [pickedFrom, setPickedFrom] = useState<Provider[] | null>(null)
+
+  const picks = useMemo(() => {
+    const base = pickedFrom ?? providers
+    const basePool = poolOf(base, filters, proofDays, bagSize, sortField, sortDirection)
+    return Object.fromEntries(
+      STRATEGIES.map((option) => [
+        option,
+        pickBest(basePool, {
+          count: pickCount,
+          ...RECIPES[option],
+          priceMax: priceCeiling(base),
+          ratingMax: ratingCeiling(base),
+          seed: option === strategy ? seed : 0,
+        }),
+      ]),
+    ) as Record<Strategy, string[]>
+  }, [pickedFrom, providers, filters, proofDays, bagSize, sortField, sortDirection, pickCount, strategy, seed])
 
   const matchesSelection = (option: Strategy) =>
     selected.length > 0 && picks[option].length === selected.length && picks[option].every((key) => selected.includes(key))
@@ -222,6 +234,7 @@ export const ProvidersStep = ({
     setPickCount(count)
     setSeed(nextSeed)
     if (pool.length === 0) return
+    setPickedFrom(providers)
     const recipe = RECIPES[next]
     onSelected(
       pickBest(pool, { count, ...recipe, priceMax, ratingMax, seed: nextSeed }),
@@ -241,10 +254,11 @@ export const ProvidersStep = ({
     const firstSeed = freshSeed()
     setStrategy("reliable")
     setSeed(firstSeed)
+    setPickedFrom(providers)
     onSelected(
       pickBest(pool, { count: pickCount, ...RECIPES.reliable, priceMax, ratingMax, seed: firstSeed }),
     )
-  }, [loading, providers.length, selected.length, pool, pickCount, priceMax, ratingMax, onSelected])
+  }, [loading, providers, selected.length, pool, pickCount, priceMax, ratingMax, onSelected])
 
   const pinned = useMemo(() => {
     const known = new Map(providers.map((provider) => [provider.pubkey, provider]))

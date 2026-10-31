@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Provider } from "@/types/provider"
 import type { Tone } from "@/types/tone"
 import { failureStatus, fetchProviders } from "./api"
-import { BYTES_IN_GIB, NANO, SECONDS_IN_DAY } from "./format"
+import { BYTES_IN_GIB, NANO, SECONDS_IN_DAY, nowSeconds } from "./format"
 import { MAX_SELECTED } from "./pricing"
 
 export interface ProviderFilters {
@@ -39,6 +39,10 @@ export const MIN_UPTIME = 50
 export const ONLINE_WINDOW = 5 * 60
 
 export const MIN_PROVEN_DAYS = 30
+
+const CATALOG_MAX_AGE = 5 * 60
+
+const CATALOG_TICK_MS = 60_000
 
 const SHORTLIST_WIDTH = 2
 
@@ -426,29 +430,51 @@ export const useProviderCatalog = (): ProviderCatalog => {
   const [manual, setManual] = useState<Provider[]>([])
   const [loading, setLoading] = useState(true)
   const [failure, setFailure] = useState<{ status: number | null } | null>(null)
-  const [fetchedAt, setFetchedAt] = useState(() => Date.now())
+  const [fetchedAt, setFetchedAt] = useState(nowSeconds)
   const [attempt, setAttempt] = useState(0)
+  const triedAt = useRef(0)
 
-  useEffect(() => {
-    const controller = new AbortController()
-
-    setLoading(true)
-    setFailure(null)
-    fetchProviders(controller.signal)
+  const load = useCallback((signal: AbortSignal, quiet: boolean) => {
+    triedAt.current = nowSeconds()
+    if (!quiet) {
+      setLoading(true)
+      setFailure(null)
+    }
+    fetchProviders(signal)
       .then((list) => {
-        if (controller.signal.aborted) return
+        if (signal.aborted) return
         setProviders(list)
-        setFetchedAt(Date.now())
+        setFetchedAt(nowSeconds())
+        setFailure(null)
         setLoading(false)
       })
       .catch((error: unknown) => {
-        if (controller.signal.aborted) return
+        if (signal.aborted || quiet) return
         setFailure({ status: failureStatus(error) })
         setLoading(false)
       })
+  }, [])
 
+  useEffect(() => {
+    const controller = new AbortController()
+    load(controller.signal, false)
     return () => controller.abort()
-  }, [attempt])
+  }, [attempt, load])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const tick = (): void => {
+      if (document.visibilityState === "visible" && nowSeconds() - triedAt.current >= CATALOG_MAX_AGE) load(controller.signal, true)
+    }
+    const timer = window.setInterval(tick, CATALOG_TICK_MS)
+    document.addEventListener("visibilitychange", tick)
+
+    return () => {
+      controller.abort()
+      window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", tick)
+    }
+  }, [load])
 
   const reload = useCallback(() => setAttempt((value) => value + 1), [])
 

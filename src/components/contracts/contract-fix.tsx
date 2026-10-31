@@ -58,6 +58,7 @@ export const ContractFix = ({
   const [attempt, setAttempt] = useState(0)
   const [offers, setOffers] = useState<ProviderOffer[] | null>(null)
   const [quoteError, setQuoteError] = useState<string | null>(null)
+  const [pickedFrom, setPickedFrom] = useState<Provider[] | null>(null)
   const { checking, invalidate, request } = useQuote()
   const { state: latest } = useContractData(contract.address)
 
@@ -77,13 +78,18 @@ export const ContractFix = ({
     bagSize: fileSize,
     seed,
   }
-  const added = state ? pickReplacements(providers, { ...wanted, proofDays: span / SECONDS_IN_DAY }) : []
-  const spanLimited = added.length < wanted.count && pickReplacements(providers, { ...wanted, proofDays: null }).length > added.length
+  const candidates = pickedFrom ?? providers
+  const added = state ? pickReplacements(candidates, { ...wanted, proofDays: span / SECONDS_IN_DAY }) : []
+  const spanLimited = added.length < wanted.count && pickReplacements(candidates, { ...wanted, proofDays: null }).length > added.length
   const bagId = contract.bagId || state?.torrentHash || ""
   const picking = catalogLoading || catalogFailed
   const keptKey = kept.join(",")
   const addedKey = added.join(",")
   const gone = !state || silent.length === 0 || silent.length === state.providers.length
+
+  useEffect(() => {
+    if (!picking && pickedFrom === null) setPickedFrom(providers)
+  }, [picking, pickedFrom, providers])
 
   useEffect(() => {
     invalidate()
@@ -153,6 +159,7 @@ export const ContractFix = ({
   }
 
   const pickAgain = () => {
+    setPickedFrom(providers)
     setSeed(freshSeed())
     setRounds(0)
     setDropped(0)
