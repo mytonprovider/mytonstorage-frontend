@@ -19,6 +19,7 @@ import {
   contractStatus,
   paymentTone,
   LOW_BALANCE_DAYS,
+  replacementQuotes,
   countChecks,
   shownChecks,
   discover,
@@ -33,7 +34,7 @@ import {
   type ContractRow,
 } from "./contracts"
 import { knownStateHash, peekState, putState, resetContractCachesForTests } from "./contracts-cache"
-import { state, translate } from "./fixtures"
+import { base, cheapDutch, state, translate } from "./fixtures"
 import { SECONDS_IN_DAY, type Translate } from "./format"
 import { PENDING_KEY } from "./local-storage"
 import { forgetPendingFound, markPendingLinked, writePendingPaid } from "./paid-link"
@@ -879,6 +880,14 @@ describe("contractProblem", () => {
   it("says nothing about a closed contract or one whose state is not read yet", () => {
     expect(contractProblem({ ...rowOf([prover("a", 0)]), closed: true }, now)).toBe(null)
     expect(contractProblem({ ...rowOf([]), state: undefined }, now)).toBe(null)
+  })
+
+  it("quotes a contract that needs a replacement for its live providers and the pool, without the silent ones", () => {
+    const silent = rowOf([prover("AA", now - DAY), prover("bb", now - 9 * DAY)])
+    const healthy = { ...rowOf([prover("aa", now - DAY)]), address: "EQhealthy" }
+    const catalog = [base, { ...cheapDutch, pubkey: "aa" }]
+    const jobs = replacementQuotes([{ ...silent, bagId: "BAG" }, { ...healthy, bagId: "OTHER" }], catalog, now)
+    expect(jobs).toEqual([{ bagId: "BAG", span: 7 * DAY, fileSize: GIB, keys: ["aa", base.pubkey] }])
   })
 
   it("keeps the time of a replacement over a list snapshot taken before it", () => {

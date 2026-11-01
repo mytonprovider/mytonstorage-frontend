@@ -184,10 +184,17 @@ export const countSpanMismatched = (
   return all.filter((provider) => matchesApartFromSpan(provider, filters, "", bagSize, since) && !spanAllows(provider, proofDays)).length
 }
 
-export const countMatching = (all: Provider[], filters: ProviderFilters, proofDays: number, bagSize = 0): number => {
-  const since = onlineSince(all)
-  return all.filter((provider) => matches(provider, filters, proofDays, "", bagSize, since)).length
+export const hostingPool = (catalog: Provider[], proofDays: number | null, bagSize: number, filters = NO_FILTERS): Provider[] => {
+  const since = onlineSince(catalog)
+  return catalog.filter((provider) =>
+    proofDays === null
+      ? matchesApartFromSpan(provider, filters, "", bagSize, since)
+      : matches(provider, filters, proofDays, "", bagSize, since),
+  )
 }
+
+export const countMatching = (all: Provider[], filters: ProviderFilters, proofDays: number, bagSize = 0): number =>
+  hostingPool(all, proofDays, bagSize, filters).length
 
 const DECLINE_KEYS: [string, string][] = [
   ["context deadline exceeded", "declines.longResponse"],
@@ -363,14 +370,7 @@ export const pickReplacements = (
   { skip, count, proofDays, bagSize, seed }: { skip: string[]; count: number; proofDays: number | null; bagSize: number; seed?: number },
 ): string[] => {
   const skipped = new Set(skip.map((key) => key.toLowerCase()))
-  const since = onlineSince(catalog)
-  const pool = catalog.filter(
-    (provider) =>
-      !skipped.has(provider.pubkey.toLowerCase()) &&
-      (proofDays === null
-        ? matchesApartFromSpan(provider, NO_FILTERS, "", bagSize, since)
-        : matches(provider, NO_FILTERS, proofDays, "", bagSize, since)),
-  )
+  const pool = hostingPool(catalog, proofDays, bagSize).filter((provider) => !skipped.has(provider.pubkey.toLowerCase()))
   return pickBest(pool, {
     count,
     criterion: "uptime",

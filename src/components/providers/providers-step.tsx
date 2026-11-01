@@ -12,8 +12,8 @@ import {
   eligibleFor,
   freshSeed,
   hasFilters,
+  hostingPool,
   matches,
-  onlineSince,
   pickBest,
   pinnedOf,
   priceCeiling,
@@ -59,10 +59,7 @@ const poolOf = (
   bagSize: number,
   sortField: SortField,
   sortDirection: SortDirection,
-): Provider[] => {
-  const since = onlineSince(list)
-  return sortProviders(list.filter((provider) => matches(provider, filters, proofDays, "", bagSize, since)), sortField, sortDirection)
-}
+): Provider[] => sortProviders(hostingPool(list, proofDays, bagSize, filters), sortField, sortDirection)
 
 interface ProvidersStepProps {
   providers: Provider[]

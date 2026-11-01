@@ -258,6 +258,19 @@ describe("forgetOffers", () => {
     await fetchOffers("forgotten", 604800, ["ab"])
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
+
+  it("drops only the quotes of the bag it is given", async () => {
+    const quoted = { offers: [{ provider: { key: "AB" }, price_per_proof: 1, price_per_mb: 1 }], declines: [] }
+    const fetchMock = respondWith(quoted)
+    vi.stubGlobal("fetch", fetchMock)
+
+    await fetchOffers("dropped", 604800, ["ab"])
+    await fetchOffers("spared", 604800, ["ab"])
+    forgetOffers("dropped")
+    await fetchOffers("dropped", 604800, ["ab"])
+    await fetchOffers("spared", 604800, ["ab"])
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
 })
 
 describe("fetchOffers", () => {
@@ -337,5 +350,78 @@ describe("fetchOffers", () => {
 
     await fetchOffers("kept", 1209600, ["abc"])
     expect(asked(2)).toEqual(["abc"])
+  })
+
+  it("keeps a refusal as long as an offer, so the same provider is not asked again", async () => {
+    const decline = { provider_key: "ABC", reason: "not enough space" }
+    const fetchMock = respondWith({ offers: [], declines: [decline] })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await fetchOffers("declined", 604800, ["abc"])
+    const repeated = await fetchOffers("declined", 604800, ["abc"])
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(repeated).toEqual({ offers: [], declines: [decline] })
+  })
+
+  it("joins a request already in flight instead of sending the same keys twice", async () => {
+    const offer = { price_per_proof: 1, price_per_mb: 1, provider: { key: "ABC" } }
+    let answer: (response: Response) => void = () => undefined
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => (answer = resolve)))
+    vi.stubGlobal("fetch", fetchMock)
+
+    const early = fetchOffers("joined", 604800, ["abc"])
+    const late = fetchOffers("joined", 604800, ["abc"])
+    answer(new Response(JSON.stringify({ offers: [offer], declines: [] })))
+
+    await expect(Promise.all([early, late])).resolves.toEqual([
+      { offers: [offer], declines: [] },
+      { offers: [offer], declines: [] },
+    ])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("fails every caller that joined a request which failed, instead of answering with nothing", async () => {
+    let answer: (response: Response) => void = () => undefined
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => (answer = resolve))))
+
+    const early = fetchOffers("failed", 604800, ["abc"])
+    const late = fetchOffers("failed", 604800, ["abc"])
+    answer(new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 }))
+
+    await expect(early).rejects.toMatchObject({ status: 401 })
+    await expect(late).rejects.toMatchObject({ status: 401 })
+  })
+
+  it("asks again for a provider the backend neither quoted nor refused", async () => {
+    const fetchMock = respondWith({ offers: [], declines: [] })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await fetchOffers("silent", 604800, ["abc"])
+    await fetchOffers("silent", 604800, ["abc"])
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("asks once and answers once for a key given twice in different case", async () => {
+    const offer = { price_per_proof: 1, price_per_mb: 1, provider: { key: "ABC" } }
+    const fetchMock = respondWith({ offers: [offer], declines: [] })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(fetchOffers("twice", 604800, ["abc", "ABC"])).resolves.toEqual({ offers: [offer], declines: [] })
+    const [, init] = fetchMock.mock.calls[0]
+    expect(asRecord(JSON.parse(typeof init?.body === "string" ? init.body : "{}")).providers).toHaveLength(1)
+  })
+
+  it("splits a pool larger than the backend accepts into requests of fifty", async () => {
+    const fetchMock = respondWith({ offers: [], declines: [] })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await fetchOffers("pool", 604800, Array.from({ length: 60 }, (_, at) => `k${at}`))
+
+    const sizes = fetchMock.mock.calls.map(([, init]) => {
+      const providers = asRecord(JSON.parse(typeof init?.body === "string" ? init.body : "{}")).providers
+      return Array.isArray(providers) ? providers.length : 0
+    })
+    expect(sizes).toEqual([50, 10])
   })
 })

@@ -1,6 +1,7 @@
-import { useState } from "react"
-import { topupContract, updateContract, withdrawContract } from "@/lib/api"
-import type { ContractsState } from "@/lib/contracts"
+import { useEffect, useState } from "react"
+import { prefetchOffers, topupContract, updateContract, withdrawContract } from "@/lib/api"
+import { replacementQuotes, type ContractsState } from "@/lib/contracts"
+import { nowSeconds } from "@/lib/format"
 import type { ProviderCatalog } from "@/lib/providers"
 import type { UnpaidBagsState } from "@/lib/unpaid-bags"
 import type { UserBag } from "@/types/bag"
@@ -33,6 +34,22 @@ export const FilesStage = ({
   onRemoveBag,
 }: FilesStageProps) => {
   const [editing, setEditing] = useState<OpenEditor | null>(null)
+
+  useEffect(() => {
+    if (catalog.loading) return
+    const jobs = replacementQuotes(contracts.list, catalog.providers, nowSeconds())
+    let stopped = false
+    const run = async () => {
+      for (const { bagId, span, fileSize, keys } of jobs) {
+        if (stopped) return
+        await prefetchOffers(bagId, span, keys, fileSize)
+      }
+    }
+    void run()
+    return () => {
+      stopped = true
+    }
+  }, [contracts.list, catalog.loading, catalog.providers])
 
   const saveProviders = (address: string, pubkeys: string[], span: number, fileSize: number, amount: number) => {
     void contracts.run(address, () => updateContract({ address, providers: pubkeys, bag_size: fileSize, amount, span }), pubkeys)
