@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { Button, Notice } from "@myton/ui"
+import { DAY, type Provider } from "@myton/ui/domain"
+import { pickLang } from "@myton/ui/i18n"
 import { useQuote } from "@/lib/api"
 import { useCheckLabel, type CheckWarn } from "@/lib/check-label"
 import { useContractData, type ContractState } from "@/lib/contracts-cache"
-import { formatDate, formatDuration, nowSeconds, SECONDS_IN_DAY, tonLabel } from "@/lib/format"
+import { formatDate, formatDuration, nowSeconds, tonLabel } from "@/lib/format"
 import {
   commonSpan,
   DEFAULT_PROOF_DAYS,
@@ -18,8 +21,6 @@ import {
 } from "@/lib/pricing"
 import type { ProviderDecline, ProviderOffer } from "@/types/bag"
 import type { StorageContract } from "@/types/contract"
-import type { Provider } from "@/types/provider"
-import { Notice } from "../notice"
 import { ProvidersStep } from "../providers/providers-step"
 
 interface ContractProvidersProps {
@@ -54,6 +55,7 @@ export const ContractProviders = ({
   onSubmit,
 }: ContractProvidersProps) => {
   const { t, i18n } = useTranslation()
+  const lang = pickLang(i18n.language)
   const [pickedKeys, setPickedKeys] = useState<string[] | null>(null)
   const [pickedDays, setPickedDays] = useState<number | null>(null)
   const [declines, setDeclines] = useState<ProviderDecline[]>([])
@@ -85,9 +87,9 @@ export const ContractProviders = ({
       <Notice
         tone="red"
         action={
-          <button type="button" onClick={retry}>
-            {t("ui.retry")}
-          </button>
+          <Button size="sm" onClick={retry}>
+            {t("ui:ui.retry")}
+          </Button>
         }
       >
         {t("files.topupOffline")}
@@ -127,14 +129,14 @@ export const ContractProviders = ({
 
   const warnOf = (pubkey: string): CheckWarn | undefined => {
     const check = checkLabel(statuses.find((status) => status.provider_pubkey === pubkey))
-    if (check?.kind !== "notStored") return undefined
-    return { short: check.short, full: check.ago ? `${check.long} · ${check.ago}` : check.long }
+    if (check?.kind !== "notStored" && check?.kind !== "unavailable") return undefined
+    return { short: t("providers.rowCheckFailed"), full: check.long, tone: check.tone }
   }
 
   const bagId = contract.bagId || base.torrentHash
   const touched = pickedDays !== null
   const contractSpan = commonSpan(base.providers)
-  const spanSeconds = touched ? pickedDays * SECONDS_IN_DAY : contractSpan || DEFAULT_PROOF_DAYS * SECONDS_IN_DAY
+  const spanSeconds = touched ? pickedDays * DAY : contractSpan || DEFAULT_PROOF_DAYS * DAY
   const contractKeys = new Set(basePubkeys.map((key) => key.toLowerCase()))
   const added = selected.some((key) => !contractKeys.has(key.toLowerCase()))
   const unchanged = !added && selected.length === basePubkeys.length && spanSeconds === contractSpan
@@ -215,14 +217,12 @@ export const ContractProviders = ({
       status={status}
       onRetry={onRetry}
       selected={selected}
-      proofDays={spanSeconds / SECONDS_IN_DAY}
+      proofDays={spanSeconds / DAY}
       bagSize={base.fileSize}
       checking={quoting || active}
       declines={declines}
       copied={copied}
-      proofValueLabel={
-        touched || !contractSpan ? undefined : formatDuration(contractSpan, t)
-      }
+      proofValueLabel={touched || !contractSpan ? undefined : formatDuration(contractSpan, lang)}
       fates={fates}
       warning={warning}
       error={quoteError}
@@ -231,7 +231,7 @@ export const ContractProviders = ({
       submitDisabled={busy || unchanged}
       editor
       total={checked ? tonLabel(fee) : undefined}
-      until={checked && nextPaidDays !== null ? formatDate(now + nextPaidDays * SECONDS_IN_DAY, i18n.language) : undefined}
+      until={checked && nextPaidDays !== null ? formatDate(now + nextPaidDays * DAY, i18n.language) : undefined}
       submitReason={unchanged ? t("providers.unchangedHint") : undefined}
       revertDisabled={unchanged}
       onSelected={setPickedKeys}

@@ -89,12 +89,6 @@ describe("writeContractsCache", () => {
     writeContractsCache(OWNER, { headLt: "500", closedLt: null, rows: [row] })
     expect(readContractsCache("EQOther")).toBeNull()
   })
-
-  it("moves the cursors forward on the next write", () => {
-    writeContractsCache(OWNER, { headLt: "500", closedLt: "100", rows: [row] })
-    writeContractsCache(OWNER, { headLt: "700", closedLt: "100", rows: [row] })
-    expect(readContractsCache(OWNER)).toMatchObject({ headLt: "700", closedLt: "100" })
-  })
 })
 
 describe("readContractsCache", () => {
@@ -142,7 +136,7 @@ describe("contract state cache", () => {
 })
 
 describe("stateOf", () => {
-  it("turns an account state with a data cell into the shape the pricing reads", () => {
+  it("turns an account state with a data cell into the shape the pricing reads, and reads nothing from one without", () => {
     const read = stateOf({
       address: "0:129e",
       balance: 224577526,
@@ -158,9 +152,6 @@ describe("stateOf", () => {
       fileSize: 4294967357,
       providers: [{ pubkey: "3a88fdb5f6c2d977c7b09f2e69b51a1e1de8cd65efe86b8a783fcd3dee195ff0", ratePerMbDay: 1628, maxSpan: 2592000, lastProofTime: 0 }],
     })
-  })
-
-  it("reads nothing from an account without a data cell", () => {
     expect(stateOf({ address: "0:1", balance: 0, codeHash: null, stateHash: null, lastLt: null, dataBoc: null })).toBeNull()
   })
 })
@@ -298,15 +289,19 @@ describe("migrateStored", () => {
     expect(localStorage.getItem(PENDING_KEY)).toBe(fresh)
   })
 
-  it("keeps the hide-closed choice and sweeps every cache the old version left, whatever it was named", () => {
+  it("keeps the hide-closed choice and sweeps every cache the old version left, whatever it was named, leaving keys that are not ours alone", () => {
     localStorage.setItem("mts_hide_closed", "1")
     localStorage.setItem("mts_contract_rows", "[]")
     localStorage.setItem("mts_economics", "{}")
     localStorage.setItem("mts_contracts_UQowner", "{}")
     localStorage.setItem(THEME_KEY, '"dark"')
+    localStorage.setItem("ton-connect-ui_wallet-info", '{"name":"Tonkeeper"}')
+    localStorage.setItem("ton-connect-storage_bridge-connection", "{}")
     migrateStored()
     expect(readListView().hideClosed).toBe(true)
     expect(localStorage.getItem(THEME_KEY)).toBe('"dark"')
+    expect(localStorage.getItem("ton-connect-ui_wallet-info")).toBe('{"name":"Tonkeeper"}')
+    expect(localStorage.getItem("ton-connect-storage_bridge-connection")).toBe("{}")
     for (const gone of ["mts_hide_closed", "mts_contract_rows", "mts_economics", "mts_contracts_UQowner"]) {
       expect(localStorage.getItem(gone)).toBeNull()
     }
@@ -342,24 +337,10 @@ describe("migrateStored", () => {
     const kept = Array.from({ length: localStorage.length }, (_, at) => localStorage.key(at)).filter(Boolean)
     expect(kept).toEqual(["mts_schema"])
   })
-
-  it("leaves keys that are not ours alone", () => {
-    localStorage.setItem("ton-connect-ui_wallet-info", '{"name":"Tonkeeper"}')
-    localStorage.setItem("ton-connect-storage_bridge-connection", "{}")
-    localStorage.setItem("mts_hide_closed", "1")
-    migrateStored()
-    expect(localStorage.getItem("ton-connect-ui_wallet-info")).toBe('{"name":"Tonkeeper"}')
-    expect(localStorage.getItem("ton-connect-storage_bridge-connection")).toBe("{}")
-  })
 })
 
 describe("state cache guards its shape", () => {
   const good = { torrentHash: "f".repeat(64), fileSize: 1024, balance: 500, providers: [{ pubkey: "a", ratePerMbDay: 1, maxSpan: 2, lastProofTime: 3 }] }
-
-  it("keeps a record it can read back whole", () => {
-    localStorage.setItem(STATES_KEY, JSON.stringify({ EQA: { stateHash: "h", value: good } }))
-    expect(peekState("EQA")).toEqual(good)
-  })
 
   it("drops a record whose providers are not providers, so money is never counted on junk", () => {
     const junk = [

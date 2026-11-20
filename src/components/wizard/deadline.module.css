@@ -4,6 +4,6 @@
 }
 
 .time {
-  font-weight: 600;
+  font-weight: var(--w-medium);
   color: var(--text);
 }

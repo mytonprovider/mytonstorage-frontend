@@ -15,8 +15,8 @@ export const CONFIRM_TIMEOUT = "errors.confirmTimeout"
 export const checkErrorKey = (check: DeployCheck): string =>
   check === "missing" ? "errors.paymentFailed" : PAYMENT_UNCHECKED
 
-export const payErrorTone = (key: string): "neutral" | "red" =>
-  key === PAYMENT_UNCHECKED || key === CONFIRM_TIMEOUT ? "neutral" : "red"
+export const payErrorTone = (key: string): "gray" | "red" =>
+  key === PAYMENT_UNCHECKED || key === CONFIRM_TIMEOUT ? "gray" : "red"
 
 export const payErrorKey = (
   error: unknown,

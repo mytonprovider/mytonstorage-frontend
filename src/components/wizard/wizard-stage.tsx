@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { useTranslation } from "react-i18next"
+import { DAY } from "@myton/ui/domain"
 import { prefetchOffers } from "@/lib/api"
-import { SECONDS_IN_DAY } from "@/lib/format"
 import { hostingPool, type ProviderCatalog } from "@/lib/providers"
 import { deployInFlight, type WizardFlow } from "@/lib/wizard"
 import { Deadline } from "./deadline"
@@ -31,7 +31,7 @@ export const WizardStage = ({ wizard, catalog, copied, onCopy, onOpenProvider, o
     if (step > 2 || !bagId || bagSize <= 0 || expired || catalog.loading) return
     const pool = hostingPool(catalog.providers, proofDays, bagSize).map(({ pubkey }) => pubkey)
     if (!pool.length) return
-    const timer = window.setTimeout(() => void prefetchOffers(bagId, proofDays * SECONDS_IN_DAY, pool, bagSize), PREFETCH_DELAY_MS)
+    const timer = window.setTimeout(() => void prefetchOffers(bagId, proofDays * DAY, pool, bagSize), PREFETCH_DELAY_MS)
     return () => window.clearTimeout(timer)
   }, [step, bagId, bagSize, proofDays, expired, catalog.loading, catalog.providers])
 

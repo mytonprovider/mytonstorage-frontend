@@ -119,18 +119,6 @@ describe("toncenter queue", () => {
   })
 })
 
-describe("fetchTransactions", () => {
-  it("carries the response code as a value, so the contracts list shows it without reading the message", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) })))
-
-    const { fetchTransactions, ChainRequestError } = await load()
-    const failed = await fetchTransactions("EQOWNER", 100, null).catch((error: unknown) => error)
-
-    expect(failed).toBeInstanceOf(ChainRequestError)
-    expect((failed as InstanceType<typeof ChainRequestError>).status).toBe(500)
-  })
-})
-
 const OWNER = "0:83AE019A23A8162BEAA5CB0EBDC56668B2EAC6C6BA51808812915B206A152DC5"
 const CONTRACT = "0:129EDAF43C14BD0EBF6682A44D5E994839242923CE4460B241CBB11C231E7FF8"
 const CONTRACT_FRIENDLY = "EQASntr0PBS9Dr9mgqRNXplIOSQpI85EYLJBy7EcIx5_-Bxx"

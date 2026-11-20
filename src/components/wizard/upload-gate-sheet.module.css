@@ -14,12 +14,12 @@
 
 .name {
   composes: ellipsis from "../shared.module.css";
-  font-weight: 500;
+  font-weight: var(--w-medium);
   color: var(--text);
 }
 
 .meta {
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
@@ -33,8 +33,8 @@
 }
 
 .note {
-  font-size: var(--font-sm);
-  color: var(--text-3);
+  font-size: var(--font-base);
+  color: var(--text-2);
   text-wrap: pretty;
 }
 

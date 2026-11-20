@@ -1,30 +1,23 @@
-import type { ComponentType, ReactNode } from "react"
-import { useTranslation } from "react-i18next"
-import { cx } from "@/lib/cx"
-import { CopyButton } from "./copy-button"
-import { GhostIcon } from "./table"
-import shared from "./shared.module.css"
+import type { ReactNode } from "react"
+import { FieldGroup, FieldRow, ShortId, skeletonClass } from "@myton/ui"
 import styles from "./sheet-fields.module.css"
 
 interface SheetSectionProps {
-  icon: ComponentType<{ className?: string; "aria-hidden"?: "true" }>
   title: string
   children: ReactNode
 }
 
-export const SheetSection = ({ icon: Icon, title, children }: SheetSectionProps) => (
-  <section className={styles.section}>
-    <h3 className={styles.title}>
-      <Icon className={shared.titleIcon} aria-hidden="true" />
-      <span>{title}</span>
-    </h3>
-    <div className={styles.fields}>{children}</div>
-  </section>
+export const SheetSection = ({ title, children }: SheetSectionProps) => (
+  <FieldGroup title={title} className={styles.section}>
+    {children}
+  </FieldGroup>
 )
 
 export interface SheetFieldProps {
   label: string
-  value: string
+  value?: string
+  // A key, address or hash: ShortId fits it to the row, so the value is left out.
+  id?: string
   title?: string
   href?: string
   mono?: boolean
@@ -32,62 +25,22 @@ export interface SheetFieldProps {
   alert?: boolean
   warn?: boolean
   ghost?: boolean
-  pending?: boolean
   copy?: string
   copied?: string | null
   onCopy?: (value: string) => void
 }
 
-export const SheetField = ({
-  label,
-  value,
-  title,
-  href,
-  mono,
-  upper,
-  alert,
-  warn,
-  ghost,
-  pending,
-  copy,
-  copied,
-  onCopy,
-}: SheetFieldProps) => {
-  const { t } = useTranslation()
-
-  return (
-    <div aria-hidden={ghost ? "true" : undefined} className={styles.field}>
-      <span className={cx(styles.label, ghost && shared.shape)}>{label}</span>
-      <span className={styles.gap} />
-      {href ? (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={title}
-          className={cx(styles.value, styles.link, mono && styles.mono, upper && styles.upper)}
-        >
-          {value}
-        </a>
-      ) : (
-        <span
-          title={title}
-          aria-busy={pending ? "true" : undefined}
-          className={cx(styles.value, mono && styles.mono, upper && styles.upper, alert && styles.alert, !alert && warn && styles.warn, (ghost || pending) && shared.shape)}
-        >
-          {value}
-        </span>
-      )}
-      {pending && <GhostIcon />}
-      {copy && onCopy && (
-        <CopyButton
-          value={copy}
-          copied={copied === copy}
-          onCopy={onCopy}
-          label={`${t("ui.copy")} ${value}`}
-          className={styles.copy}
-        />
-      )}
-    </div>
-  )
-}
+export const SheetField = ({ id, value = "", upper, mono, alert, warn, ghost, copy, copied, ...field }: SheetFieldProps) => (
+  <FieldRow
+    {...field}
+    value={id ? <ShortId value={id} upper={Boolean(upper)} /> : value}
+    upper={id ? undefined : upper}
+    mono={id ? undefined : mono}
+    tone={alert ? "red" : warn ? "yellow" : undefined}
+    copy={copy}
+    copied={copy !== undefined && copied === copy}
+    hidden={ghost}
+    labelClassName={ghost ? skeletonClass() : undefined}
+    valueClassName={ghost ? skeletonClass() : undefined}
+  />
+)

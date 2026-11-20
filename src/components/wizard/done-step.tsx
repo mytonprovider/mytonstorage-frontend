@@ -1,10 +1,10 @@
-import { CircleCheck, FileText, Package } from "lucide-react"
+import { FileText, Package } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import { ActionRow, Button, buttonClass, FieldList, Notice, SectionTitle } from "@myton/ui"
+import { EMPTY, explorerUrl, fmt } from "@myton/ui/domain"
 import { gatewayUrl } from "@/lib/api"
-import { scanUrl, txUrl } from "@/lib/contracts"
-import { formatBytes, shortenMiddle } from "@/lib/format"
+import { txUrl } from "@/lib/contracts"
 import { SheetField } from "../sheet-fields"
-import shared from "../shared.module.css"
 import styles from "./done-step.module.css"
 
 interface DoneStepProps {
@@ -34,32 +34,26 @@ export const DoneStep = ({
 
   return (
     <div className={styles.step}>
-      <div className={styles.lead}>
-        <h2 className={styles.leadTitle}>
-          <CircleCheck className={styles.okIcon} aria-hidden="true" />
-          <span>{t("done.title")}</span>
-        </h2>
+      <Notice tone="green" className={styles.lead}>
+        <strong className={styles.leadTitle}>{t("done.title")}</strong>
         <ul className={styles.leadList}>
           <li>{t("done.nextStored")}</li>
           <li>{t("done.nextProviders")}</li>
           <li>{t("done.nextTrack")}</li>
           <li>{t("done.nextPublic")}</li>
         </ul>
-      </div>
+      </Notice>
 
       <div className={styles.heading}>
-        <h2 className={shared.tableTitle}>
-          <Package className={shared.titleIcon} aria-hidden="true" />
+        <SectionTitle size="lg" icon={Package}>
           <span>{t("done.bag")}</span>
-        </h2>
+        </SectionTitle>
       </div>
 
-      <div className={styles.box}>
+      <FieldList card className={styles.box}>
         <SheetField
           label={t("files.bagId")}
-          value={shortenMiddle(bagId, 6, 6)}
-          title={bagId}
-          mono
+          id={bagId}
           upper
           copy={bagId}
           copied={copied}
@@ -67,33 +61,30 @@ export const DoneStep = ({
         />
         <SheetField
           label={t("files.desc")}
-          value={description}
+          value={description || EMPTY}
           title={description || undefined}
           copy={description || undefined}
           copied={copied}
           onCopy={onCopy}
         />
         <SheetField label={t("done.filesCount")} value={String(filesCount)} />
-        <SheetField label={t("files.size")} value={formatBytes(size)} />
-      </div>
+        <SheetField label={t("files.size")} value={fmt.bytes(size)} />
+      </FieldList>
 
       {(contractAddress || paymentHash) && (
         <>
           <div className={styles.heading}>
-            <h2 className={shared.tableTitle}>
-              <FileText className={shared.titleIcon} aria-hidden="true" />
+            <SectionTitle size="lg" icon={FileText}>
               <span>{t("details.contract")}</span>
-            </h2>
+            </SectionTitle>
           </div>
 
-          <div className={styles.box}>
+          <FieldList card className={styles.box}>
             {contractAddress && (
               <SheetField
                 label={t("files.contract")}
-                value={shortenMiddle(contractAddress, 6, 6)}
-                title={contractAddress}
-                href={scanUrl(contractAddress)}
-                mono
+                id={contractAddress}
+                href={explorerUrl(contractAddress)}
                 copy={contractAddress}
                 copied={copied}
                 onCopy={onCopy}
@@ -102,27 +93,25 @@ export const DoneStep = ({
             {paymentHash && (
               <SheetField
                 label={t("done.tx")}
-                value={shortenMiddle(paymentHash, 6, 6)}
-                title={paymentHash}
+                id={paymentHash}
                 href={txUrl(paymentHash)}
-                mono
                 copy={paymentHash}
                 copied={copied}
                 onCopy={onCopy}
               />
             )}
-          </div>
+          </FieldList>
         </>
       )}
 
-      <div className={styles.footer}>
-        <a href={gatewayUrl(bagId)} target="_blank" rel="noopener noreferrer" className={shared.secondary}>
+      <ActionRow className={styles.footer}>
+        <a href={gatewayUrl(bagId)} target="_blank" rel="noopener noreferrer" className={buttonClass({ size: "xl" })}>
           {t("done.gateway")}
         </a>
-        <button type="button" onClick={onFinish} className={shared.primary}>
+        <Button variant="primary" size="xl" onClick={onFinish}>
           {t("done.finish")}
-        </button>
-      </div>
+        </Button>
+      </ActionRow>
     </div>
   )
 }

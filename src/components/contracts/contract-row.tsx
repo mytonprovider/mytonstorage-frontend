@@ -1,14 +1,14 @@
-import type { CSSProperties, MouseEvent, ReactNode } from "react"
+import type { CSSProperties, ReactNode } from "react"
 import { CircleX, Loader, Pencil, TriangleAlert, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import { Badge, CheckRatio, cx, DataActions, DataCell, DataLead, DataRow, GhostIcon, GhostValue, glyphClass, IconButton } from "@myton/ui"
+import { DAY, EMPTY, explorerUrl, fmt, type StatusTone } from "@myton/ui/domain"
 import { gatewayUrl } from "@/lib/api"
-import { cx } from "@/lib/cx"
-import { contractProblem, contractStatus, paymentTone, scanUrl, shownChecks, silentProviders, verdictWord, type ContractRow as ContractRowData, type ContractVerdict } from "@/lib/contracts"
+import { checksTone } from "@/lib/check-label"
+import { contractProblem, contractStatus, paymentTone, shownChecks, silentProviders, verdictWord, type ContractRow as ContractRowData, type ContractVerdict } from "@/lib/contracts"
 import type { ContractSortField } from "@/lib/contracts-view"
-import { MIB, SECONDS_IN_DAY, formatBytes, formatDate, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
+import { MIB, formatDate, nowSeconds, tonLabel } from "@/lib/format"
 import { dailyCost, paidDaysLeft, payoutDays } from "@/lib/pricing"
-import { IconButton } from "../icon-button"
-import { GhostCopy, GhostIcon, GhostValue, Ratio, TableCell, TableLead, activateOnKey } from "../table"
 import shared from "../shared.module.css"
 import styles from "./contracts-list.module.css"
 
@@ -30,44 +30,36 @@ const WIDEST_SIZE = 999.99 * MIB
 const DESC_HEAD = 17
 const DESC_TAIL = 17
 
-
 const useSkeletonSample = (): Record<string, string> => {
   const { i18n } = useTranslation()
 
   return {
-    "files.contract": shortenMiddle(WIDEST_ADDRESS, 6, 6),
-    "files.bagId": shortenMiddle(WIDEST_BAG, 6, 6),
+    "files.contract": fmt.shortKey(WIDEST_ADDRESS),
+    "files.bagId": fmt.shortKey(WIDEST_BAG),
     "files.desc": WIDEST_DESC,
-    "files.size": formatBytes(WIDEST_SIZE),
+    "files.size": fmt.bytes(WIDEST_SIZE),
     "files.paidUntil": formatDate(nowSeconds(), i18n.language),
   }
 }
 
-const GhostRatio = () => (
-  <span aria-hidden="true" className={shared.ratio}>
-    <span className={cx(shared.ratioTotal, shared.shape)}>0</span>
-    <span className={shared.slash}>/</span>
-    <span className={cx(shared.ratioTotal, shared.shape)}>0</span>
-  </span>
-)
+const GhostRatio = () => <CheckRatio passed={0} total={0} tone="gray" loading />
 
 const GhostLead = ({ sample }: { sample: string }) => (
   <span className={cx(shared.tableLead, styles.ghostLead)}>
-    <GhostValue mono sample={sample} />
-    <GhostCopy />
+    <GhostValue sample={sample} className={shared.tableMono} />
+    <GhostIcon />
   </span>
 )
 
 const WORDED: ContractVerdict[] = ["closed", "noPeers"]
 
-const StatusPill = ({ wordKey, tone }: { wordKey: string; tone?: string }) => {
+const StatusPill = ({ wordKey, tone }: { wordKey: string; tone: StatusTone }) => {
   const { t } = useTranslation()
 
   return (
-    <span data-tone={tone} className={shared.badge}>
-      <span className={shared.dot} aria-hidden="true" />
+    <Badge tone={tone} size="sm" dot>
       {t(wordKey)}
-    </span>
+    </Badge>
   )
 }
 
@@ -76,7 +68,7 @@ const StatusSlot = ({ children }: { children: ReactNode }) => (
     {children}
     <span className={styles.statusGhost} aria-hidden="true">
       {WORDED.map((verdict) => (
-        <StatusPill key={verdict} wordKey={verdictWord(verdict)} />
+        <StatusPill key={verdict} wordKey={verdictWord(verdict)} tone="gray" />
       ))}
     </span>
   </span>
@@ -87,39 +79,39 @@ export const SkeletonRow = () => {
   const sample = useSkeletonSample()
 
   return (
-    <article aria-hidden="true" className={styles.card}>
-      <TableCell ghost label={t("files.bagId")} labelClassName={styles.cellLabel}>
+    <DataRow ghost className={styles.card}>
+      <DataCell ghost lead label={t("files.bagId")}>
         <GhostLead sample={sample["files.bagId"]} />
-      </TableCell>
+      </DataCell>
 
-      <TableCell ghost label={t("files.contract")}>
+      <DataCell ghost label={t("files.contract")}>
         <GhostLead sample={sample["files.contract"]} />
-      </TableCell>
+      </DataCell>
 
-      <TableCell ghost label={t("files.desc")}>
+      <DataCell ghost label={t("files.desc")}>
         <GhostValue vary sample={sample["files.desc"]} />
-      </TableCell>
+      </DataCell>
 
-      <TableCell ghost label={t("files.size")}>
+      <DataCell ghost label={t("files.size")}>
         <GhostValue sample={sample["files.size"]} />
-      </TableCell>
+      </DataCell>
 
-      <TableCell ghost label={t("files.status")}>
+      <DataCell ghost label={t("files.status")}>
         <StatusSlot>
           <GhostRatio />
         </StatusSlot>
-      </TableCell>
+      </DataCell>
 
-      <TableCell ghost label={t("files.paidUntil")}>
+      <DataCell ghost label={t("files.paidUntil")}>
         <GhostValue sample={sample["files.paidUntil"]} />
-      </TableCell>
+      </DataCell>
 
-      <div className={cx(shared.tableActions, styles.actions)}>
+      <DataActions fill className={styles.actions}>
         <GhostIcon size="sm" />
         <GhostIcon size="sm" />
         <GhostIcon size="sm" />
-      </div>
-    </article>
+      </DataActions>
+    </DataRow>
   )
 }
 
@@ -130,27 +122,28 @@ const PaidUntil = ({ contract }: { contract: ContractRowData }) => {
 
   if (!contract.closed && contract.state === undefined) {
     return (
-      <TableCell label={label}>
+      <DataCell label={label}>
         <GhostValue sample={sample["files.paidUntil"]} />
-      </TableCell>
+      </DataCell>
     )
   }
 
   const state = contract.closed ? null : (contract.state ?? null)
   const now = nowSeconds()
   const paidDays = state ? paidDaysLeft(state.fileSize, state.providers, state.balance, now) : null
-  if (!state || paidDays === null) return <TableCell label={label} value="" />
+  if (!state || paidDays === null) return <DataCell label={label} value={EMPTY} />
 
   const tone = paymentTone(paidDays, payoutDays(state.fileSize, state.providers))
   const perDay = dailyCost(state.fileSize, state.providers)
   const title = `${t("details.balance")}: ${tonLabel(state.balance)} · ${t("details.perDay")}: ${tonLabel(perDay, 6)}`
 
   return (
-    <TableCell label={label}>
-      <span title={title} className={cx(shared.tableValue, tone === "red" && styles.paidOut, tone === "yellow" && styles.paidLow)}>
-        {formatDate(now + paidDays * SECONDS_IN_DAY, i18n.language)}
-      </span>
-    </TableCell>
+    <DataCell
+      label={label}
+      value={formatDate(now + paidDays * DAY, i18n.language)}
+      title={title}
+      valueClassName={cx(tone === "red" && styles.paidOut, tone === "yellow" && styles.paidLow)}
+    />
   )
 }
 
@@ -161,13 +154,14 @@ interface ContractRowProps {
   active: boolean
   busy: boolean
   copied: string | null
+  viewed: boolean
   onCopy: (value: string) => void
   onOpen: () => void
   onAction: (kind: EditorKind) => void
   onAskWithdraw: () => void
 }
 
-export const ContractRow = ({ contract, index, openKind, active, busy, copied, onCopy, onOpen, onAction, onAskWithdraw }: ContractRowProps) => {
+export const ContractRow = ({ contract, index, openKind, active, busy, copied, viewed, onCopy, onOpen, onAction, onAskWithdraw }: ContractRowProps) => {
   const { t, i18n } = useTranslation()
   const sample = useSkeletonSample()
   const status = contractStatus(contract)
@@ -181,29 +175,29 @@ export const ContractRow = ({ contract, index, openKind, active, busy, copied, o
     if (problem === "lost" || !state) return t(state?.providers.length === 0 ? "fix.emptyNote" : "fix.lostNote")
     if (problem === "replace") return t("fix.summary", { count: silentProviders(contract, now).length, total: state.providers.length })
     const paidDays = paidDaysLeft(state.fileSize, state.providers, state.balance, now) ?? 0
-    return t(paidDays > 0 ? "fix.balanceLow" : "fix.balanceOut", { date: formatDate(now + paidDays * SECONDS_IN_DAY, i18n.language) })
+    return t(paidDays > 0 ? "fix.balanceLow" : "fix.balanceOut", { date: formatDate(now + paidDays * DAY, i18n.language) })
   }
 
-  const act = (run: () => void) => (event: MouseEvent) => {
-    event.stopPropagation()
-    run()
-  }
+  const statusMark = ratio ? (
+    <CheckRatio passed={ratio.valid} total={ratio.total} tone={checksTone(ratio.valid, ratio.total)} />
+  ) : status ? (
+    <StatusPill wordKey={status.word} tone={status.tone} />
+  ) : (
+    <GhostRatio />
+  )
 
   return (
-    <article
-      role="button"
-      tabIndex={0}
-      aria-label={`${t("files.details")} ${shortenMiddle(contract.address, 6, 6)}`}
-      aria-haspopup="dialog"
-      onClick={onOpen}
-      onKeyDown={activateOnKey(onOpen)}
+    <DataRow
+      onOpen={onOpen}
+      label={`${t("files.details")} ${fmt.shortKey(contract.address)}`}
+      viewed={viewed}
       style={{ "--card-index": index } as CSSProperties}
       className={cx(styles.card, openKind !== null && styles.cardOpen)}
     >
-      <TableCell label={t("files.bagId")} labelClassName={styles.cellLabel}>
+      <DataCell lead label={t("files.bagId")}>
         {contract.bagId ? (
-          <TableLead
-            shortValue={shortenMiddle(contract.bagId, 6, 6)}
+          <DataLead
+            value={fmt.shortKey(contract.bagId)}
             title={contract.bagId}
             upper
             href={gatewayUrl(contract.bagId)}
@@ -215,50 +209,49 @@ export const ContractRow = ({ contract, index, openKind, active, busy, copied, o
         ) : (
           <GhostLead sample={sample["files.bagId"]} />
         )}
-      </TableCell>
+      </DataCell>
 
-      <TableCell label={t("files.contract")}>
-        <TableLead
-          shortValue={shortenMiddle(contract.address, 6, 6)}
+      <DataCell label={t("files.contract")}>
+        <DataLead
+          value={fmt.shortKey(contract.address)}
           title={contract.address}
-          href={scanUrl(contract.address)}
+          href={explorerUrl(contract.address)}
           copy={contract.address}
           copied={copied}
           copyOnWide
           onCopy={onCopy}
         />
-      </TableCell>
+      </DataCell>
 
       {contract.enriched ? (
-        <TableCell label={t("files.desc")}>
-          <span title={contract.description || undefined} className={cx(shared.tableValue, styles.desc)}>
-            {shortenMiddle(contract.description, DESC_HEAD, DESC_TAIL)}
-          </span>
-        </TableCell>
+        <DataCell
+          label={t("files.desc")}
+          value={fmt.shortenMiddle(contract.description, DESC_HEAD, DESC_TAIL)}
+          title={contract.description || undefined}
+          valueClassName={styles.desc}
+        />
       ) : (
-        <TableCell label={t("files.desc")}>
+        <DataCell label={t("files.desc")}>
           <GhostValue vary sample={sample["files.desc"]} />
-        </TableCell>
+        </DataCell>
       )}
 
       {contract.enriched || contract.size > 0 ? (
-        <TableCell label={t("files.size")} value={formatBytes(contract.size)} />
+        <DataCell label={t("files.size")} value={fmt.bytes(contract.size)} />
       ) : (
-        <TableCell label={t("files.size")}>
+        <DataCell label={t("files.size")}>
           <GhostValue sample={sample["files.size"]} />
-        </TableCell>
+        </DataCell>
       )}
 
-      <TableCell label={t("files.status")}>
-        <StatusSlot>
-          {ratio ? <Ratio valid={ratio.valid} total={ratio.total} /> : status ? <StatusPill wordKey={status.word} tone={status.tone} /> : <GhostRatio />}
-        </StatusSlot>
-      </TableCell>
+      <DataCell label={t("files.status")}>
+        <StatusSlot>{statusMark}</StatusSlot>
+      </DataCell>
 
       <PaidUntil contract={contract} />
 
       {!contract.closed && (
-        <div className={cx(shared.tableActions, styles.actions)}>
+        <DataActions fill className={styles.actions}>
           {active ? (
             <Loader strokeWidth={2.5} aria-hidden="true" className={cx(shared.spinner, styles.actionsWait)} />
           ) : (
@@ -266,44 +259,41 @@ export const ContractRow = ({ contract, index, openKind, active, busy, copied, o
               {problem && (
                 <IconButton
                   size="sm"
-                  warn
+                  tone="yellow"
                   data-problem={problem}
                   label={problemLabel()}
                   disabled={busy}
-                  data-active={(problem === "replace" && openKind === "fix") || (problem === "balance" && openKind === "extend") ? "" : undefined}
-                  className={styles.opened}
-                  onClick={act(problem === "lost" ? onAskWithdraw : () => onAction(problem === "balance" ? "extend" : "fix"))}
+                  pressed={(problem === "replace" && openKind === "fix") || (problem === "balance" && openKind === "extend")}
+                  onClick={problem === "lost" ? onAskWithdraw : () => onAction(problem === "balance" ? "extend" : "fix")}
                 >
-                  <TriangleAlert className={styles.actionIcon} aria-hidden="true" />
+                  <TriangleAlert className={glyphClass("sm")} aria-hidden="true" />
                 </IconButton>
               )}
               <IconButton
                 size="sm"
                 label={t("files.topup")}
                 disabled={busy}
-                data-active={openKind === "extend" ? "" : undefined}
-                className={styles.opened}
-                onClick={act(() => onAction("extend"))}
+                pressed={openKind === "extend"}
+                onClick={() => onAction("extend")}
               >
-                <Wallet className={styles.actionIcon} aria-hidden="true" />
+                <Wallet className={glyphClass("sm")} aria-hidden="true" />
               </IconButton>
               <IconButton
                 size="sm"
                 label={t("files.edit")}
                 disabled={busy}
-                data-active={openKind === "edit" ? "" : undefined}
-                className={styles.opened}
-                onClick={act(() => onAction("edit"))}
+                pressed={openKind === "edit"}
+                onClick={() => onAction("edit")}
               >
-                <Pencil className={styles.actionIcon} aria-hidden="true" />
+                <Pencil className={glyphClass("sm")} aria-hidden="true" />
               </IconButton>
-              <IconButton size="sm" danger label={t("files.withdraw")} disabled={busy} onClick={act(onAskWithdraw)}>
-                <CircleX className={styles.actionIcon} aria-hidden="true" />
+              <IconButton size="sm" tone="red" label={t("files.withdraw")} disabled={busy} onClick={onAskWithdraw}>
+                <CircleX className={glyphClass("sm")} aria-hidden="true" />
               </IconButton>
             </>
           )}
-        </div>
+        </DataActions>
       )}
-    </article>
+    </DataRow>
   )
 }

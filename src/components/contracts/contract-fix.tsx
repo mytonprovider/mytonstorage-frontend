@@ -1,19 +1,17 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { SquareCheck } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import { Button, Card, cx, FieldList, LoadError, Notice, SectionTitle, SheetFooter, skeletonClass } from "@myton/ui"
+import { DAY, EMPTY, rankByRating, type Provider } from "@myton/ui/domain"
 import { forgetOffers, useQuote } from "@/lib/api"
 import { quoteTargetOf, silentProviders, type ContractRow } from "@/lib/contracts"
 import { useContractData } from "@/lib/contracts-cache"
-import { cx } from "@/lib/cx"
-import { formatDate, nowSeconds, SECONDS_IN_DAY, tonLabel } from "@/lib/format"
+import { formatDate, nowSeconds, tonLabel } from "@/lib/format"
 import { FEE_GAS, nextPaidDaysLeft, offerRates, providerFate, quotedBounties, recreateTotal, unquotedBounties, updateFee } from "@/lib/pricing"
-import { declineKeyOf, freshSeed, pickReplacements, spanAllows } from "@/lib/providers"
+import { declineKeyOf, freshSeed, hostingPool, pickReplacements, spanAllows } from "@/lib/providers"
 import type { ProviderOffer } from "@/types/bag"
-import type { Provider } from "@/types/provider"
 import { daysLabel } from "../providers/catalog-toolbar"
 import { SelectedTable } from "../providers/selected-table"
-import { Notice } from "../notice"
-import { SheetFooter } from "../sheet"
 import { SheetField } from "../sheet-fields"
 import shared from "../shared.module.css"
 import styles from "./contract-fix.module.css"
@@ -25,6 +23,7 @@ interface ContractFixProps {
   providers: Provider[]
   catalogLoading: boolean
   catalogFailed: boolean
+  catalogStatus: number | null
   busy: boolean
   copied: string | null
   onRetryCatalog: () => void
@@ -40,6 +39,7 @@ export const ContractFix = ({
   providers,
   catalogLoading,
   catalogFailed,
+  catalogStatus,
   busy,
   copied,
   onRetryCatalog,
@@ -66,6 +66,8 @@ export const ContractFix = ({
   const state = latest ?? contract.state
   const silent = state ? silentProviders({ ...contract, state }, now) : []
   const { bagId, span, fileSize } = quoteTargetOf({ ...contract, state }) ?? { bagId: "", span: 0, fileSize: 0 }
+  // The place among those that can take this contract's bag, as the picker counts it
+  const ranks = useMemo(() => rankByRating(hostingPool(providers, span / DAY, fileSize)), [providers, span, fileSize])
   const alive = (state?.providers ?? []).map(({ pubkey }) => pubkey).filter((key) => !silent.includes(key))
   const unanswered = alive.filter((key) => key.toLowerCase() in keptDeclines)
   const stuck = unanswered.length > 0 && unanswered.length === alive.length
@@ -78,7 +80,7 @@ export const ContractFix = ({
     seed,
   }
   const candidates = pickedFrom ?? providers
-  const added = state ? pickReplacements(candidates, { ...wanted, proofDays: span / SECONDS_IN_DAY }) : []
+  const added = state ? pickReplacements(candidates, { ...wanted, proofDays: span / DAY }) : []
   const spanLimited = added.length < wanted.count && pickReplacements(candidates, { ...wanted, proofDays: null }).length > added.length
   const picking = catalogLoading || catalogFailed
   const keptKey = kept.join(",")
@@ -107,7 +109,8 @@ export const ContractFix = ({
           const freshRefused = refusedNow.map(({ provider_key }) => provider_key.toLowerCase()).filter((key) => fresh.has(key))
           const keptRefused = refusedNow.filter(({ provider_key }) => !fresh.has(provider_key.toLowerCase()))
           if (keptRefused.length > 0) {
-            setKeptDeclines((known) => ({ ...known, ...Object.fromEntries(keptRefused.map(({ provider_key, reason }) => [provider_key.toLowerCase(), reason])) }))
+            const kept = Object.fromEntries(keptRefused.map(({ provider_key, reason }) => [provider_key.toLowerCase(), reason]))
+            setKeptDeclines((known) => ({ ...known, ...kept }))
           }
           if (freshRefused.length > 0) {
             setRefused((known) => [...known, ...freshRefused])
@@ -143,7 +146,7 @@ export const ContractFix = ({
 
   const leadKey = !picking && added.length === 0 ? "fix.leadRemove" : !picking && added.length < outgoing.length ? "fix.leadShort" : "fix.leadReplace"
   const lead = t(outgoing.length > silent.length ? `${leadKey}Mixed` : leadKey, { count: outgoing.length, total, found: added.length })
-  const reason = !picking && spanLimited ? ` ${t("fix.spanRare", { days: daysLabel(t, span / SECONDS_IN_DAY) })}` : ""
+  const reason = !picking && spanLimited ? ` ${t("fix.spanRare", { days: daysLabel(t, span / DAY) })}` : ""
 
   const whyOf = (pubkey: string): string => {
     const decline = keptDeclines[pubkey.toLowerCase()]
@@ -151,8 +154,8 @@ export const ContractFix = ({
     const { lastProofTime } = state.providers.find((provider) => provider.pubkey === pubkey) ?? { lastProofTime: 0 }
     if (lastProofTime) return t("fix.why.silent")
     const listed = providers.find((provider) => provider.pubkey.toLowerCase() === pubkey.toLowerCase())
-    return listed && !spanAllows(listed, span / SECONDS_IN_DAY)
-      ? t("catalog.spanShort", { days: daysLabel(t, span / SECONDS_IN_DAY) })
+    return listed && !spanAllows(listed, span / DAY)
+      ? t("catalog.spanShort", { days: daysLabel(t, span / DAY) })
       : t("fix.why.neverTook")
   }
 
@@ -175,28 +178,28 @@ export const ContractFix = ({
 
       <div>
         <div className={styles.head} data-sheet="">
-          <h2 className={shared.sheetTitle}>
-            <SquareCheck className={shared.titleIcon} aria-hidden="true" />
+          <SectionTitle size="md" icon={SquareCheck}>
             <span>{t("fix.newTitle")}</span>
-          </h2>
+          </SectionTitle>
           {!picking && <span className={styles.count}>{`${added.length} / ${outgoing.length}`}</span>}
           <div className={styles.headActions}>
-            <button type="button" onClick={pickAgain} className={shared.textAction}>
+            <Button variant="text" onClick={pickAgain}>
               {t("catalog.pickAgain")}
-            </button>
+            </Button>
             <span className={shared.spacer} />
-            <button type="button" onClick={onManual} className={shared.textAction}>
+            <Button variant="text" onClick={onManual}>
               {t("fix.manual")}
-            </button>
+            </Button>
           </div>
         </div>
 
         <SelectedTable
+          ranks={ranks}
           pinned={[...silent, ...unanswered, ...added].map((pubkey) => ({
             pubkey,
             provider: providers.find((provider) => provider.pubkey.toLowerCase() === pubkey.toLowerCase()) ?? null,
           }))}
-          proofDays={span / SECONDS_IN_DAY}
+          proofDays={span / DAY}
           catalogReady={!picking}
           declineByKey={new Map(Object.entries(keptDeclines))}
           fates={fates}
@@ -208,24 +211,15 @@ export const ContractFix = ({
       </div>
 
       {catalogFailed && (
-        <Notice
-          tone="red"
-          action={
-            <button type="button" onClick={onRetryCatalog}>
-              {t("ui.retry")}
-            </button>
-          }
-        >
-          {t("errors.failedToLoadProviders")}
-        </Notice>
+        <LoadError message={t("errors.failedToLoadProviders")} status={catalogStatus} onRetry={onRetryCatalog} />
       )}
       {stuck && (
         <Notice
           tone="red"
           action={
-            <button type="button" onClick={askAgain}>
-              {t("ui.retry")}
-            </button>
+            <Button size="sm" onClick={askAgain}>
+              {t("ui:ui.retry")}
+            </Button>
           }
         >
           {t("fix.unanswered", { count: unanswered.length })}
@@ -235,9 +229,9 @@ export const ContractFix = ({
         <Notice
           tone="red"
           action={
-            <button type="button" onClick={askAgain}>
-              {t("ui.retry")}
-            </button>
+            <Button size="sm" onClick={askAgain}>
+              {t("ui:ui.retry")}
+            </Button>
           }
         >
           {t(quoteError)}
@@ -248,26 +242,26 @@ export const ContractFix = ({
       )}
 
       {!stuck && !quoteError && !catalogFailed && (
-        <div className={styles.panel}>
-          <div className={styles.fields}>
+        <Card pad="row" className={styles.panel}>
+          <FieldList>
             <div className={styles.total}>
               <span>{t("period.total")}</span>
               <span className={shared.spacer} />
-              <span className={cx(styles.totalValue, !ready && shared.shape)}>{tonLabel(fee)}</span>
+              <span className={cx(styles.totalValue, !ready && skeletonClass())}>{tonLabel(fee)}</span>
             </div>
             <SheetField
               ghost={!ready}
               label={t("files.topupNewUntil")}
-              value={!ready ? date(now) : nextPaidDays === null ? "" : date(now + nextPaidDays * SECONDS_IN_DAY)}
+              value={!ready ? date(now) : nextPaidDays === null ? EMPTY : date(now + nextPaidDays * DAY)}
             />
-          </div>
-        </div>
+          </FieldList>
+        </Card>
       )}
 
-      <SheetFooter className={shared.sheetActions}>
-        <button type="button" disabled={busy || checking || !ready} onClick={() => onSubmit(selected, span, fileSize, fee)} className={shared.primary}>
+      <SheetFooter>
+        <Button variant="primary" size="xl" disabled={busy || checking || !ready} onClick={() => onSubmit(selected, span, fileSize, fee)}>
           {t(added.length > 0 ? "fix.replace" : "fix.remove")}
-        </button>
+        </Button>
       </SheetFooter>
     </div>
   )

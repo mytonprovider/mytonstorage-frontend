@@ -1,6 +1,6 @@
 import { Globe, Package, Server, Wallet, type LucideIcon } from "lucide-react"
 import { Trans, useTranslation } from "react-i18next"
-import shared from "./shared.module.css"
+import { SectionTitle } from "@myton/ui"
 import styles from "./how-it-works.module.css"
 
 const DOCS_URL = "https://docs.ton.org/foundations/web3/ton-storage"
@@ -19,10 +19,9 @@ export const HowItWorks = () => {
     <div className={styles.body}>
       {SECTIONS.map(({ key, icon: Icon }) => (
         <section key={key} className={styles.section}>
-          <h2 className={shared.sheetTitle}>
-            <Icon className={shared.titleIcon} aria-hidden="true" />
+          <SectionTitle size="md" icon={Icon}>
             <span>{t(`about.${key}Title`)}</span>
-          </h2>
+          </SectionTitle>
           <p className={styles.text}>
             <Trans i18nKey={`about.${key}Text`} components={{ a: <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" /> }} />
           </p>

@@ -1,20 +1,27 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react"
 import { CalendarCheck, SlidersHorizontal } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { cx } from "@/lib/cx"
-import { useDismiss } from "@/lib/dismiss"
-import { formatNumber, type Translate } from "@/lib/format"
+import {
+  Card,
+  cx,
+  FilterOption,
+  FilterRange,
+  glyphClass,
+  Hint,
+  IconButton,
+  Range,
+  SearchField,
+  SectionTitle,
+} from "@myton/ui"
+import { filterEdges, fmt, type Edge, type Provider } from "@myton/ui/domain"
+import type { Translate } from "@/lib/format"
 import { PROOF_PRESETS, PROOF_STEPS, nearestProofDays } from "@/lib/pricing"
-import { PRICE_DIGITS, bounds, countMatching, hasFilters, shownPrice, type ProviderFilters } from "@/lib/providers"
-import type { Provider } from "@/types/provider"
-import { Menu, MenuOption, RangeMenuBody } from "../menu"
-import { Hint } from "../hint"
-import { Range } from "../range"
-import { SearchField } from "../search-field"
+import { countMatching, hasFilters, type ProviderFilters } from "@/lib/providers"
+import { Menu, RangeMenuBody } from "../menu"
 import shared from "../shared.module.css"
 import styles from "./providers-step.module.css"
 
-type MenuId = "countries" | "rating" | "price" | "proof"
+type MenuId = "countries" | "rating" | "price"
 
 export const daysLabel = (t: Translate, days: number) =>
   `${Number.isInteger(days) ? days : days.toFixed(1)}\u00A0${t("period.days")}`
@@ -61,21 +68,20 @@ export const ProofPeriodRow = ({
     return (
       <>
         <div className={styles.headRow}>
-          <h2 className={shared.sheetTitle}>
-            <CalendarCheck className={shared.titleIcon} aria-hidden="true" />
+          <SectionTitle size="md" icon={CalendarCheck}>
             <span>{t("details.span")}</span>
-          </h2>
+          </SectionTitle>
           <Hint text={t("filters.proofNote")} />
           <span className={shared.spacer} />
           <span className={styles.proofValue}>{value}</span>
         </div>
-        <div className={styles.proofRow}>{range}</div>
+        <Card frame className={styles.proofRow}>{range}</Card>
       </>
     )
   }
 
   return (
-    <div className={styles.proofRow}>
+    <Card frame className={styles.proofRow}>
       <div className={styles.proofHeading}>
         <span className={styles.proofLabel}>{t("details.span")}</span>
         <Hint text={t("filters.proofNote")} />
@@ -83,7 +89,7 @@ export const ProofPeriodRow = ({
         <span className={styles.proofValue}>{value}</span>
       </div>
       {range}
-    </div>
+    </Card>
   )
 }
 
@@ -101,64 +107,52 @@ export const CatalogToolbar = ({
   const [openMenu, setOpenMenu] = useState<MenuId | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
-  useDismiss(openMenu !== null, () => setOpenMenu(null))
+  const edges = useMemo(() => filterEdges(providers, Date.now() / 1000), [providers])
 
-  const ratingBounds = useMemo(() => bounds(providers.map((provider) => provider.rating || 0), 1), [providers])
-  const priceBounds = useMemo(() => bounds(providers.map(shownPrice), 1 / 10 ** PRICE_DIGITS), [providers])
-
+  // The most providers first, as the MTP location list orders them
   const countries = useMemo(() => {
     const names = new Set(providers.map((provider) => provider.location?.country).filter(Boolean) as string[])
     return [...names]
       .map((name) => ({ name, count: countMatching(providers, { ...filters, countries: [name] }, proofDays, bagSize) }))
-      .sort((a, b) => Number(a.count === 0) - Number(b.count === 0) || a.name.localeCompare(b.name))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
   }, [providers, filters, proofDays, bagSize])
 
-  const setRange = (key: "rating" | "price", edge: "Min" | "Max", value: number, [low, high]: [number, number]) => {
-    onFilters((current) => {
-      const next = { ...current }
-      const minKey = `${key}Min` as const
-      const maxKey = `${key}Max` as const
-      const currentLow = next[minKey] ?? low
-      const currentHigh = next[maxKey] ?? high
+  const setRange = (key: "rating" | "price", from: number | undefined, to: number | undefined) =>
+    onFilters((current) => ({ ...current, [`${key}Min`]: from ?? null, [`${key}Max`]: to ?? null }))
 
-      if (edge === "Min") {
-        next[minKey] = Math.min(value, currentHigh)
-        next[maxKey] = next[maxKey] ?? currentHigh
-      } else {
-        next[maxKey] = Math.max(value, currentLow)
-        next[minKey] = next[minKey] ?? currentLow
-      }
+  const rangeLabel = (low: number | null, high: number | null, edge: Edge) =>
+    `${fmt.number(low ?? edge.min, 2)} – ${high === null ? `${fmt.number(edge.max, 2)}+` : fmt.number(high, 2)}`
 
-      if ((next[minKey] ?? low) <= low && (next[maxKey] ?? high) >= high) {
-        next[minKey] = null
-        next[maxKey] = null
-      }
-
-      return next
-    })
-  }
-
-  const rangeLabel = (low: number | null, high: number | null, [min, max]: [number, number], digits: number) =>
-    `${formatNumber(low ?? min, digits)} – ${formatNumber(high ?? max, digits)}`
+  const rangeMenu = (key: "rating" | "price", low: number | null, high: number | null) => (
+    <RangeMenuBody resetLabel={t("ui:ui.reset")} onReset={() => setRange(key, undefined, undefined)}>
+      <FilterRange
+        label={t(`ui:filters.field.${key}`)}
+        edge={edges[key]}
+        step={0.01}
+        open
+        value={{ from: low ?? undefined, to: high ?? undefined }}
+        onChange={({ from, to }) => setRange(key, from, to)}
+      />
+    </RangeMenuBody>
+  )
 
   return (
     <div className={cx(styles.toolbar, bare && styles.toolbarBare)}>
-      <SearchField value={query} onChange={onQuery} className={styles.search} />
+      <SearchField value={query} onChange={onQuery} label={t("ui.search")} className={styles.search} />
 
-      <button
-        type="button"
-        title={t("filters.title")}
-        aria-label={t("filters.title")}
+      <IconButton
+        size="xl"
+        variant={hasFilters(filters) ? "primary" : "secondary"}
+        label={t("filters.title")}
         aria-expanded={filtersOpen}
-        data-tone={hasFilters(filters) ? "accent" : "field"}
         onClick={() => {
           setOpenMenu(null)
           setFiltersOpen(!filtersOpen)
         }}
         className={styles.filterToggle}
       >
-        <SlidersHorizontal aria-hidden="true" className={styles.smIcon} />
-      </button>
+        <SlidersHorizontal aria-hidden="true" className={glyphClass("sm")} />
+      </IconButton>
 
       <div data-open={filtersOpen} className={styles.filters}>
         <Menu
@@ -167,19 +161,19 @@ export const CatalogToolbar = ({
               ? t("filters.allCountries")
               : filters.countries.length === 1
                 ? filters.countries[0]
-                : t("filters.countries", { count: filters.countries.length })
+                : `${filters.countries[0]} +${filters.countries.length - 1}`
           }
           active={filters.countries.length > 0}
           open={openMenu === "countries"}
           onToggle={() => setOpenMenu(openMenu === "countries" ? null : "countries")}
         >
           {countries.map((country) => (
-            <MenuOption
+            <FilterOption
               key={country.name}
               label={country.name}
               count={country.count}
-              selected={filters.countries.includes(country.name)}
-              dimmed={country.count === 0 && !filters.countries.includes(country.name)}
+              checked={filters.countries.includes(country.name)}
+              disabled={country.count === 0 && !filters.countries.includes(country.name)}
               onToggle={() => {
                 onFilters((current) => ({
                   ...current,
@@ -195,60 +189,28 @@ export const CatalogToolbar = ({
         <Menu
           label={
             filters.priceMin != null || filters.priceMax != null
-              ? rangeLabel(filters.priceMin, filters.priceMax, priceBounds, 2)
+              ? rangeLabel(filters.priceMin, filters.priceMax, edges.price)
               : t("filters.priceAny")
           }
           active={filters.priceMin != null || filters.priceMax != null}
           open={openMenu === "price"}
           onToggle={() => setOpenMenu(openMenu === "price" ? null : "price")}
         >
-          <RangeMenuBody
-            value={rangeLabel(filters.priceMin, filters.priceMax, priceBounds, 2)}
-            unit={t("filters.priceUnit")}
-            resetLabel={t("ui.reset")}
-            onReset={() => onFilters((current) => ({ ...current, priceMin: null, priceMax: null }))}
-          >
-            <Range
-              label={t("table.price")}
-              min={priceBounds[0]}
-              max={priceBounds[1]}
-              step={0.01}
-              value={filters.priceMin ?? priceBounds[0]}
-              highValue={filters.priceMax ?? priceBounds[1]}
-              onChange={(value) => setRange("price", "Min", value, priceBounds)}
-              onHighChange={(value) => setRange("price", "Max", value, priceBounds)}
-            />
-          </RangeMenuBody>
+          {rangeMenu("price", filters.priceMin, filters.priceMax)}
         </Menu>
 
         <Menu
           align="right"
           label={
             filters.ratingMin != null || filters.ratingMax != null
-              ? rangeLabel(filters.ratingMin, filters.ratingMax, ratingBounds, 1)
+              ? rangeLabel(filters.ratingMin, filters.ratingMax, edges.rating)
               : t("filters.ratingAny")
           }
           active={filters.ratingMin != null || filters.ratingMax != null}
           open={openMenu === "rating"}
           onToggle={() => setOpenMenu(openMenu === "rating" ? null : "rating")}
         >
-          <RangeMenuBody
-            value={rangeLabel(filters.ratingMin, filters.ratingMax, ratingBounds, 1)}
-            unit={t("filters.ratingUnit")}
-            resetLabel={t("ui.reset")}
-            onReset={() => onFilters((current) => ({ ...current, ratingMin: null, ratingMax: null }))}
-          >
-            <Range
-              label={t("table.rating")}
-              min={ratingBounds[0]}
-              max={ratingBounds[1]}
-              step={0.1}
-              value={filters.ratingMin ?? ratingBounds[0]}
-              highValue={filters.ratingMax ?? ratingBounds[1]}
-              onChange={(value) => setRange("rating", "Min", value, ratingBounds)}
-              onHighChange={(value) => setRange("rating", "Max", value, ratingBounds)}
-            />
-          </RangeMenuBody>
+          {rangeMenu("rating", filters.ratingMin, filters.ratingMax)}
         </Menu>
       </div>
     </div>

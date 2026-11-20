@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react"
+import { toProviders, type Provider } from "@myton/ui/domain"
 import type {
   BagInfoShort,
   ContractStatus,
@@ -7,8 +8,7 @@ import type {
   WalletTransaction,
 } from "@/types/contract"
 import type { Offers, ProviderDecline, ProviderOffer, UnpaidBags, UserBag } from "@/types/bag"
-import type { ApiProvider, ApiTelemetry, Provider, Telemetry } from "@/types/provider"
-import { applyServerDate, BYTES_IN_GB, BYTES_IN_GIB, nowSeconds, sleep } from "./format"
+import { applyServerDate, nowSeconds, sleep } from "./format"
 import { asArray, asRecord } from "./json"
 
 export const API_URL = import.meta.env.VITE_API_URL ?? "https://mytonstorage.org"
@@ -342,32 +342,11 @@ export const withdrawContract = (address: string): Promise<WalletTransaction> =>
 
 export const gatewayUrl = (bagId: string): string => `${API_URL}/api/v1/gateway/${bagId.toUpperCase()}`
 
-const bytesOf = (value: number | null | undefined, factor: number): number | null =>
-  typeof value === "number" && Number.isFinite(value) ? value * factor : null
-
-const toTelemetry = ({
-  total_provider_space,
-  used_provider_space,
-  total_ram,
-  usage_ram,
-  ...telemetry
-}: ApiTelemetry): Telemetry => ({
-  ...telemetry,
-  total_provider_space_bytes: bytesOf(total_provider_space, BYTES_IN_GIB),
-  used_provider_space_bytes: bytesOf(used_provider_space, BYTES_IN_GIB),
-  total_ram_bytes: bytesOf(total_ram, BYTES_IN_GB),
-  usage_ram_bytes: bytesOf(usage_ram, BYTES_IN_GB),
-})
-
-export const toProvider = ({ telemetry, ...provider }: ApiProvider): Provider => ({
-  ...provider,
-  telemetry: telemetry ? toTelemetry(telemetry) : null,
-})
-
-const providersOf = (value: unknown): Provider[] =>
-  asArray(asRecord(value).providers)
-    .filter((provider): provider is ApiProvider => typeof asRecord(provider).pubkey === "string")
-    .map(toProvider)
+const providersOf = (body: unknown): Provider[] => {
+  const page = toProviders(body)
+  if (page && page.skipped > 0) console.warn(`catalog: skipped ${page.skipped} providers without a key`)
+  return page?.providers ?? []
+}
 
 export const fetchProviders = async (signal?: AbortSignal): Promise<Provider[]> =>
   providersOf(

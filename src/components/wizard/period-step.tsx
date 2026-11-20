@@ -1,6 +1,9 @@
 import { Hourglass, Loader } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { formatDate, formatDuration, nowSeconds, SECONDS_IN_DAY, SHOWN_DIGITS, tonLabel } from "@/lib/format"
+import { ActionRow, Button, Card, FieldList, Notice, SectionTitle } from "@myton/ui"
+import { DAY } from "@myton/ui/domain"
+import { pickLang } from "@myton/ui/i18n"
+import { formatDate, formatDuration, nowSeconds, SHOWN_DIGITS, tonLabel } from "@/lib/format"
 import {
   gridDays,
   gridFloor,
@@ -13,7 +16,6 @@ import {
 import { payErrorTone } from "@/lib/errors"
 import type { ProviderOffer } from "@/types/bag"
 import { GridRange } from "../grid-range"
-import { Notice } from "../notice"
 import { SheetField } from "../sheet-fields"
 import shared from "../shared.module.css"
 import styles from "./period-step.module.css"
@@ -44,36 +46,36 @@ export const PeriodStep = ({
   onSend,
 }: PeriodStepProps) => {
   const { t, i18n } = useTranslation()
+  const lang = pickLang(i18n.language)
 
   const minDays = gridFloor(proofDays)
   const shownDays = gridDays(days, proofDays)
-  const stepLabel = formatDuration(shownDays * SECONDS_IN_DAY, t)
+  const stepLabel = formatDuration(shownDays * DAY, lang)
   const now = nowSeconds()
 
   const proofSum = roundQuote(offers)
   const cost = storageCost(offers, shownDays, proofDays)
   const rounds = proofPayments(shownDays, proofDays)
-  const paidUntil = now + paidRounds(cost, proofSum, rounds) * proofDays * SECONDS_IN_DAY
+  const paidUntil = now + paidRounds(cost, proofSum, rounds) * proofDays * DAY
 
   return (
     <div className={styles.step}>
       <div className={styles.heading}>
-        <h2 className={shared.tableTitle}>
-          <Hourglass className={shared.titleIcon} aria-hidden="true" />
+        <SectionTitle size="lg" icon={Hourglass}>
           <span>{t("steps.period")}</span>
-        </h2>
+        </SectionTitle>
         <span className={shared.spacer} />
         <span className={styles.value}>{stepLabel}</span>
       </div>
 
-      <div className={styles.box}>
+      <Card frame className={styles.box}>
         <GridRange label={t("steps.period")} stepDays={proofDays} days={shownDays} onChange={onDays} />
 
         {minDays > MIN_STORAGE_DAYS && <p className={styles.note}>{t("period.floorNote", { days: minDays })}</p>}
 
         <div className={styles.divider} />
 
-        <div className={styles.fields}>
+        <FieldList>
           <div className={styles.total}>
             <span>{t("period.total")}</span>
             <span className={shared.spacer} />
@@ -82,18 +84,18 @@ export const PeriodStep = ({
             </span>
           </div>
           <SheetField label={t("files.topupNewUntil")} value={formatDate(paidUntil, i18n.language)} />
-        </div>
-      </div>
+        </FieldList>
+      </Card>
 
-      <div className={styles.footer}>
-        <button type="button" onClick={onBack} className={shared.secondary}>
-          {t("ui.back")}
-        </button>
-        <button type="button" onClick={onSend} disabled={sending || submitDisabled} className={shared.primary}>
+      <ActionRow className={styles.footer}>
+        <Button size="xl" onClick={onBack}>
+          {t("ui:ui.back")}
+        </Button>
+        <Button variant="primary" size="xl" onClick={onSend} disabled={sending || submitDisabled}>
           {sending && <Loader strokeWidth={2.5} aria-hidden="true" className={styles.spinner} />}
           <span>{t(sent ? "ui.continue" : "period.send")}</span>
-        </button>
-      </div>
+        </Button>
+      </ActionRow>
 
       {error && (
         <Notice tone={payErrorTone(error)} className={styles.error}>

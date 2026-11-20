@@ -1,15 +1,43 @@
 import { useRef, type CSSProperties, type MouseEvent, type ReactNode } from "react"
-import { Check, Star } from "lucide-react"
+import { Star } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { cx } from "@/lib/cx"
-import { BYTES_IN_GIB, GRAM, SECONDS_IN_DAY, formatDuration, formatNumber, formatPercent, shortenMiddle, splitSpace } from "@/lib/format"
+import {
+  Badge,
+  CheckMark,
+  CopyButton,
+  cx,
+  DataRow,
+  DataTableHead,
+  FreeMark,
+  GhostGlyph,
+  GhostIcon,
+  GhostValue,
+  RankMark,
+  ShortId,
+  SortColumn,
+  skeletonClass,
+} from "@myton/ui"
+import {
+  countryLabel,
+  EMPTY,
+  fmt,
+  freeBytes,
+  freePercent,
+  GRAM,
+  PROVIDER_SAMPLE,
+  providerStatus,
+  ratioPercent,
+  STATE_TONE,
+  type Provider,
+  type ProviderState,
+  type SortDirection,
+  type SortField,
+} from "@myton/ui/domain"
+import { pickLang } from "@myton/ui/i18n"
+import { statusView } from "@myton/ui/locale"
+import { formatDuration } from "@/lib/format"
 import { MAX_SELECTED } from "@/lib/pricing"
-import { freeSpace, priceInTon, spanAllows, STATUS_KEYS, statusOf, statusPercent } from "@/lib/providers"
-import type { SortDirection, SortField } from "@/lib/providers"
-import type { Provider } from "@/types/provider"
-import { CopyButton } from "../copy-button"
-import { SortColumn } from "../sort-column"
-import { GhostCopy, GhostGlyph, GhostValue } from "../table"
+import { spanAllows } from "@/lib/providers"
 import shared from "../shared.module.css"
 import styles from "./provider-row.module.css"
 
@@ -29,6 +57,10 @@ const COLUMNS: Column[] = [
   { id: "workingTime", label: "table.workingTime" },
   { id: "location", label: "table.location" },
 ]
+
+// The pick box, the rank, then a column each: the catalogue and the picked list share the head and the rows.
+export const tableColumns = (pickable: boolean) =>
+  `${pickable ? "var(--control-md) " : ""}repeat(${COLUMNS.length + 1}, max-content)`
 
 interface HeaderProps {
   field?: SortField
@@ -53,14 +85,16 @@ export const ProviderHeader = ({ field, direction, pickable = true, onSort }: He
   )
 
   return (
-    <div className={styles.headerRow}>
+    <DataTableHead className={styles.headerRow}>
       {pickable && <span className={styles.pickCell} />}
+      <span />
       {COLUMNS.map(headCell)}
-    </div>
+    </DataTableHead>
   )
 }
 
 const WIDEST_RATIO = "100%"
+const STATES = Object.keys(STATE_TONE) as ProviderState[]
 const KEY_PLACEHOLDER = "000000…000000"
 
 const StatusLabel = ({ label, ratio }: { label: string; ratio: string | null }) => {
@@ -73,9 +107,9 @@ const StatusLabel = ({ label, ratio }: { label: string; ratio: string | null }) 
         {ratio && <span className={styles.ratio}>{ratio}</span>}
       </span>
       <span className={styles.statusGhost} aria-hidden="true">
-        {STATUS_KEYS.map((key) => (
+        {STATES.map((key) => (
           <span key={key}>
-            {t(`status.${key}`)}
+            {t(`ui:status.${key}`)}
             <span className={styles.ratio}>{WIDEST_RATIO}</span>
           </span>
         ))}
@@ -84,80 +118,76 @@ const StatusLabel = ({ label, ratio }: { label: string; ratio: string | null }) 
   )
 }
 
-const SAMPLE_SPACE = 1402 * BYTES_IN_GIB
-const SAMPLE_WORKING_TIME = 400 * SECONDS_IN_DAY
-const SAMPLE_RATING = 23.82
-const SAMPLE_UPTIME = 99.68
-const SAMPLE_PRICE = 10
-const SAMPLE_LOCATION = "Russia"
-
 const Cell = ({ children }: { children: ReactNode }) => (
   <div className={styles.cell}>
     <span className={styles.cellValue}>{children}</span>
   </div>
 )
 
-export const ProviderSkeleton = ({ index = 0 }: { index?: number }) => {
-  const { t } = useTranslation()
-  const space = splitSpace(SAMPLE_SPACE)
+export const ProviderSkeleton = ({ index }: { index: number }) => {
+  const { t, i18n } = useTranslation()
+  const lang = pickLang(i18n.language)
+  const space = fmt.splitSpace(PROVIDER_SAMPLE.freeBytes)
 
   return (
-    <article
-      aria-hidden="true"
-      style={{ "--card-index": index } as CSSProperties}
-      className={cx(styles.card, styles.placeholder)}
-    >
+    <DataRow ghost className={styles.card}>
       <span className={styles.pickCell}>
         <span className={styles.pick}>
-          <span className={cx(shared.check, shared.ghost)} />
+          <CheckMark checked={false} className={skeletonClass()} />
         </span>
+      </span>
+
+      <span>
+        <RankMark rank={index + 1} variant="row" className={skeletonClass()} />
       </span>
 
       <div className={styles.keyCell}>
         <div className={styles.key}>
-          <span className={cx(styles.pubkey, shared.shape)}>{KEY_PLACEHOLDER}</span>
-          <GhostCopy />
+          <span className={skeletonClass(styles.pubkey)}>{KEY_PLACEHOLDER}</span>
+          <GhostIcon />
         </div>
       </div>
 
       <Cell>
         <GhostGlyph />
-        <GhostValue vary sample={formatNumber(SAMPLE_RATING, 2)} />
+        <GhostValue vary sample={fmt.number(PROVIDER_SAMPLE.rating, 2)} />
       </Cell>
 
-      <span className={cx(styles.status, shared.ghost)}>
-        <span className={shared.dot} />
-        <StatusLabel label={t("status.stable")} ratio={WIDEST_RATIO} />
-      </span>
+      <Badge tone="gray" size="sm" dot className={skeletonClass(styles.status)}>
+        <StatusLabel label={t("ui:status.stable")} ratio={WIDEST_RATIO} />
+      </Badge>
 
       <Cell>
-        <GhostValue vary sample={formatPercent(SAMPLE_UPTIME)} />
+        <GhostValue vary sample={fmt.percent(PROVIDER_SAMPLE.uptime)} />
       </Cell>
 
       <Cell>
-        <GhostValue vary sample={formatNumber(SAMPLE_PRICE, 2)} />
-        <span className={cx(styles.unit, shared.shape)}>{GRAM}</span>
+        <GhostValue vary sample={fmt.price(PROVIDER_SAMPLE.price)} />
+        <GhostValue sample={GRAM} className={styles.unit} />
       </Cell>
 
       <Cell>
         <GhostValue vary sample={space.value} />
-        {space.unit && <span className={cx(styles.unit, shared.shape)}>{space.unit}</span>}
+        {space.unit && <GhostValue sample={space.unit} className={styles.unit} />}
+        <FreeMark percent={PROVIDER_SAMPLE.freePercent} variant="row" className={skeletonClass()} />
       </Cell>
 
       <Cell>
-        <GhostValue vary sample={formatDuration(SAMPLE_WORKING_TIME, t)} />
+        <GhostValue vary sample={formatDuration(PROVIDER_SAMPLE.workingTime, lang)} />
       </Cell>
 
       <Cell>
-        <GhostValue vary sample={SAMPLE_LOCATION} />
+        <GhostValue vary sample={PROVIDER_SAMPLE.country} />
       </Cell>
-    </article>
+    </DataRow>
   )
 }
 
-export type RowRing = "red" | "yellow"
+export type RowRing = "red" | "orange" | "yellow"
 
 interface ProviderRowProps {
+  // The place by rating among those that can take the bag; a provider off the catalog has none.
+  rank?: number
   provider: Provider
   index?: number
   fresh?: boolean
@@ -178,6 +208,7 @@ interface ProviderRowProps {
 
 export const ProviderRow = ({
   provider,
+  rank,
   index = 0,
   fresh = false,
   viewed = false,
@@ -194,12 +225,14 @@ export const ProviderRow = ({
   onOpen,
   onCopy,
 }: ProviderRowProps) => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const lang = pickLang(i18n.language)
 
-  const status = statusOf(provider)
-  const space = splitSpace(freeSpace(provider))
+  const status = statusView(providerStatus(provider), lang)
+  const space = fmt.splitSpace(freeBytes(provider))
+  const free = unlisted ? null : freePercent(provider)
   const conflict = !unlisted && !spanAllows(provider, proofDays)
-  const keyShort = shortenMiddle(provider.pubkey, 6, 6)
+  const keyShort = fmt.shortKey(provider.pubkey)
   const blocked = full && !selected
   const pickLabel = fate === "removed" ? t("providers.restoreRow") : t("catalog.pickOne")
 
@@ -216,22 +249,16 @@ export const ProviderRow = ({
   }
 
   return (
-    <article
-      data-fresh={fresh ? "" : undefined}
-      data-viewed={viewed ? "" : undefined}
+    <DataRow
+      onOpen={open}
+      label={`${t("catalog.providerDetails")} ${keyShort}`}
+      openRef={openRef}
+      viewed={viewed}
       data-fate={fate}
       data-ring={ring ?? (selected && conflict ? "yellow" : undefined)}
       style={{ "--card-index": index } as CSSProperties}
-      className={cx(styles.card, !quiet && selected && styles.cardSelected)}
+      className={cx(styles.card, fresh && shared.cardAppear, !quiet && selected && styles.cardSelected)}
     >
-      <button
-        ref={openRef}
-        type="button"
-        onClick={open}
-        aria-label={`${t("catalog.providerDetails")} ${keyShort}`}
-        className={styles.open}
-      />
-
       {onToggle && (
         <span className={styles.pickCell}>
           <button
@@ -244,23 +271,23 @@ export const ProviderRow = ({
             aria-disabled={blocked || undefined}
             className={styles.pick}
           >
-            <span className={cx(shared.check, selected && shared.checkOn)}>
-              {selected && <Check strokeWidth={3.5} className={shared.checkIcon} aria-hidden="true" />}
-            </span>
+            <CheckMark checked={selected} />
           </button>
         </span>
       )}
 
+      <span>{rank !== undefined && <RankMark rank={rank} variant="row" />}</span>
+
       <div className={styles.keyCell}>
         <div className={styles.key}>
           <button type="button" tabIndex={-1} title={provider.pubkey} onClick={openFromKey} className={styles.pubkey}>
-            {keyShort}
+            <ShortId value={provider.pubkey} />
           </button>
           <CopyButton
             value={provider.pubkey}
             copied={copied}
             onCopy={onCopy}
-            label={`${t("ui.copy")} ${keyShort}`}
+            label={`${t("ui:ui.copy")} ${keyShort}`}
           />
         </div>
         {note}
@@ -268,38 +295,38 @@ export const ProviderRow = ({
 
       <Cell>
         {!unlisted && <Star fill="currentColor" className={shared.starIcon} aria-hidden="true" />}
-        <span>{unlisted ? "" : formatNumber(provider.rating || 0, 2)}</span>
+        <span>{unlisted ? EMPTY : fmt.number(provider.rating, 2)}</span>
       </Cell>
 
-      <span data-tone={status.tone} className={styles.status}>
-        <span className={shared.dot} aria-hidden="true" />
+      <Badge tone={status.tone} size="sm" dot className={styles.status}>
         <StatusLabel
-          label={t(`status.${status.key}`)}
-          ratio={status.rated ? formatPercent(statusPercent(status.ratio), 0) : null}
+          label={status.label}
+          ratio={status.ratio === null ? null : fmt.percent(ratioPercent(status.ratio) ?? 0, 0)}
         />
-      </span>
+      </Badge>
 
       <Cell>
-        <span className={shared.ellipsis}>{unlisted ? "" : formatPercent(provider.uptime || 0)}</span>
+        <span className={shared.ellipsis}>{unlisted ? EMPTY : fmt.percent(provider.uptime)}</span>
       </Cell>
 
       <Cell>
-        <span className={shared.ellipsis}>{unlisted ? "" : formatNumber(priceInTon(provider), 2)}</span>
+        <span className={shared.ellipsis}>{unlisted ? EMPTY : fmt.price(provider.price)}</span>
         {!unlisted && <span className={styles.unit}>{GRAM}</span>}
       </Cell>
 
       <Cell>
         <span className={shared.ellipsis}>{space.value}</span>
         {space.unit && <span className={styles.unit}>{space.unit}</span>}
+        {free !== null && <FreeMark percent={free} variant="row" />}
       </Cell>
 
       <Cell>
-        <span className={shared.ellipsis}>{unlisted ? "" : formatDuration(provider.working_time, t)}</span>
+        <span className={shared.ellipsis}>{unlisted ? EMPTY : formatDuration(provider.workingTime, lang)}</span>
       </Cell>
 
       <Cell>
-        <span className={shared.ellipsis}>{provider.location?.country ?? t("unknown")}</span>
+        <span className={shared.ellipsis}>{countryLabel(provider.location) ?? EMPTY}</span>
       </Cell>
-    </article>
+    </DataRow>
   )
 }

@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useTonConnectUI } from "@tonconnect/ui-react"
+import { DAY, type Provider, pubkeyFrom, type StatusTone } from "@myton/ui/domain"
 import type { BagInfoShort, ContractStatus, StorageContract, WalletTransaction } from "@/types/contract"
-import type { Provider } from "@/types/provider"
-import type { Tone } from "@/types/tone"
 import { failureStatus, fetchBagDetails, notifyProviders, sessionEnded } from "./api"
 import type { ContractState } from "./contracts-cache"
 import { commonSpan, CONTRACT_RESERVE, paidDaysLeft, payoutDays } from "./pricing"
-import { hostingPool, pubkeyFrom } from "./providers"
+import { hostingPool } from "./providers"
 import { getStatuses, knownStateHash, peekState, putStates, readContractsCache, refreshState, stateOf, writeContractsCache } from "./contracts-cache"
-import { nowSeconds, SECONDS_IN_DAY } from "./format"
+import { nowSeconds } from "./format"
 import { readListView, writeListView } from "./local-storage"
 import { forgetPendingFound, readPendingPaid } from "./paid-link"
 import { ADDRESS_BATCH, ChainRequestError, fetchAccountStates, fetchMessages, type MessagesPage, type MessagesQuery } from "./ton/toncenter"
@@ -319,7 +318,7 @@ export const countChecks = (
   return { valid: stored.length, total: own.length, checked, stored }
 }
 
-export interface ShownChecks {
+interface ShownChecks {
   valid: number
   total: number
   ran: number
@@ -349,7 +348,7 @@ export const contractVerdict = (contract: VerdictInput): ContractVerdict | null 
   return checks.valid === checks.total ? "stored" : checks.valid === 0 ? "lost" : "partial"
 }
 
-const VERDICT_LOOK: Record<ContractVerdict, { tone: Tone; word: string }> = {
+const VERDICT_LOOK: Record<ContractVerdict, { tone: StatusTone; word: string }> = {
   closed: { tone: "gray", word: "files.closed" },
   noPeers: { tone: "gray", word: "files.statusNoPeers" },
   stored: { tone: "green", word: "files.statusStored" },
@@ -359,23 +358,21 @@ const VERDICT_LOOK: Record<ContractVerdict, { tone: Tone; word: string }> = {
 
 export const verdictWord = (verdict: ContractVerdict): string => VERDICT_LOOK[verdict].word
 
-export const contractStatus = (contract: VerdictInput): { tone: Tone; word: string } | null => {
+export const contractStatus = (contract: VerdictInput): { tone: StatusTone; word: string } | null => {
   const verdict = contractVerdict(contract)
   return verdict && VERDICT_LOOK[verdict]
 }
-
-export const scanUrl = (address: string): string => `https://tonscan.org/address/${address}`
 
 export const txUrl = (hash: string): string => `https://tonscan.org/tx/${hash}`
 
 export const LOW_BALANCE_DAYS = 3
 
-export const paymentTone = (paidDays: number | null, roundDays = 0): Extract<Tone, "red" | "yellow"> | null =>
+export const paymentTone = (paidDays: number | null, roundDays = 0): Extract<StatusTone, "red" | "yellow"> | null =>
   paidDays === null ? null : paidDays < 1 ? "red" : paidDays <= Math.max(LOW_BALANCE_DAYS, roundDays) ? "yellow" : null
 
-const PROOF_GRACE = SECONDS_IN_DAY
+const PROOF_GRACE = DAY
 
-export type ContractProblem = "lost" | "balance" | "replace"
+type ContractProblem = "lost" | "balance" | "replace"
 
 const missedProof = ({ lastProofTime, maxSpan }: Pick<StorageProvider, "lastProofTime" | "maxSpan">, since: number, now: number): boolean =>
   now > (lastProofTime ? lastProofTime + maxSpan : since) + PROOF_GRACE
@@ -402,7 +399,7 @@ export const replacementQuotes = (rows: ContractRow[], catalog: Provider[], now:
     const current = new Set((row.state?.providers ?? []).map(({ pubkey }) => pubkey.toLowerCase()))
     const silent = new Set(silentProviders(row, now).map((key) => key.toLowerCase()))
     const alive = [...current].filter((key) => !silent.has(key))
-    const pool = hostingPool(catalog, target.span / SECONDS_IN_DAY, target.fileSize)
+    const pool = hostingPool(catalog, target.span / DAY, target.fileSize)
       .map(({ pubkey }) => pubkey.toLowerCase())
       .filter((key) => !current.has(key))
     return [{ ...target, keys: [...alive, ...pool] }]

@@ -1,7 +1,5 @@
 import type { LucideIcon } from "lucide-react"
-import { cx } from "@/lib/cx"
-import type { Tone } from "@/types/tone"
-import { Hint } from "./hint"
+import { cx, Hint } from "@myton/ui"
 import shared from "./shared.module.css"
 
 interface PickCardProps {
@@ -9,24 +7,17 @@ interface PickCardProps {
   title: string
   note: string
   hint?: string
-  tone?: Tone
   active: boolean
-  disabled?: boolean
-  role?: "radio" | "button"
   onPick: () => void
-  className?: string
 }
 
-export const PickCard = ({ icon: Icon, title, note, hint, tone, active, disabled, role = "radio", onPick, className }: PickCardProps) => (
+export const PickCard = ({ icon: Icon, title, note, hint, active, onPick }: PickCardProps) => (
   <button
     type="button"
-    role={role}
-    aria-checked={role === "radio" ? active : undefined}
-    aria-pressed={role === "button" ? active : undefined}
-    disabled={disabled}
-    data-tone={tone}
+    role="radio"
+    aria-checked={active}
     onClick={onPick}
-    className={cx(shared.pickCard, active && shared.pickCardOn, className)}
+    className={cx(shared.pickCard, active && shared.pickCardOn)}
   >
     {hint && (
       <span className={shared.pickCardHint}>

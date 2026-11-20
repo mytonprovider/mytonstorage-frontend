@@ -1,17 +1,32 @@
-import { FileText, Server, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import {
+  Badge,
+  Button,
+  Card,
+  CheckRatio,
+  cx,
+  DataCell,
+  DataHeadCell,
+  DataLead,
+  DataRow,
+  DataTable,
+  DataTableHead,
+  DataTableRows,
+  Hint,
+  Notice,
+  StatusBar,
+  StatusLine,
+} from "@myton/ui"
+import { DAY, EMPTY, explorerUrl, fmt } from "@myton/ui/domain"
+import { pickLang } from "@myton/ui/i18n"
 import { gatewayUrl } from "@/lib/api"
-import { useCheckLabel } from "@/lib/check-label"
-import { contractProblem, contractStatus, countChecks, paymentTone, scanUrl, shownChecks, silentProviders, type ContractRow } from "@/lib/contracts"
+import { checksTone, useCheckLabel } from "@/lib/check-label"
+import { contractProblem, contractStatus, countChecks, paymentTone, shownChecks, silentProviders, type ContractRow } from "@/lib/contracts"
 import { useContractData, type ContractState } from "@/lib/contracts-cache"
-import { cx } from "@/lib/cx"
-import { GHOST_TON, SECONDS_IN_DAY, formatBytes, formatDate, formatDateTime, formatDuration, nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
+import { GHOST_TON, formatDate, formatDateTime, formatDuration, nowSeconds, tonLabel } from "@/lib/format"
 import { PROOF_STEPS, dailyCost, paidDaysLeft, payoutDays } from "@/lib/pricing"
-import { Hint } from "../hint"
-import { Notice } from "../notice"
 import type { EditorKind } from "./contract-row"
 import { SheetField, SheetSection } from "../sheet-fields"
-import { Ratio, TableCell, TableFrame, TableHead, TableLead, TableRows, TableScroll, activateOnKey } from "../table"
 import shared from "../shared.module.css"
 import styles from "./contract-details.module.css"
 
@@ -30,6 +45,7 @@ interface ContractDetailsProps {
 
 export const ContractDetails = ({ contract, copied, onCopy, onOpenProvider, onAction, onAskWithdraw }: ContractDetailsProps) => {
   const { t, i18n } = useTranslation()
+  const lang = pickLang(i18n.language)
   const { state, statuses, unreadable, offline, retry } = useContractData(contract.address, true)
 
   const now = nowSeconds()
@@ -46,17 +62,17 @@ export const ContractDetails = ({ contract, copied, onCopy, onOpenProvider, onAc
 
   const spanRange = (providers: ContractState["providers"]): string => {
     const spans = providers.map(({ maxSpan }) => maxSpan)
-    const low = formatDuration(Math.min(...spans), t)
-    const high = formatDuration(Math.max(...spans), t)
+    const low = formatDuration(Math.min(...spans), lang)
+    const high = formatDuration(Math.max(...spans), lang)
     return low === high ? low : `${low} – ${high}`
   }
 
   const shaped = { ...contract, ...checks, state }
   const status = contractStatus(shaped)
-  const stateWord = t(status?.word ?? "status.noData")
+  const stateWord = t(status?.word ?? "ui:status.noData")
   const row = { ...contract, state }
   const problem = contractProblem(row, now)
-  const paidUntil = formatDate(now + (paidDays ?? 0) * SECONDS_IN_DAY, i18n.language)
+  const paidUntil = formatDate(now + (paidDays ?? 0) * DAY, i18n.language)
   const problemNote =
     problem === "lost"
       ? t(row.state?.providers.length === 0 ? "fix.emptyConfirm" : "fix.lostConfirm")
@@ -66,208 +82,182 @@ export const ContractDetails = ({ contract, copied, onCopy, onOpenProvider, onAc
 
   return (
     <div className={styles.body}>
-      <section data-tone={status?.tone} className={styles.statusCard}>
-        <div className={styles.bar}>
-          <span style={{ flexGrow: shown?.valid ?? 0 }} className={styles.barFill} />
-          <span style={{ flexGrow: shown ? shown.total - shown.valid : 0 }} />
-        </div>
+      <Card frame data-tone={status?.tone}>
+        <StatusBar parts={[{ key: "stored", count: shown?.valid ?? 0 }]} total={shown?.total ?? 0} />
         <div className={styles.statusBody}>
-          <span className={styles.statusWord}>
-            <span className={shared.dot} aria-hidden="true" />
-            {stateWord}
-          </span>
-          {!contract.closed && shown !== null && shown.ran > 0 && (
-            <span className={styles.checksRow}>
-              <span className={styles.checksLabel}>{t("details.checksOf")}</span>
-              <Ratio valid={shown.valid} total={shown.total} />
-            </span>
-          )}
+          <StatusLine
+            label={stateWord}
+            trailing={
+              !contract.closed &&
+              shown !== null &&
+              shown.ran > 0 && (
+                <span className={styles.checksRow}>
+                  <span className={styles.checksLabel}>{t("details.checksOf")}</span>
+                  <CheckRatio passed={shown.valid} total={shown.total} tone={checksTone(shown.valid, shown.total)} />
+                </span>
+              )
+            }
+          />
         </div>
-      </section>
+      </Card>
 
       {problem && (
         <Notice
           tone={problem === "lost" || (problem === "balance" && payTone === "red") ? "red" : "yellow"}
           action={
-            <button type="button" onClick={problem === "lost" ? onAskWithdraw : () => onAction(problem === "balance" ? "extend" : "fix")}>
+            <Button size="sm" onClick={problem === "lost" ? onAskWithdraw : () => onAction(problem === "balance" ? "extend" : "fix")}>
               {t(problem === "lost" ? "files.withdrawTitle" : problem === "balance" ? "files.topup" : "fix.replace")}
-            </button>
+            </Button>
           }
         >
           {problemNote}
         </Notice>
       )}
 
-      <SheetSection icon={FileText} title={t("details.contract")}>
-        <SheetField
-          label={t("files.contract")}
-          value={shortenMiddle(contract.address, 6, 6)}
-          title={contract.address}
-          href={scanUrl(contract.address)}
-          mono
-          copy={contract.address}
-          copied={copied}
-          onCopy={onCopy}
-        />
-        <SheetField
-          label={t("files.bagId")}
-          value={shortenMiddle(bagId, 6, 6)}
-          title={bagId || undefined}
-          href={bagId ? gatewayUrl(bagId) : undefined}
-          mono
-          upper
-          copy={bagId}
-          copied={copied}
-          onCopy={onCopy}
-        />
-        {contract.description && (
-          <SheetField label={t("files.desc")} value={contract.description} title={contract.description} />
-        )}
-        <SheetField label={t("files.size")} value={formatBytes(contract.size || state?.fileSize || 0)} />
-        {contract.createdAt > 0 && (
-          <SheetField label={t("details.created")} value={formatDate(contract.createdAt, i18n.language)} />
-        )}
-      </SheetSection>
+      <div className={styles.groups}>
+        <SheetSection title={t("details.contract")}>
+          <SheetField
+            label={t("files.contract")}
+            id={contract.address}
+            href={explorerUrl(contract.address)}
+            copy={contract.address}
+            copied={copied}
+            onCopy={onCopy}
+          />
+          <SheetField
+            label={t("files.bagId")}
+            id={bagId || undefined}
+            href={bagId ? gatewayUrl(bagId) : undefined}
+            upper
+            copy={bagId}
+            copied={copied}
+            onCopy={onCopy}
+          />
+          {contract.description && (
+            <SheetField label={t("files.desc")} value={contract.description} title={contract.description} />
+          )}
+          <SheetField label={t("files.size")} value={fmt.bytes(contract.size || state?.fileSize || 0)} />
+          {contract.createdAt > 0 && (
+            <SheetField label={t("details.created")} value={formatDate(contract.createdAt, i18n.language)} />
+          )}
+        </SheetSection>
 
-      <SheetSection icon={Wallet} title={t("details.payment")}>
-        {unreadable ? (
-          <Notice tone="red" className={styles.paymentAlert}>
-            {t("providers.unreadable")}
-          </Notice>
-        ) : offline && !state ? (
-          <Notice
-            tone="red"
-            className={styles.paymentAlert}
-            action={
-              <button type="button" onClick={retry}>
-                {t("ui.retry")}
-              </button>
-            }
-          >
-            {t("files.topupOffline")}
-          </Notice>
-        ) : !state ? (
-          <>
-            <SheetField ghost label={t("details.balance")} value={tonLabel(GHOST_TON)} />
-            <SheetField ghost label={t("details.perDay")} value={tonLabel(GHOST_TON, 6)} />
-            <SheetField ghost label={t("files.paidUntil")} value={formatDate(now, i18n.language)} />
-            <SheetField ghost label={t("details.span")} value={formatDuration(MIDDLE_PROOF_DAYS * SECONDS_IN_DAY, t)} />
-          </>
-        ) : (
-          <>
-            <SheetField label={t("details.balance")} value={tonLabel(state.balance)} />
-            <SheetField label={t("details.perDay")} value={tonLabel(perDay, 6)} />
-            <SheetField
-              label={t("files.paidUntil")}
-              value={paidDays === null ? "" : formatDate(now + paidDays * SECONDS_IN_DAY, i18n.language)}
-              alert={payTone === "red"}
-              warn={payTone === "yellow"}
-            />
-            <SheetField label={t("details.span")} value={spanRange(state.providers)} />
-          </>
-        )}
-      </SheetSection>
+        <SheetSection title={t("details.payment")}>
+          {unreadable ? (
+            <Notice tone="red" className={styles.paymentAlert}>
+              {t("providers.unreadable")}
+            </Notice>
+          ) : offline && !state ? (
+            <Notice
+              tone="red"
+              className={styles.paymentAlert}
+              action={
+                <Button size="sm" onClick={retry}>
+                  {t("ui:ui.retry")}
+                </Button>
+              }
+            >
+              {t("files.topupOffline")}
+            </Notice>
+          ) : !state ? (
+            <>
+              <SheetField ghost label={t("details.balance")} value={tonLabel(GHOST_TON)} />
+              <SheetField ghost label={t("details.perDay")} value={tonLabel(GHOST_TON, 6)} />
+              <SheetField ghost label={t("files.paidUntil")} value={formatDate(now, i18n.language)} />
+              <SheetField ghost label={t("details.span")} value={formatDuration(MIDDLE_PROOF_DAYS * DAY, lang)} />
+            </>
+          ) : (
+            <>
+              <SheetField label={t("details.balance")} value={tonLabel(state.balance)} />
+              <SheetField label={t("details.perDay")} value={tonLabel(perDay, 6)} />
+              <SheetField
+                label={t("files.paidUntil")}
+                value={paidDays === null ? EMPTY : formatDate(now + paidDays * DAY, i18n.language)}
+                alert={payTone === "red"}
+                warn={payTone === "yellow"}
+              />
+              <SheetField label={t("details.span")} value={spanRange(state.providers)} />
+            </>
+          )}
+        </SheetSection>
+      </div>
 
       {state && state.providers.length > 0 && (
-        <SheetSection icon={Server} title={t("files.providers")}>
-          <TableFrame className={styles.table}>
-            <TableScroll className={styles.scroll}>
-              <TableHead className={styles.head}>
+        <SheetSection title={t("files.providers")}>
+          <Card striped>
+            <DataTable columns={`repeat(${HEAD_KEYS.length}, max-content)`}>
+              <DataTableHead>
                 {HEAD_KEYS.map((key) => (
-                  <span key={key} className={shared.tableHeadCell}>
+                  <DataHeadCell key={key}>
                     <span title={t(key)} className={shared.ellipsis}>
                       {t(key)}
                     </span>
                     {key === "details.check" && <Hint text={t("details.checkHint")} />}
-                  </span>
+                  </DataHeadCell>
                 ))}
-              </TableHead>
-              <TableRows className={styles.rows}>
+              </DataTableHead>
+              <DataTableRows>
                 {state.providers.map((provider) => {
                   const { pubkey, lastProofTime: lastProof, maxSpan } = provider
                   const check = checkLabel(statusByKey.get(pubkey))
                   const nextProof = lastProof ? lastProof + maxSpan : null
                   const perDayLabel = tonLabel(dailyCost(state.fileSize, [provider]), 6)
-                  const spanLabel = formatDuration(maxSpan, t)
-                  const keyShort = shortenMiddle(pubkey, 6, 6)
+                  const spanLabel = formatDuration(maxSpan, lang)
+                  const keyShort = fmt.shortKey(pubkey)
                   const open = () => onOpenProvider(pubkey)
 
                   return (
-                    <div
+                    <DataRow
                       key={pubkey}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`${t("catalog.providerDetails")} ${keyShort}`}
-                      aria-haspopup="dialog"
-                      onClick={open}
-                      onKeyDown={activateOnKey(open)}
-                      className={styles.row}
+                      onOpen={open}
+                      label={`${t("catalog.providerDetails")} ${keyShort}`}
                     >
-                      <TableLead
-                        shortValue={keyShort}
-                        title={pubkey}
-                        upper
-                        copy={pubkey}
-                        copied={copied}
-                        onCopy={onCopy}
-                      />
-                      <TableCell label={t("details.priceDay")} value={perDayLabel} />
-                      <TableCell label={t("details.span")} value={spanLabel} />
-                      <TableCell label={t("details.check")}>
+                      <DataLead value={keyShort} title={pubkey} upper copy={pubkey} copied={copied} onCopy={onCopy} />
+                      <DataCell label={t("details.priceDay")} value={perDayLabel} />
+                      <DataCell label={t("details.span")} value={spanLabel} />
+                      <DataCell label={t("details.check")} className={styles.checkColumn}>
                         {check ? (
                           <span data-tone={check.tone} className={styles.checkCell}>
                             {check.kind === "stored" ? (
-                              <span className={shared.badge}>
-                                <span className={shared.dot} aria-hidden="true" />
+                              <Badge tone={check.tone} size="sm" dot>
                                 {check.short}
-                              </span>
+                              </Badge>
                             ) : (
-                              <Hint text={check.long} className={shared.badge}>
-                                <span className={shared.dot} aria-hidden="true" />
-                                {check.short}
+                              <Hint text={check.long}>
+                                <Badge tone={check.tone} size="sm" dot>
+                                  {check.short}
+                                </Badge>
                               </Hint>
                             )}
                           </span>
                         ) : (
                           <span data-tone="gray" className={styles.checkCell}>
-                            <span className={shared.badge}>
-                              <span className={shared.dot} aria-hidden="true" />
+                            <Badge tone="gray" size="sm" dot>
                               {t("details.checkNotRun")}
-                            </span>
+                            </Badge>
                           </span>
                         )}
-                      </TableCell>
-                      <TableCell label={t("details.checked")}>
-                        {check?.ago ? (
-                          <span title={formatDateTime(check.at, i18n.language)} className={shared.tableValue}>
-                            {check.agoShort}
-                          </span>
-                        ) : (
-                          <span className={shared.tableValue} />
-                        )}
-                      </TableCell>
-                      <TableCell
-                        label={t("details.lastProof")}
-                        value={lastProof ? formatDate(lastProof, i18n.language) : ""}
+                      </DataCell>
+                      <DataCell
+                        label={t("details.checked")}
+                        value={check?.agoShort || EMPTY}
+                        title={check?.agoShort ? formatDateTime(check.at, i18n.language) : undefined}
                       />
-                      <TableCell label={t("details.nextProof")}>
-                        {nextProof === null ? (
-                          <span className={shared.tableValue} />
-                        ) : nextProof < now ? (
-                          <span className={cx(shared.tableValue, shared.inkDanger)}>
-                            {formatDate(nextProof, i18n.language)}
-                          </span>
-                        ) : (
-                          <span className={shared.tableValue}>{formatDate(nextProof, i18n.language)}</span>
-                        )}
-                      </TableCell>
-                    </div>
+                      <DataCell
+                        label={t("details.lastProof")}
+                        value={lastProof ? formatDate(lastProof, i18n.language) : EMPTY}
+                      />
+                      <DataCell
+                        label={t("details.nextProof")}
+                        value={nextProof === null ? EMPTY : formatDate(nextProof, i18n.language)}
+                        valueClassName={cx(nextProof !== null && nextProof < now && shared.inkDanger)}
+                      />
+                    </DataRow>
                   )
                 })}
-              </TableRows>
-            </TableScroll>
-          </TableFrame>
-
+              </DataTableRows>
+            </DataTable>
+          </Card>
         </SheetSection>
       )}
     </div>

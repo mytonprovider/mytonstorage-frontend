@@ -95,20 +95,20 @@ describe("validatePicked", () => {
     expect(validatePicked([picked(`bag/${"a".repeat(255)}`, "x")])).toBeNull()
   })
 
-  it("rejects every name the tonutils-storage validator rejects", () => {
-    for (const name of ["nul\u0000.txt", "a\\b.txt", "/etc/a.txt", "bag/dir/", "bag/./a.txt", "bag/../a.txt", ""]) {
-      expect(validatePicked([picked(name, "x")])).toEqual({ errorKey: "upload.invalidName", names: [name] })
-    }
-  })
-
-  it("rejects the bytes the multipart serializer would rename to percent escapes", () => {
-    for (const name of ["shot\r\n.png", "cr\r.txt", "lf\n.txt", 'quote".txt']) {
-      expect(validatePicked([picked(name, "x")])).toEqual({ errorKey: "upload.invalidName", names: [name] })
-    }
-  })
-
-  it("keeps the double slash the validator allows", () => {
-    expect(validatePicked([picked("bag//a.txt", "x")])).toBeNull()
+  it.each([
+    "nul\u0000.txt",
+    "a\\b.txt",
+    "/etc/a.txt",
+    "bag/dir/",
+    "bag/./a.txt",
+    "bag/../a.txt",
+    "",
+    "shot\r\n.png",
+    "cr\r.txt",
+    "lf\n.txt",
+    'quote".txt',
+  ])("rejects %j, a name the tonutils-storage validator rejects or the multipart serializer would rename to percent escapes", (name) => {
+    expect(validatePicked([picked(name, "x")])).toEqual({ errorKey: "upload.invalidName", names: [name] })
   })
 
   it("lets a tab-bearing name through untouched", () => {

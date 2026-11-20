@@ -1,7 +1,5 @@
 import type { ReactNode } from "react"
-import { Notice } from "./notice"
-import { Sheet, SheetFooter } from "./sheet"
-import shared from "./shared.module.css"
+import { ConfirmBody, Sheet } from "@myton/ui"
 
 interface ConfirmSheetProps {
   open: boolean
@@ -15,19 +13,8 @@ interface ConfirmSheetProps {
   onClose: () => void
 }
 
-export const ConfirmSheet = ({ open, title, subject, note, alert, children, confirmLabel, onConfirm, onClose }: ConfirmSheetProps) => (
+export const ConfirmSheet = ({ open, title, subject, onClose, ...body }: ConfirmSheetProps) => (
   <Sheet open={open} title={title} subject={subject} onClose={onClose}>
-    {alert && (
-      <Notice tone="red" className={shared.sheetAlert}>
-        {alert}
-      </Notice>
-    )}
-    {note && <p className={shared.sheetNote}>{note}</p>}
-    {children}
-    <SheetFooter className={shared.sheetActions}>
-      <button type="button" onClick={onConfirm} className={shared.danger}>
-        {confirmLabel}
-      </button>
-    </SheetFooter>
+    <ConfirmBody {...body} close={onClose} />
   </Sheet>
 )

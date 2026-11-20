@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import type { Provider } from "@/types/provider"
-import type { Tone } from "@/types/tone"
+import { DAY, freeBytes, GIB, NANO, type Provider } from "@myton/ui/domain"
 import { failureStatus, fetchProviders } from "./api"
-import { BYTES_IN_GIB, NANO, nowSeconds, SECONDS_IN_DAY } from "./format"
+import { nowSeconds } from "./format"
 import { MAX_SELECTED } from "./pricing"
 
 export interface ProviderFilters {
@@ -15,17 +14,6 @@ export interface ProviderFilters {
 
 export type Diversity = "differentCountries" | "any"
 
-export type SortField = "pubkey" | "rating" | "status" | "uptime" | "price" | "freeSpace" | "workingTime" | "location"
-
-export type SortDirection = "asc" | "desc"
-
-interface ProviderStatus {
-  tone: Tone
-  key: string
-  ratio: number
-  rated: boolean
-}
-
 export const NO_FILTERS: ProviderFilters = {
   countries: [],
   ratingMin: null,
@@ -34,11 +22,14 @@ export const NO_FILTERS: ProviderFilters = {
   priceMax: null,
 }
 
-export const MIN_UPTIME = 50
+// The list starts where mytonprovider.org's catalogue filter starts, by the owner's choice; the automatic pick asks for more
+export const MIN_UPTIME = 20
+
+const MIN_AUTOPICK_UPTIME = 50
 
 export const ONLINE_WINDOW_SECONDS = 300
 
-export const MIN_PROVEN_DAYS = 30
+const MIN_PROVEN_DAYS = 30
 
 const CATALOG_MAX_AGE_SECONDS = 300
 
@@ -46,11 +37,7 @@ const CATALOG_TICK_MS = 60_000
 
 const SHORTLIST_WIDTH = 2
 
-const SPACE_FULL_SCORE = 2000 * BYTES_IN_GIB
-
-const UNAVAILABLE = [101, 102, 103, 201, 203]
-const NOT_STORED = [301, 302]
-const NO_PROOFS = [401, 402, 403]
+const SPACE_FULL_SCORE = 2000 * GIB
 
 export const hasFilters = (filters: ProviderFilters): boolean =>
   filters.countries.length > 0 ||
@@ -59,67 +46,18 @@ export const hasFilters = (filters: ProviderFilters): boolean =>
   filters.priceMin != null ||
   filters.priceMax != null
 
-export const freeSpace = (provider: Provider): number | null => {
-  const telemetry = provider.telemetry
-  if (!telemetry || telemetry.total_provider_space_bytes == null || telemetry.used_provider_space_bytes == null) {
-    return null
-  }
-  return Math.max(0, telemetry.total_provider_space_bytes - telemetry.used_provider_space_bytes)
-}
+const priceInTon = (provider: Provider): number => (provider.price || 0) / NANO
 
-export const priceInTon = (provider: Provider): number => (provider.price || 0) / NANO
+const PRICE_DIGITS = 2
 
-export const PRICE_DIGITS = 2
-
-export const shownPrice = (provider: Provider): number => Number(priceInTon(provider).toFixed(PRICE_DIGITS))
+const shownPrice = (provider: Provider): number => Number(priceInTon(provider).toFixed(PRICE_DIGITS))
 
 export const spanAllows = (provider: Provider, proofDays: number): boolean => {
-  const span = Math.round(proofDays * SECONDS_IN_DAY)
-  if (!provider.max_span) return false
-  const lowest = provider.min_span ?? 0
+  const span = Math.round(proofDays * DAY)
+  if (!provider.maxSpan) return false
+  const lowest = provider.minSpan ?? 0
 
-  return span >= lowest && span <= provider.max_span
-}
-
-export const STATUS_KEYS = [
-  "noData",
-  "unstable",
-  "partial",
-  "stable",
-  "unavailable",
-  "notStored",
-  "noProofs",
-  "unknown",
-] as const
-
-export const statusPercent = (ratio: number): number => Math.floor(ratio * 100)
-
-export const statusOf = (provider: Provider): ProviderStatus => {
-  const stats = (provider.statuses_reason_stats ?? []).filter((stat) => stat.cnt > 0)
-  const total = stats.reduce((sum, stat) => sum + stat.cnt, 0)
-  const valid = stats.find((stat) => stat.reason === 0)?.cnt ?? 0
-  const ratio = provider.status_ratio != null ? provider.status_ratio : total ? valid / total : 0
-
-  if (provider.status == null) return { tone: "gray", key: "noData", ratio, rated: false }
-
-  if (provider.status === 0) {
-    if (ratio < 0.8) return { tone: "red", key: "unstable", ratio, rated: true }
-    if (ratio < 0.99) return { tone: "yellow", key: "partial", ratio, rated: true }
-    return { tone: "green", key: "stable", ratio, rated: true }
-  }
-
-  if (UNAVAILABLE.includes(provider.status)) return { tone: "gray", key: "unavailable", ratio, rated: false }
-  if (NOT_STORED.includes(provider.status)) return { tone: "red", key: "notStored", ratio, rated: false }
-  if (NO_PROOFS.includes(provider.status)) return { tone: "red", key: "noProofs", ratio, rated: false }
-
-  return { tone: "gray", key: "unknown", ratio, rated: false }
-}
-
-const PUBKEY = /^[0-9a-fA-F]{64}$/
-
-export const pubkeyFrom = (input: string): string | null => {
-  const candidate = input.trim()
-  return PUBKEY.test(candidate) ? candidate.toLowerCase() : null
+  return span >= lowest && span <= provider.maxSpan
 }
 
 export const matchesQuery = (provider: Provider, query: string): boolean => {
@@ -143,16 +81,17 @@ const withinFilters = (provider: Provider, filters: ProviderFilters): boolean =>
 }
 
 export const onlineSince = (list: Provider[]): number =>
-  list.reduce((newest, provider) => Math.max(newest, provider.last_online_check_time ?? 0), 0) - ONLINE_WINDOW_SECONDS
+  list.reduce((newest, provider) => Math.max(newest, provider.lastOnlineAt ?? 0), 0) - ONLINE_WINDOW_SECONDS
 
 const canHostBag = (provider: Provider, bagSize: number, since: number): boolean => {
   if ((provider.uptime || 0) <= MIN_UPTIME) return false
-  if ((provider.last_online_check_time ?? 0) < since) return false
+  if ((provider.lastOnlineAt ?? 0) < since) return false
 
-  const free = freeSpace(provider)
+  const free = freeBytes(provider)
   if (free == null || free === 0) return false
   if (free < bagSize) return false
-  if (provider.max_bag_size_bytes > 0 && bagSize > provider.max_bag_size_bytes) return false
+  const bagCap = provider.maxBagBytes ?? 0
+  if (bagCap > 0 && bagSize > bagCap) return false
 
   return true
 }
@@ -213,38 +152,6 @@ export const declineKeyOf = (reason: string): string | null => {
   return DECLINE_KEYS.find(([needle]) => text.includes(needle))?.[1] ?? null
 }
 
-export const sortProviders = (list: Provider[], field: SortField, direction: SortDirection): Provider[] => {
-  const sign = direction === "asc" ? 1 : -1
-  const valueOf = (provider: Provider): string | number => {
-    switch (field) {
-      case "pubkey":
-        return provider.pubkey
-      case "location":
-        return provider.location?.country ?? ""
-      case "price":
-        return provider.price || 0
-      case "uptime":
-        return provider.uptime || 0
-      case "workingTime":
-        return provider.working_time || 0
-      case "freeSpace":
-        return freeSpace(provider) ?? -1
-      case "status": {
-        const status = statusOf(provider)
-        return status.rated ? status.ratio : -1
-      }
-      default:
-        return provider.rating || 0
-    }
-  }
-
-  return [...list].sort((a, b) => {
-    const left = valueOf(a)
-    const right = valueOf(b)
-    return typeof left === "string" ? left.localeCompare(right as string) * sign : (left - (right as number)) * sign
-  })
-}
-
 const uptimeScore = (provider: Provider, ratingMax: number): number => {
   const uptime = Math.max(0, Math.min(100, provider.uptime || 0)) / 100
   const rating = Math.max(0, Math.min(1, (provider.rating || 0) / (ratingMax || 1)))
@@ -253,13 +160,13 @@ const uptimeScore = (provider: Provider, ratingMax: number): number => {
 }
 
 const provenEnough = (provider: Provider): boolean =>
-  (provider.working_time || 0) >= MIN_PROVEN_DAYS * SECONDS_IN_DAY
+  (provider.workingTime || 0) >= MIN_PROVEN_DAYS * DAY
 
 const providerScore = (provider: Provider, priceMax: number, ratingMax: number): number => {
   const rating = Math.max(0, Math.min(1, (provider.rating || 0) / (ratingMax || 1)))
   const uptime = Math.max(0, Math.min(100, provider.uptime || 0)) / 100
   const price = 1 - Math.min(1, priceInTon(provider) / (priceMax || 1))
-  const space = Math.min(1, (freeSpace(provider) ?? 0) / SPACE_FULL_SCORE)
+  const space = Math.min(1, (freeBytes(provider) ?? 0) / SPACE_FULL_SCORE)
 
   return rating * 0.45 + uptime * 0.3 + price * 0.15 + space * 0.1
 }
@@ -287,6 +194,10 @@ export const eligibleFor = (list: Provider[]): Provider[] => {
   const healthy = list.filter((provider) => provider.status === 0)
   return healthy.length ? healthy : list
 }
+
+// The uptime floor comes first, so the healthy-or-all fallback weighs only the providers the pick may take
+export const autopickPool = (list: Provider[]): Provider[] =>
+  eligibleFor(list.filter((provider) => (provider.uptime || 0) > MIN_AUTOPICK_UPTIME))
 
 export type PickCriterion = "score" | "price" | "uptime"
 
@@ -339,7 +250,7 @@ const orderedFor = (pool: Provider[], options: PickOptions): Provider[] => {
 }
 
 export const pickBest = (list: Provider[], options: PickOptions): string[] => {
-  const base = eligibleFor(list)
+  const base = autopickPool(list)
   if (!base.length) return []
 
   const want = Math.min(options.count, MAX_SELECTED, base.length)
@@ -382,16 +293,6 @@ export const pickReplacements = (
   })
 }
 
-export const bounds = (values: number[], step: number): [number, number] => {
-  const usable = values.filter((value) => Number.isFinite(value))
-  if (!usable.length) return [0, 1]
-
-  const scale = 1 / step
-  const low = Math.floor(Number((Math.min(...usable) * scale).toFixed(6))) / scale
-  const high = Math.ceil(Number((Math.max(...usable) * scale).toFixed(6))) / scale
-  return [low, high > low ? high : low + step]
-}
-
 export const mergeManual = (fetched: Provider[], manual: Provider[]): Provider[] => {
   const known = new Set(fetched.map((provider) => provider.pubkey.toLowerCase()))
   return [...fetched, ...manual.filter((provider) => !known.has(provider.pubkey.toLowerCase()))]
@@ -401,17 +302,19 @@ export const stubOf = (pubkey: string): Provider => ({
   pubkey,
   address: null,
   status: null,
-  status_ratio: 0,
+  statusRatio: 0,
+  reasons: [],
   location: null,
   uptime: 0,
-  working_time: 0,
+  workingTime: 0,
   rating: 0,
   price: 0,
-  min_span: 0,
-  max_span: 0,
-  max_bag_size_bytes: 0,
-  last_online_check_time: null,
-  is_send_telemetry: false,
+  minSpan: 0,
+  maxSpan: 0,
+  maxBagBytes: 0,
+  regTime: null,
+  lastOnlineAt: null,
+  sendsTelemetry: false,
   telemetry: null,
 })
 

@@ -1,7 +1,9 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import { Button, Card, cx, FieldList, Notice, SheetFooter, Skeleton, TextField, skeletonClass } from "@myton/ui"
+import { DAY, EMPTY, GRAM, NANO } from "@myton/ui/domain"
+import { pickLang } from "@myton/ui/i18n"
 import { paymentTone } from "@/lib/contracts"
-import { cx } from "@/lib/cx"
 import { useContractData } from "@/lib/contracts-cache"
 import {
   ceilShown,
@@ -9,10 +11,7 @@ import {
   formatDuration,
   formatTon,
   GHOST_TON,
-  GRAM,
-  NANO,
   nowSeconds,
-  SECONDS_IN_DAY,
   SHOWN_DIGITS,
   tonLabel,
 } from "@/lib/format"
@@ -25,14 +24,11 @@ import {
   minTopupDays,
   paidDaysLeft,
   payoutDays,
- 
   restartBalance,
   roundDays,
   topupForDays,
 } from "@/lib/pricing"
 import { GridRange } from "../grid-range"
-import { Notice } from "../notice"
-import { SheetFooter } from "../sheet"
 import { SheetField } from "../sheet-fields"
 import shared from "../shared.module.css"
 import styles from "./extend-form.module.css"
@@ -48,6 +44,7 @@ interface ExtendFormProps {
 
 export const ExtendForm = ({ address, onSubmit }: ExtendFormProps) => {
   const { t, i18n } = useTranslation()
+  const lang = pickLang(i18n.language)
   const { state, unreadable, offline, retry } = useContractData(address)
   const [pickedDays, setPickedDays] = useState<number | null>(null)
   const [amount, setAmount] = useState("0.5")
@@ -70,7 +67,7 @@ export const ExtendForm = ({ address, onSubmit }: ExtendFormProps) => {
   const paidDays = state ? paidDaysLeft(state.fileSize, state.providers, state.balance, now) : null
   const newPaidDays = state ? paidDaysLeft(state.fileSize, state.providers, newBalance, now) : null
   const addedLabel =
-    paidDays === null || newPaidDays === null ? "" : formatDuration((newPaidDays - paidDays) * SECONDS_IN_DAY, t)
+    paidDays === null || newPaidDays === null ? EMPTY : formatDuration((newPaidDays - paidDays) * DAY, lang)
   const manualTon = Number(amount.replace(",", "."))
   const manualValid = Number.isFinite(manualTon) && manualTon >= MIN_MANUAL_TON && manualTon <= MAX_MANUAL_TON
 
@@ -80,9 +77,9 @@ export const ExtendForm = ({ address, onSubmit }: ExtendFormProps) => {
         <Notice
           tone="red"
           action={
-            <button type="button" onClick={retry}>
-              {t("ui.retry")}
-            </button>
+            <Button size="sm" onClick={retry}>
+              {t("ui:ui.retry")}
+            </Button>
           }
         >
           {t("files.topupOffline")}
@@ -98,27 +95,28 @@ export const ExtendForm = ({ address, onSubmit }: ExtendFormProps) => {
         <label className={cx(styles.label, styles.field)} htmlFor="extend-amount">
           {t("files.topupAmount")}, {GRAM}
         </label>
-        <input
-          id="extend-amount"
-          type="text"
-          inputMode="decimal"
-          value={amount}
-          onChange={(event) => setAmount(event.target.value)}
-          aria-describedby="extend-bounds"
-          className={cx(shared.amount, styles.field)}
-        />
-        <p id="extend-bounds" className={styles.bounds}>
-          {t("files.topupBounds", { min: formatTon(MIN_PROVIDER_BALANCE), max: MAX_MANUAL_TON })}
-        </p>
-        <SheetFooter className={shared.sheetActions}>
-          <button
-            type="button"
+        <div className={styles.amountField}>
+          <TextField
+            id="extend-amount"
+            inputMode="decimal"
+            value={amount}
+            onChange={setAmount}
+            aria-describedby="extend-bounds"
+            className={styles.amount}
+          />
+          <p id="extend-bounds" className={styles.bounds}>
+            {t("files.topupBounds", { min: formatTon(MIN_PROVIDER_BALANCE), max: MAX_MANUAL_TON })}
+          </p>
+        </div>
+        <SheetFooter>
+          <Button
+            variant="primary"
+            size="xl"
             disabled={!manualValid}
             onClick={() => onSubmit(Math.ceil(manualTon * NANO))}
-            className={shared.primary}
           >
             {t("files.topup")}
-          </button>
+          </Button>
         </SheetFooter>
       </div>
     )
@@ -129,26 +127,26 @@ export const ExtendForm = ({ address, onSubmit }: ExtendFormProps) => {
       <div className={styles.form}>
         <div aria-hidden="true" className={styles.ghostBody}>
           <div className={styles.total}>
-            <span className={shared.shape}>{t("files.topupAddDays")}</span>
+            <span className={skeletonClass()}>{t("files.topupAddDays")}</span>
             <span className={shared.spacer} />
-            <span className={cx(styles.totalValue, shared.shape)}>{formatDuration(DEFAULT_TARGET_DAYS * SECONDS_IN_DAY, t)}</span>
+            <span className={skeletonClass(styles.totalValue)}>{formatDuration(DEFAULT_TARGET_DAYS * DAY, lang)}</span>
           </div>
-          <span className={cx(styles.ghostRange, shared.ghost)} />
-          <div className={styles.panel}>
-            <div className={styles.fields}>
+          <Skeleton round className={styles.ghostRange} />
+          <Card pad="row" className={styles.panel}>
+            <FieldList>
               <div className={styles.total}>
-                <span className={shared.shape}>{t("period.total")}</span>
+                <span className={skeletonClass()}>{t("period.total")}</span>
                 <span className={shared.spacer} />
-                <span className={cx(styles.totalValue, shared.shape)}>{tonLabel(GHOST_TON, SHOWN_DIGITS)}</span>
+                <span className={skeletonClass(styles.totalValue)}>{tonLabel(GHOST_TON, SHOWN_DIGITS)}</span>
               </div>
               <SheetField ghost label={t("files.topupNewUntil")} value={formatDate(now, i18n.language)} />
-            </div>
-          </div>
+            </FieldList>
+          </Card>
         </div>
-        <SheetFooter className={shared.sheetActions}>
-          <button type="button" disabled className={shared.primary}>
+        <SheetFooter>
+          <Button variant="primary" size="xl" disabled>
             {t("files.topup")}
-          </button>
+          </Button>
         </SheetFooter>
       </div>
     )
@@ -160,7 +158,7 @@ export const ExtendForm = ({ address, onSubmit }: ExtendFormProps) => {
     <div className={styles.form}>
       {lowTone && (
         <Notice tone={lowTone}>
-          {t((paidDays ?? 0) > 0 ? "fix.balanceLow" : "fix.balanceOut", { date: formatDate(now + (paidDays ?? 0) * SECONDS_IN_DAY, i18n.language) })}
+          {t((paidDays ?? 0) > 0 ? "fix.balanceLow" : "fix.balanceOut", { date: formatDate(now + (paidDays ?? 0) * DAY, i18n.language) })}
         </Notice>
       )}
       <div className={styles.total}>
@@ -179,8 +177,8 @@ export const ExtendForm = ({ address, onSubmit }: ExtendFormProps) => {
         />
       </div>
 
-      <div className={styles.panel}>
-        <div className={styles.fields}>
+      <Card pad="row" className={styles.panel}>
+        <FieldList>
           <div className={styles.total}>
             <span>{t("period.total")}</span>
             <span className={shared.spacer} />
@@ -188,15 +186,15 @@ export const ExtendForm = ({ address, onSubmit }: ExtendFormProps) => {
           </div>
           <SheetField
             label={t("files.topupNewUntil")}
-            value={newPaidDays === null ? "" : formatDate(now + newPaidDays * SECONDS_IN_DAY, i18n.language)}
+            value={newPaidDays === null ? EMPTY : formatDate(now + newPaidDays * DAY, i18n.language)}
           />
-        </div>
-      </div>
+        </FieldList>
+      </Card>
 
-      <SheetFooter className={shared.sheetActions}>
-        <button type="button" onClick={() => onSubmit(cost)} className={shared.primary}>
+      <SheetFooter>
+        <Button variant="primary" size="xl" onClick={() => onSubmit(cost)}>
           {t("files.topup")}
-        </button>
+        </Button>
       </SheetFooter>
     </div>
   )

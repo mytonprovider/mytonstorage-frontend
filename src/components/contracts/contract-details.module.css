@@ -2,33 +2,8 @@
   composes: sheetBody fadeIn from "../shared.module.css";
 }
 
-.statusCard {
-  composes: statusCard from "../shared.module.css";
-}
-
-.bar {
-  composes: statusBar from "../shared.module.css";
-}
-
-.barFill {
-  composes: statusBarFill from "../shared.module.css";
-}
-
 .statusBody {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--row-py) var(--pad-pill);
-}
-
-.statusWord {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-base);
-  font-weight: 600;
-  color: var(--tone-text);
+  padding: var(--row-py) var(--row-px);
 }
 
 .checksRow {
@@ -39,41 +14,7 @@
   composes: checksLabel from "../shared.module.css";
 }
 
-.table {
-  --table-cols: repeat(7, max-content);
-}
-
-.scroll {
-  composes: tableGrid from "../shared.module.css";
-  column-gap: var(--space-3);
-}
-
-.head {
-  composes: tableHead from "../shared.module.css";
-}
-
-.rows {
-  composes: tableRows from "../shared.module.css";
-}
-
-.row {
-  composes: tableRow from "../shared.module.css";
-  cursor: pointer;
-}
-
-@media (hover: hover) {
-  .row:hover {
-    background: var(--row-hover);
-  }
-}
-
-.row:focus-visible {
-  outline: none;
-  background: var(--row-deep);
-  box-shadow: inset 0 0 0 1px var(--focus-edge);
-}
-
-.row > :has(.checkCell) {
+.checkColumn {
   overflow: visible;
 }
 
@@ -84,8 +25,20 @@
   min-width: 0;
 }
 
-.row > :first-child {
-  gap: var(--space-2);
+/* Contract and payment side by side where two of 300px fit, as the MTP card lays its sections */
+.groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: var(--space-5);
+}
+
+.groups > section {
+  display: flex;
+  flex-direction: column;
+}
+
+.groups > section > :last-child {
+  flex: 1;
 }
 
 .paymentAlert {

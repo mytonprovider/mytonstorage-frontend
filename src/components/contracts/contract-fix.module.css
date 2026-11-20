@@ -20,10 +20,6 @@
   composes: panel from "../shared.module.css";
 }
 
-.fields {
-  composes: fields from "../sheet-fields.module.css";
-}
-
 .total {
   composes: total from "../wizard/period-step.module.css";
 }

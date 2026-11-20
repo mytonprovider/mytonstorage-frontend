@@ -1,15 +1,28 @@
 import { useState, type CSSProperties } from "react"
 import { FileClock } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import {
+  Button,
+  cx,
+  DataActions,
+  DataCell,
+  DataHeadCell,
+  DataLead,
+  DataRow,
+  DataTable,
+  DataTableHead,
+  DataTableRows,
+  LoadError,
+  Notice,
+  SectionTitle,
+} from "@myton/ui"
+import { EMPTY, fmt } from "@myton/ui/domain"
 import { gatewayUrl } from "@/lib/api"
-import { cx } from "@/lib/cx"
 import { countdownTone, useCountdown } from "@/lib/countdown"
-import { formatBytes, formatCountdown, shortenMiddle } from "@/lib/format"
+import { formatCountdown } from "@/lib/format"
 import type { UnpaidBagsState } from "@/lib/unpaid-bags"
 import type { UserBag } from "@/types/bag"
 import { ConfirmSheet } from "../confirm-sheet"
-import { Notice } from "../notice"
-import { TableCell, TableFrame, TableLead, TableRows, TableScroll } from "../table"
 import shared from "../shared.module.css"
 import styles from "./unpaid-list.module.css"
 
@@ -30,9 +43,9 @@ const BagRow = ({ bag, index, deadline, busy, copied, onCopy, onContinue, onAskR
   const tone = countdownTone(left)
 
   return (
-    <article style={{ "--card-index": index % 10 } as CSSProperties} className={styles.card}>
-      <TableLead
-        shortValue={shortenMiddle(bag.bag_id, 6, 6)}
+    <DataRow style={{ "--card-index": index % 10 } as CSSProperties} className={styles.card}>
+      <DataLead
+        value={fmt.shortKey(bag.bag_id)}
         title={bag.bag_id}
         upper
         href={gatewayUrl(bag.bag_id)}
@@ -41,29 +54,27 @@ const BagRow = ({ bag, index, deadline, busy, copied, onCopy, onContinue, onAskR
         onCopy={onCopy}
       />
 
-      <TableCell label={t("files.desc")} value={bag.description} title={bag.description || undefined} />
+      <DataCell label={t("files.desc")} value={bag.description || EMPTY} title={bag.description || undefined} />
 
-      <TableCell label={t("files.size")} value={formatBytes(bag.bag_size)} />
+      <DataCell label={t("files.size")} value={fmt.bytes(bag.bag_size)} />
 
-      <TableCell label={t("files.timeLeft")}>
-        {tone === "over" ? (
-          <span className={cx(styles.timer, styles.timerOver)}>{t("files.expired")}</span>
-        ) : (
-          <span className={cx(styles.timer, tone === "soon" && styles.timerSoon)}>{formatCountdown(left)}</span>
-        )}
-      </TableCell>
+      <DataCell
+        label={t("files.timeLeft")}
+        value={tone === "over" ? t("files.expired") : formatCountdown(left)}
+        valueClassName={cx(styles.timer, tone === "over" && styles.timerOver, tone === "soon" && styles.timerSoon)}
+      />
 
-      <div className={shared.tableActions}>
+      <DataActions>
         {tone !== "over" && (
-          <button type="button" onClick={() => onContinue(bag)} disabled={busy} className={shared.rowPrimary}>
+          <Button variant="primary" size="md" onClick={() => onContinue(bag)} disabled={busy}>
             {t("files.continuePayment")}
-          </button>
+          </Button>
         )}
-        <button type="button" onClick={() => onAskRemove(bag.bag_id)} disabled={busy} className={shared.rowDanger}>
+        <Button size="md" tone="red" onClick={() => onAskRemove(bag.bag_id)} disabled={busy}>
           {t("files.remove")}
-        </button>
-      </div>
-    </article>
+        </Button>
+      </DataActions>
+    </DataRow>
   )
 }
 
@@ -102,57 +113,45 @@ export const UnpaidList = ({
   return (
     <section className={styles.wrap}>
       <div className={styles.heading}>
-        <h2 className={shared.tableTitle}>
-          <FileClock className={shared.titleIcon} aria-hidden="true" />
+        <SectionTitle size="lg" icon={FileClock}>
           <span>{t("files.unpaidTitle")}</span>
-        </h2>
+        </SectionTitle>
       </div>
-      {error && (
-        <Notice
-          tone="red"
-          className={styles.error}
-          action={
-            errorKind === "load" && (
-              <button type="button" onClick={onRetry}>
-                {t("ui.retry")}
-              </button>
-            )
-          }
-        >
+      {error && errorKind === "load" && (
+        <LoadError message={t(error)} status={status} onRetry={onRetry} className={cx(shared.listError, bags.length > 0 && shared.listErrorCompact)} />
+      )}
+      {error && errorKind !== "load" && (
+        <Notice tone="red" className={shared.listError}>
           {t(error)}
           {status !== null && <span className={shared.errorCode}>{t("errors.statusCode", { status })}</span>}
         </Notice>
       )}
       {bags.length > 0 && (
-        <div className={styles.list}>
-          <TableScroll className={styles.scroll}>
-            <div className={styles.head}>
-              <span className={shared.tableHeadCell}>{t("files.bagId")}</span>
-              <span className={shared.tableHeadCell}>{t("files.desc")}</span>
-              <span className={shared.tableHeadCell}>{t("files.size")}</span>
-              <span className={shared.tableHeadCell}>{t("files.timeLeft")}</span>
-              <span />
-            </div>
+        <DataTable framed stack columns="max-content fit-content(32ch) max-content max-content max-content">
+          <DataTableHead>
+            <DataHeadCell>{t("files.bagId")}</DataHeadCell>
+            <DataHeadCell>{t("files.desc")}</DataHeadCell>
+            <DataHeadCell>{t("files.size")}</DataHeadCell>
+            <DataHeadCell>{t("files.timeLeft")}</DataHeadCell>
+            <span />
+          </DataTableHead>
 
-            <TableFrame className={styles.frame}>
-              <TableRows className={styles.rows}>
-                {bags.map((bag, index) => (
-                  <BagRow
-                    key={bag.bag_id}
-                    bag={bag}
-                    index={index}
-                    deadline={bag.created_at + freeStorageSeconds}
-                    busy={busy}
-                    copied={copied}
-                    onCopy={onCopy}
-                    onContinue={onContinue}
-                    onAskRemove={setRemoving}
-                  />
-                ))}
-              </TableRows>
-            </TableFrame>
-          </TableScroll>
-        </div>
+          <DataTableRows>
+            {bags.map((bag, index) => (
+              <BagRow
+                key={bag.bag_id}
+                bag={bag}
+                index={index}
+                deadline={bag.created_at + freeStorageSeconds}
+                busy={busy}
+                copied={copied}
+                onCopy={onCopy}
+                onContinue={onContinue}
+                onAskRemove={setRemoving}
+              />
+            ))}
+          </DataTableRows>
+        </DataTable>
       )}
 
       <ConfirmSheet
@@ -162,7 +161,6 @@ export const UnpaidList = ({
         confirmLabel={t("files.remove")}
         onConfirm={() => {
           if (removing) onRemove(removing)
-          setRemoving(null)
         }}
         onClose={() => setRemoving(null)}
       />
