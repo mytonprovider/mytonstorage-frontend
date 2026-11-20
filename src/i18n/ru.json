@@ -1,11 +1,9 @@
 {
   "siteTitle": "My TON Storage",
-  "unknown": "Неизвестно",
-  "yes": "Да",
-  "no": "Нет",
   "hero": {
     "title": "Хранение файлов в TON Storage",
-    "sub": "Загрузка, выбор провайдеров и контроль хранения файлов в TON Storage.",
+    "place": "в TON Storage",
+    "sub": "Загрузка, выбор провайдеров и контроль хранения файлов",
     "more": "Как это работает?"
   },
   "about": {
@@ -24,39 +22,17 @@
     "files": "Мои файлы"
   },
   "ui": {
-    "goUp": "Наверх",
-    "language": "Язык",
-    "theme": "Тема",
     "connect": "Подключить кошелёк",
     "disconnect": "Отключить",
     "search": "Поиск по ключу",
-    "copy": "Скопировать",
     "copyAddress": "Скопировать адрес",
-    "close": "Закрыть",
-    "reset": "Сбросить",
-    "retry": "Повторить",
     "continue": "Продолжить",
-    "back": "Назад",
-    "cancel": "Отмена",
-    "clear": "Очистить",
-    "sortedAsc": "{{label}} — по возрастанию",
-    "sortedDesc": "{{label}} — по убыванию",
-    "sortColumn": "Сортировать по {{label}}",
-    "rangeFrom": "{{label}}, от",
-    "rangeTo": "{{label}}, до",
-    "showing": "Показано {{shown}} из {{total}}"
+    "cancel": "Отмена"
   },
   "footer": {
     "providers": "Провайдеры",
     "chat": "Поддержка",
     "github": "GitHub"
-  },
-  "time": {
-    "sec": "{{count}} сек",
-    "min": "{{count}} мин",
-    "hr": "{{count}} ч",
-    "days": "{{count}} дн.",
-    "year": "{{count}} г."
   },
   "steps": {
     "upload": "Загрузка файлов",
@@ -161,7 +137,7 @@
   },
   "period": {
     "send": "Оплатить",
-    "days": "дн.",
+    "days": "дн",
     "floorNote": "Не короче периода проверки — {{days}} дн.",
     "total": "К оплате"
   },
@@ -206,7 +182,6 @@
     "noActive": "Активных контрактов нет",
     "showClosed": "Показать закрытые",
     "refresh": "Обновить",
-    "showMore": "Показать ещё",
     "empty": "Контракты хранения не найдены",
     "emptyHint": "Загрузите ваш первый файл, чтобы начать",
     "emptyUnpaid": "Оплатите бэг из списка выше",
@@ -249,65 +224,13 @@
   "filters": {
     "title": "Фильтры",
     "proofNote": "Как часто провайдер подтверждает хранение файлов",
-    "ratingUnit": "рейтинг",
-    "priceUnit": "GRAM / 200 GB · мес.",
     "proofRare": "Длинные периоды проверки снижают комиссии в блокчейне, но увеличивают риск: провайдер может перестать хранить бэг между редкими проверками. Для надёжности берите период {{days}} дн. или короче.",
     "allCountries": "Все страны",
-    "countries_one": "{{count}} страна",
-    "countries_few": "{{count}} страны",
-    "countries_many": "{{count}} стран",
-    "countries_other": "{{count}} стран",
     "ratingAny": "Любой рейтинг",
     "priceAny": "Любая цена"
   },
   "provider": {
-    "title": "Провайдер",
-    "filesAvailable": "Файлов доступно",
-    "address": "Адрес",
-    "maxBag": "Макс. размер бэга",
-    "lastOnline": "Последний онлайн",
-    "lastTelemetry": "Последняя телеметрия",
-    "ago": "{{time}} назад",
-    "justNow": "Только что",
-    "showDetails": "Показать детали",
-    "hideDetails": "Скрыть детали",
-    "hardware": "Железо",
-    "cpu": "CPU",
-    "cores": "Ядра",
-    "virtual": "Виртуальный",
-    "ram": "ОЗУ",
-    "disk": "Диск",
-    "benchmarks": "Бенчмарки",
-    "read": "Чтение",
-    "write": "Запись",
-    "network": "Сеть",
-    "down": "Скачивание",
-    "up": "Отдача",
-    "ping": "Пинг",
-    "country": "Страна",
-    "isp": "Интернет-провайдер",
-    "software": "Софт",
-    "storageHash": "ton-storage hash",
-    "providerHash": "ton-storage-provider hash",
-    "notChecked": "Проверки для этого провайдера ещё не проводились",
-    "allChecksPassed": "Все проверки пройдены"
-  },
-  "status": {
-    "stable": "Стабильно",
-    "partial": "Частично",
-    "unstable": "Нестабильно",
-    "unavailable": "Недоступен",
-    "notStored": "Не хранит",
-    "noProofs": "Не доказано",
-    "noData": "Нет данных",
-    "unknown": "Неизвестно"
-  },
-  "reason": {
-    "passed": "Проверка пройдена ({{value}})",
-    "unreachable": "Провайдер не отвечает или не найден в сети ({{value}})",
-    "noBagInfo": "Провайдер не отдал сведения о бэге ({{value}})",
-    "noProof": "Провайдер не доказал хранение бэга ({{value}})",
-    "checkerFailed": "Проверяющий не смог выполнить проверку ({{value}})"
+    "title": "Провайдер"
   },
   "errors": {
     "walletNotConnected": "Кошелёк не подключён",
@@ -347,6 +270,7 @@
     "rowRemoved": "снят",
     "rowRecreated": "пересоздастся",
     "rowOnContract": "в контракте",
+    "rowCheckFailed": "Проверка не пройдена",
     "restoreRow": "Вернуть",
     "recreateSummary_one": "{{count}} провайдер начнёт период с нуля и спишет полный бонус — до {{amount}}",
     "recreateSummary_few": "{{count}} провайдера начнут период с нуля и спишут полный бонус — до {{amount}}",
@@ -383,7 +307,6 @@
     "lastProof": "Последнее доказательство",
     "nextProof": "Следующее доказательство",
     "checksOf": "Проверки",
-    "checkAgo": "Проверка: {{time}} назад",
     "check": "Проверка",
     "checkHint": "Прошёл ли провайдер проверку хранения. Обновляется раз в час через mytonprovider.org."
   },

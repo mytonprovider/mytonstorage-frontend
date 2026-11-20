@@ -7,10 +7,11 @@
 }
 
 .drop {
+  --field-fill: var(--field-fill-card);
   padding: clamp(var(--space-8), 5vw, var(--control-lg)) var(--space-8);
   border: 2px dashed var(--border-strong);
   border-radius: var(--radius-lg);
-  background: var(--panel-bg, var(--surface));
+  background: var(--surface);
   box-shadow: var(--shadow-1);
   text-align: center;
   transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
@@ -23,7 +24,7 @@
 
 .hint {
   color: var(--text-2);
-  font-size: var(--font-md);
+  font-size: var(--font-base);
 }
 
 @media (pointer: coarse) {
@@ -40,11 +41,6 @@
   margin: var(--space-7) 0 var(--space-5);
 }
 
-.pick {
-  gap: var(--space-4);
-  cursor: pointer;
-}
-
 .srInput {
   position: absolute;
   width: 1px;
@@ -55,26 +51,8 @@
 }
 
 .pick:has(.srInput:focus-visible) {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-edge);
   outline-offset: 2px;
-}
-
-.pickBlocked.pickBlocked {
-  cursor: default;
-}
-
-.pickBlockedFilled.pickBlockedFilled,
-.pickBlockedFilled.pickBlockedFilled:hover {
-  background: var(--surface-3);
-  color: var(--text-3);
-}
-
-.pickBlockedOutline.pickBlockedOutline {
-  opacity: 0.4;
-}
-
-.pickBlockedOutline.pickBlockedOutline:hover {
-  border-color: var(--border);
 }
 
 .pickIcon {
@@ -83,8 +61,8 @@
 }
 
 .max {
-  color: var(--text-3);
-  font-size: var(--font-sm);
+  color: var(--text-2);
+  font-size: var(--font-xs);
 }
 
 .list {
@@ -95,31 +73,30 @@
   composes: tableHeading from "../shared.module.css";
 }
 
-.panel {
-  composes: tableGrid from "../shared.module.css";
-  --table-cols: minmax(0, 1fr) max-content max-content;
+.grid {
   padding-right: var(--list-gutter, 0px);
 }
 
 .scroll {
-  composes: tableSubgrid from "../shared.module.css";
-  max-height: min(40dvh, 240px);
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  /* Five rows tall, as the provider catalogue's window in the same wizard: a row is its line and the row inset twice. */
+  max-height: min(40dvh, calc(5 * (var(--line-control) + 2 * var(--row-py))));
   margin-right: calc(-1 * var(--list-gutter, 0px));
   overflow: hidden auto;
 }
 
 .head {
-  composes: tableHead from "../shared.module.css";
   margin-right: calc(-1 * var(--list-gutter, 0px));
   padding-right: calc(var(--pad-pill) + var(--list-gutter, 0px));
 }
 
-.rows {
-  composes: tableRows from "../shared.module.css";
-}
-
-.row {
-  composes: tableRow from "../shared.module.css";
+.lead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
 }
 
 .fileName {
@@ -138,18 +115,13 @@
   color: var(--text-2);
 }
 
-.removeIcon {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
-}
-
 .foot {
   grid-column: 1 / -1;
   margin-right: calc(-1 * var(--list-gutter, 0px));
   padding: var(--row-py) calc(var(--pad-pill) + var(--list-gutter, 0px)) var(--row-py) var(--pad-pill);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--divider);
   color: var(--text-2);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
 }
 
 .form {
@@ -160,43 +132,9 @@
   composes: tableHeading from "../shared.module.css";
 }
 
-.inputWrap {
-  --counter-w: 5em;
-  position: relative;
-  display: block;
-  min-width: 0;
-}
-
-.descInput {
-  composes: inputControl from "../shared.module.css";
-  padding: 0 calc(var(--space-6) + var(--counter-w)) 0 var(--space-6);
-  border: 1px solid var(--border-strong);
-}
-
-.descInput:disabled {
-  opacity: 0.4;
-}
-
-.counter {
-  position: absolute;
-  top: 50%;
-  right: var(--space-6);
-  width: var(--counter-w);
-  text-align: right;
-  transform: translateY(-50%);
-  font-size: var(--font-xs);
-  color: var(--text-3);
-  font-variant-numeric: tabular-nums;
-  pointer-events: none;
-}
-
 .optional {
-  font-weight: 400;
-  color: var(--text-3);
-}
-
-.counterOver {
-  composes: inkDanger from "../shared.module.css";
+  font-weight: var(--w-regular);
+  color: var(--text-2);
 }
 
 .progress {
@@ -216,13 +154,13 @@
 .progressNote {
   min-width: 0;
   color: var(--text-2);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
 }
 
 .progressAmount {
   flex: none;
   color: var(--text-2);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -246,12 +184,12 @@
   min-width: 3.5ch;
   text-align: right;
   color: var(--text-2);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
 }
 
 .progressMeta {
-  color: var(--text-3);
+  color: var(--text-2);
   font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
 }
@@ -265,16 +203,14 @@
 }
 
 .submit {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--space-7);
+  composes: stepFooter from "../shared.module.css";
 }
 
 .notice {
   margin-top: var(--space-5);
 }
 
-@media (max-width: 539px) {
+@media (max-width: 599px) {
   .actions {
     flex-direction: column;
     align-items: stretch;
@@ -282,16 +218,5 @@
 
   .pick {
     width: 100%;
-  }
-
-  .scroll {
-    max-height: 60dvh;
-  }
-}
-
-@media (max-width: 539px) {
-  .submit {
-    flex-direction: column;
-    align-items: stretch;
   }
 }

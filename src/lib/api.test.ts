@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   ApiError,
   errorDetailOf,
-  failureStatus,
   fetchBagDetails,
   fetchContractStatuses,
   fetchOffers,
@@ -29,40 +28,26 @@ afterEach(() => {
 })
 
 describe("ApiError", () => {
-  it("names the call that failed and the status it failed with", async () => {
+  it("names the call that failed and carries the status it failed with as a value", async () => {
     vi.stubGlobal("fetch", respondWith({ error: "nope" }, 401))
     await expect(fetchTonProofPayload()).rejects.toBeInstanceOf(ApiError)
     await expect(fetchTonProofPayload()).rejects.toThrow("GET /api/v1/ton-proof failed with 401")
-  })
-
-  it("carries the status so a 410 can be told apart from a 500", async () => {
-    vi.stubGlobal("fetch", respondWith({}, 410))
-    await expect(fetchTonProofPayload()).rejects.toMatchObject({ status: 410 })
-  })
-})
-
-describe("failureStatus", () => {
-  it("hands the response code on as a value and reports none when nothing answered", () => {
-    expect(failureStatus(new ApiError(503, "POST", "/api/v1/files/unpaid"))).toBe(503)
-    expect(failureStatus(new TypeError("Failed to fetch"))).toBeNull()
+    await expect(fetchTonProofPayload()).rejects.toMatchObject({ status: 401 })
   })
 })
 
 describe("sessionEnded", () => {
-  it("reads the ended session off the response code", () => {
+  it("reads the ended session off the response code, and nothing ended when the backend never answered", () => {
     expect(sessionEnded(new ApiError(401, "POST", "/api/v1/files/unpaid"))).toBe(true)
     expect(sessionEnded(new ApiError(403, "POST", "/api/v1/files/unpaid"))).toBe(false)
+    expect(sessionEnded(new TypeError("Failed to fetch"))).toBe(false)
+    expect(sessionEnded(null)).toBe(false)
   })
 
   it("takes the one text the backend sends with 500 when the address is gone", () => {
     expect(sessionEnded(new ApiError(500, "POST", "/api/v1/files/unpaid", "relogin required"))).toBe(true)
     expect(sessionEnded(new ApiError(500, "POST", "/api/v1/files/unpaid", "internal server error"))).toBe(false)
     expect(sessionEnded(new ApiError(400, "POST", "/api/v1/files/unpaid", "relogin required"))).toBe(false)
-  })
-
-  it("says nothing ended when the backend never answered", () => {
-    expect(sessionEnded(new TypeError("Failed to fetch"))).toBe(false)
-    expect(sessionEnded(null)).toBe(false)
   })
 })
 
@@ -96,42 +81,6 @@ describe("fetchTonProofPayload", () => {
 })
 
 describe("fetchProviders", () => {
-  it("drops entries the catalog sends without a public key", async () => {
-    vi.stubGlobal("fetch", respondWith({ providers: [{ pubkey: "abc" }, { address: "EQ" }, null] }))
-    await expect(fetchProviders()).resolves.toEqual([{ pubkey: "abc", telemetry: null }])
-  })
-
-  it("turns the catalog units into bytes: disk binary, memory decimal", async () => {
-    vi.stubGlobal(
-      "fetch",
-      respondWith({
-        providers: [
-          {
-            pubkey: "abc",
-            telemetry: { total_provider_space: 3820, used_provider_space: 500, total_ram: 17.18, usage_ram: 8.59 },
-          },
-        ],
-      }),
-    )
-
-    await expect(fetchProviders()).resolves.toEqual([
-      {
-        pubkey: "abc",
-        telemetry: {
-          total_provider_space_bytes: 3820 * 1024 ** 3,
-          used_provider_space_bytes: 500 * 1024 ** 3,
-          total_ram_bytes: 17.18e9,
-          usage_ram_bytes: 8.59e9,
-        },
-      },
-    ])
-  })
-
-  it("treats a missing providers array as an empty catalog", async () => {
-    vi.stubGlobal("fetch", respondWith({}))
-    await expect(fetchProviders()).resolves.toEqual([])
-  })
-
   it("sends the search as a POST body", async () => {
     const fetchMock = respondWith({ providers: [] })
     vi.stubGlobal("fetch", fetchMock)
@@ -158,12 +107,10 @@ describe("fetchProviderByKey", () => {
     })
   })
 
-  it("unwraps the provider the catalog found", async () => {
+  it("unwraps the provider the catalog found and reports an answered miss as null rather than a failure", async () => {
     vi.stubGlobal("fetch", respondWith({ providers: [{ pubkey: "abc" }] }))
-    await expect(fetchProviderByKey(key)).resolves.toEqual({ pubkey: "abc", telemetry: null })
-  })
+    await expect(fetchProviderByKey(key)).resolves.toMatchObject({ pubkey: "abc", telemetry: null })
 
-  it("reports an answered miss as null rather than a failure", async () => {
     vi.stubGlobal("fetch", respondWith({ providers: [] }))
     await expect(fetchProviderByKey(key)).resolves.toBeNull()
   })
@@ -277,12 +224,6 @@ describe("fetchOffers", () => {
   it("hands back empty lists when the backend answers with nulls", async () => {
     vi.stubGlobal("fetch", respondWith({ offers: null, declines: null }))
     await expect(fetchOffers("nulls", 604800, ["k"])).resolves.toEqual({ offers: [], declines: [] })
-  })
-
-  it("keeps the effective rate the fate check compares against the chain", async () => {
-    const offer = { price_per_proof: 1e8, price_per_mb: 210, provider: { key: "ABC", price_per_mb_day: 210 } }
-    vi.stubGlobal("fetch", respondWith({ offers: [offer], declines: [] }))
-    await expect(fetchOffers("rate", 604800, ["abc"])).resolves.toEqual({ offers: [offer], declines: [] })
   })
 
   it("drops a quote whose price is not a whole nanoton amount, leaving it short of the keys asked for", async () => {

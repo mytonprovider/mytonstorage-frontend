@@ -1,10 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { THEME, TonConnect, useIsConnectionRestored, useTonAddress, useTonConnectUI, useTonWallet } from "@tonconnect/ui-react"
+import { pickLang } from "@myton/ui/i18n"
 import { clearWalletCaches } from "./contracts-cache"
 import { fetchTonProofPayload, login } from "./api"
 
 const STORED_CONNECTION_KEY = "ton-connect-storage_bridge-connection"
+
+// TON Connect makes its own rgba() of a colour and reads only hex (hexToRgb in @tonconnect/ui), so it gets the tokens
+// that resolve to hex in both themes; the rest keep its defaults.
+const walletColors = () => {
+  const style = getComputedStyle(document.documentElement)
+  const token = (name: string) => style.getPropertyValue(name).trim()
+  return {
+    accent: token("--accent"),
+    telegramButton: token("--btn"),
+    background: { primary: token("--surface"), secondary: token("--bg"), segment: token("--field-fill") },
+    text: { primary: token("--text"), secondary: token("--text-2") },
+    icon: {
+      primary: token("--text"),
+      secondary: token("--text-2"),
+      success: token("--tone-green"),
+      error: token("--btn-danger"),
+    },
+  }
+}
 
 const readStoredConnection = (): boolean => {
   try {
@@ -37,14 +57,11 @@ export const useSession = (dark: boolean): Session => {
 
   useEffect(() => {
     tonConnectUI.uiOptions = {
-      language: i18n.language === "ru" ? "ru" : "en",
+      language: pickLang(i18n.language),
       uiPreferences: {
         theme: dark ? THEME.DARK : THEME.LIGHT,
-        borderRadius: "s",
-        colorsSet: {
-          [THEME.LIGHT]: { connectButton: { background: "#0072b3", foreground: "#ffffff" }, accent: "#0098ea" },
-          [THEME.DARK]: { connectButton: { background: "#0072b3", foreground: "#ffffff" }, accent: "#5cc4f7" },
-        },
+        borderRadius: "m",
+        colorsSet: { [dark ? THEME.DARK : THEME.LIGHT]: walletColors() },
       },
     }
   }, [tonConnectUI, i18n.language, dark])

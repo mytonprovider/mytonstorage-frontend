@@ -13,30 +13,26 @@
 
 .value {
   font-size: var(--font-lg);
-  font-weight: 600;
+  font-weight: var(--w-medium);
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
 .box {
-  composes: tablePanel from "../shared.module.css";
+  composes: panel from "../shared.module.css";
   padding: var(--space-6) var(--pad-pill);
 }
 
 .note {
   margin-top: var(--space-4);
-  font-size: var(--font-sm);
-  color: var(--text-3);
+  font-size: var(--font-base);
+  color: var(--text-2);
   text-wrap: pretty;
 }
 
 .divider {
   margin: var(--space-6) 0;
-  border-top: 1px solid var(--border);
-}
-
-.fields {
-  composes: fields from "../sheet-fields.module.css";
+  border-top: 1px solid var(--divider);
 }
 
 .total {
@@ -45,7 +41,7 @@
   gap: var(--space-3);
   min-height: var(--control-xs);
   font-size: var(--font-lg);
-  font-weight: 600;
+  font-weight: var(--w-medium);
   color: var(--text);
 }
 
@@ -54,8 +50,8 @@
 }
 
 .fieldNote {
-  font-size: var(--font-sm);
-  color: var(--text-3);
+  font-size: var(--font-xs);
+  color: var(--text-2);
   text-wrap: pretty;
 }
 
@@ -70,4 +66,3 @@
 .spinner {
   composes: spinner from "../shared.module.css";
 }
-

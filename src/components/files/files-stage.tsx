@@ -89,6 +89,7 @@ export const FilesStage = ({
               providers={catalog.providers}
               catalogLoading={catalog.loading}
               catalogFailed={catalog.failed}
+              catalogStatus={catalog.status}
               busy={contracts.busy !== null}
               onRetryCatalog={catalog.reload}
               copied={copied}

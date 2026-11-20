@@ -9,7 +9,7 @@
   position: absolute;
   top: calc((var(--control-sm) - var(--space-0)) / 2);
   height: var(--space-0);
-  background: var(--border);
+  background: var(--divider);
 }
 
 .row {
@@ -33,7 +33,7 @@
 
 .step:disabled .bullet,
 .step:disabled .label {
-  color: var(--text-3);
+  color: var(--text-2);
 }
 
 .bullet {
@@ -43,15 +43,15 @@
   height: var(--control-sm);
   border-radius: var(--radius-pill);
   border: var(--space-1) solid var(--bg);
-  font-size: var(--font-sm);
-  font-weight: 600;
+  font-size: var(--font-xs);
+  font-weight: var(--w-medium);
   position: relative;
   z-index: 1;
   transition: background var(--dur-base) ease, color var(--dur-base) ease;
 }
 
 .bullet[data-step="todo"] {
-  background: var(--surface-3);
+  background: var(--step-todo);
   color: var(--text-2);
 }
 
@@ -61,8 +61,8 @@
 }
 
 .bullet[data-step="done"] {
-  background: var(--tone-green);
-  color: var(--btn-ink);
+  background: var(--tone-green-text);
+  color: var(--surface);
 }
 
 .checkIcon {
@@ -70,8 +70,8 @@
 }
 
 .label {
-  font-size: var(--font-sm);
-  font-weight: 500;
+  font-size: var(--font-xs);
+  font-weight: var(--w-medium);
   text-align: center;
   line-height: var(--line-tight);
   padding: 0 var(--space-1);
@@ -83,14 +83,14 @@
 }
 
 .label[data-steplabel="current"] {
-  color: var(--accent-text);
+  color: var(--accent);
 }
 
 .label[data-steplabel="done"] {
   color: var(--tone-green-text);
 }
 
-@media (max-width: 539px) {
+@media (max-width: 599px) {
   .label {
     display: none;
   }

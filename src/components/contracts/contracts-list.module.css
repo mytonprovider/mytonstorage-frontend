@@ -2,17 +2,10 @@
   composes: tableHeading from "../shared.module.css";
 }
 
-.toggle {
-  composes: textAction from "../shared.module.css";
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
 .refreshIcon {
   width: var(--icon-control);
   height: var(--icon-control);
-  color: var(--text-3);
+  color: var(--text-2);
 }
 
 .headActions {
@@ -21,22 +14,15 @@
 
 .list {
   --row-min: calc(var(--control-sm) + var(--row-py) * 2);
-  --table-cols: max-content max-content max-content max-content max-content max-content max-content;
 }
 
-@media (max-width: 1119px) {
-  .rows > .card.card > :first-child {
-    grid-row: 1;
-    grid-column: 1 / -1;
-    padding-bottom: var(--space-4);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .rows > .card.card {
+/* The card thresholds of the package's DataTable; a container query cannot take them from a variable */
+@container data-table (width < 1100px) {
+  .rows > .card {
     align-items: start;
   }
 
-  .desc.desc {
+  .desc {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -46,27 +32,10 @@
   }
 }
 
-@media (min-width: 540px) and (max-width: 1119px) {
-  .rows > .card > :first-child .cellLabel {
-    display: none;
-  }
-}
-
-@media (max-width: 539px) {
-  .rows > .card.card > :first-child {
-    grid-row: auto;
-    grid-column: auto;
-    padding-bottom: 0;
-    border-bottom: 0;
-  }
-
+@container data-table (width < 600px) {
   .ghostLead > :last-child {
     display: none;
   }
-}
-
-.cellLabel {
-  composes: tableLabel from "../shared.module.css";
 }
 
 @media (pointer: coarse) {
@@ -77,29 +46,6 @@
 
 .actions {
   min-width: 0;
-}
-
-@media (max-width: 539px) {
-  .actions.actions {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    gap: var(--space-4);
-    padding-top: var(--space-4);
-    border-top: 1px solid var(--border);
-  }
-
-  .actions.actions > * {
-    width: 100%;
-    height: var(--control-field);
-    border-radius: var(--radius-pill);
-    box-shadow: inset 0 0 0 1px var(--border-strong);
-  }
-}
-
-.actionIcon {
-  width: var(--icon-control);
-  height: var(--icon-control);
 }
 
 .actionsWait {
@@ -116,63 +62,22 @@
   composes: stackGhost from "../shared.module.css";
 }
 
-.scroll {
-  composes: tableGrid from "../shared.module.css";
-}
-
-@media (max-width: 1119px) {
-  .scroll.scroll {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.head {
-  composes: tableCardHead from "../shared.module.css";
-}
-
-.frame {
-  composes: tableFrame tableSubgrid from "../shared.module.css";
-}
-
 .actionsHead {
   justify-self: end;
 }
 
-.rows {
-  composes: stackedRows from "../shared.module.css";
-}
-
 .card {
-  composes: tableRow cardAppear from "../shared.module.css";
+  composes: cardAppear from "../shared.module.css";
   min-height: var(--row-min);
-  cursor: pointer;
-}
-
-@media (hover: hover) {
-  .card:hover {
-    background: var(--row-hover);
-  }
-}
-
-.card:focus-visible {
-  outline: none;
-  background: var(--row-deep);
-  box-shadow: inset 0 0 0 1px var(--focus-edge);
 }
 
 .cardOpen {
+  background-color: var(--surface);
   transition: background-color var(--dur-slow) ease;
 }
 
-.cardOpen.cardOpen,
-.cardOpen.cardOpen:hover {
-  background: var(--accent-weak);
-}
-
-.opened.opened[data-active],
-.opened.opened[data-active]:hover {
-  background: var(--accent-weak);
-  color: var(--accent-text);
+.rows > .cardOpen {
+  --field-fill: var(--field-fill-card);
 }
 
 .paidLow {
@@ -181,23 +86,6 @@
 
 .paidOut {
   composes: inkDanger from "../shared.module.css";
-}
-
-.error {
-  margin-bottom: var(--space-5);
-}
-
-.more {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-7) 0 var(--space-2);
-}
-
-.showing {
-  font-size: var(--font-sm);
-  color: var(--text-3);
 }
 
 .tools {
@@ -212,11 +100,7 @@
   min-width: 0;
 }
 
-.reset {
-  margin-top: var(--space-3);
-}
-
-@media (max-width: 767px) {
+@media (max-width: 599px) {
   .tools {
     flex-direction: column;
     align-items: stretch;
@@ -226,7 +110,6 @@
 
 .closeCard {
   composes: panel from "../shared.module.css";
-  composes: fields from "../sheet-fields.module.css";
   margin: var(--pad-pill) var(--space-6) var(--space-6);
 }
 
@@ -239,5 +122,7 @@
 }
 
 .closeNote {
-  composes: label from "../sheet-fields.module.css";
+  font-weight: var(--w-medium);
+  letter-spacing: var(--tracking-small);
+  color: var(--text-2);
 }

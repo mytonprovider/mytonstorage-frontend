@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { TonConnectUIError, UserRejectsError } from "@tonconnect/ui-react"
 import en from "@/i18n/en.json"
 import { ApiError } from "./api"
-import { writePendingPaid } from "./paid-link"
+import { writePendingPaid, type DeployCheck } from "./paid-link"
 import { UNAUTHORIZED, checkErrorKey, deployFailureKey, payErrorKey, payErrorTone, uploadErrorKey, uploadFailure } from "./errors"
 import {
   EMPTY_WIZARD,
@@ -26,32 +26,19 @@ const line = (key: string): string | undefined => {
 }
 
 describe("reachedStep", () => {
-  it("stays on upload until a bag id comes back from the backend", () => {
-    expect(reachedStep(EMPTY_WIZARD, false)).toBe(1)
-    expect(reachedStep(withData({ description: "backup" }), false)).toBe(1)
-  })
-
-  it("rejects a bag id that is not 64 characters", () => {
-    expect(reachedStep(withData({ bagId: "abc" }), false)).toBe(1)
-  })
-
-  it("opens provider selection once the bag exists", () => {
-    expect(reachedStep(withData({ bagId: BAG }), false)).toBe(2)
-  })
-
-  it("opens the period step only once the selected providers have quoted the bag", () => {
-    expect(reachedStep(withData({ bagId: BAG, selected: ["key"] }), true)).toBe(3)
-    expect(reachedStep(withData({ bagId: BAG, selected: ["key"] }), false)).toBe(2)
-  })
-
-  it("requires both the deployed contract and the paid flag to finish", () => {
-    expect(reachedStep(withData({ bagId: BAG, selected: ["key"], contractAddress: "EQ" }), true)).toBe(3)
-    expect(reachedStep(withData({ bagId: BAG, selected: ["key"], paid: true }), true)).toBe(3)
-    expect(reachedStep(withData({ bagId: BAG, selected: ["key"], contractAddress: "EQ", paid: true }), false)).toBe(4)
-  })
-
-  it("falls back to upload when the bag is dropped, whatever else is set", () => {
-    expect(reachedStep(withData({ selected: ["key"], contractAddress: "EQ", paid: true }), true)).toBe(1)
+  it.each([
+    { on: "with nothing uploaded", data: EMPTY_WIZARD, quoted: false, step: 1 },
+    { on: "with a description but no bag id", data: withData({ description: "backup" }), quoted: false, step: 1 },
+    { on: "on a bag id that is not 64 characters", data: withData({ bagId: "abc" }), quoted: false, step: 1 },
+    { on: "once the bag exists", data: withData({ bagId: BAG }), quoted: false, step: 2 },
+    { on: "once the selected providers have quoted the bag", data: withData({ bagId: BAG, selected: ["key"] }), quoted: true, step: 3 },
+    { on: "while the selected providers have not quoted", data: withData({ bagId: BAG, selected: ["key"] }), quoted: false, step: 2 },
+    { on: "with a deployed contract that is not paid", data: withData({ bagId: BAG, selected: ["key"], contractAddress: "EQ" }), quoted: true, step: 3 },
+    { on: "with the paid flag but no contract", data: withData({ bagId: BAG, selected: ["key"], paid: true }), quoted: true, step: 3 },
+    { on: "with both the contract and the paid flag", data: withData({ bagId: BAG, selected: ["key"], contractAddress: "EQ", paid: true }), quoted: false, step: 4 },
+    { on: "when the bag is dropped, whatever else is set", data: withData({ selected: ["key"], contractAddress: "EQ", paid: true }), quoted: true, step: 1 },
+  ])("stands on step $step $on", ({ data, quoted, step }) => {
+    expect(reachedStep(data, quoted)).toBe(step)
   })
 })
 
@@ -114,42 +101,6 @@ describe("resumedContract", () => {
     expect(deployInFlight(withData({ bagId: BAG, contractAddress: resumedContract(BAG) }))).toBe("EQCONTRACT")
   })
 
-  it("leaves only the silent chain unresolved after a reload: missing resends, deployed relinks, unknown sends nothing", () => {
-    writePendingPaid(BAG, "EQCONTRACT")
-    const started = deployInFlight(withData({ bagId: BAG, contractAddress: resumedContract(BAG) }))
-
-    expect(started).toBe("EQCONTRACT")
-    expect(deployAction("missing")).toBe("send")
-    expect(deployAction("deployed")).toBe("link")
-    expect(deployAction("unknown")).toBe("wait")
-    expect(checkErrorKey("unknown")).toBe("errors.paymentUnchecked")
-    expect(payErrorTone(checkErrorKey("unknown"))).toBe("neutral")
-  })
-
-  it("leaves the reload with nothing to check when the browser refused the mark, the loss the unsaved warning is about", () => {
-    vi.stubGlobal("localStorage", {
-      getItem: () => null,
-      setItem: () => {
-        throw new DOMException("QuotaExceededError")
-      },
-      removeItem: () => undefined,
-    })
-
-    expect(writePendingPaid(BAG, "EQCONTRACT", "EQOWNER", "backup", 42)).toBe(false)
-    expect(resumedContract(BAG)).toBe(null)
-    expect(deployInFlight(withData({ bagId: BAG, contractAddress: resumedContract(BAG) }))).toBe(null)
-    expect(payErrorTone("errors.linkNotSaved")).toBe("red")
-  })
-
-  it("keeps the relink the backend refused after a reload as loud as a fresh one, since the money is already spent", () => {
-    writePendingPaid(BAG, "EQCONTRACT")
-    const started = deployInFlight(withData({ bagId: BAG, contractAddress: resumedContract(BAG) }))
-
-    expect(started).toBe("EQCONTRACT")
-    expect(deployAction("deployed")).toBe("link")
-    expect(deployFailureKey(true, new ApiError(500, "POST", "/api/v1/files/paid", "server error"))).toBe("errors.notLinked")
-  })
-
   it("resumes a bag the mark does not point at with no contract, whatever an older payment left behind", () => {
     writePendingPaid("b".repeat(64), "EQOTHER")
 
@@ -182,16 +133,12 @@ describe("contractAfterFailure", () => {
 })
 
 describe("deployAction", () => {
-  it("links the bag instead of paying again once the chain shows the contract", () => {
-    expect(deployAction("deployed")).toBe("link")
-  })
-
-  it("builds the payment anew when the chain says no contract is there", () => {
-    expect(deployAction("missing")).toBe("send")
-  })
-
-  it("sends nothing while the chain has not answered, instead of paying on a guess", () => {
-    expect(deployAction("unknown")).toBe("wait")
+  it.each<[DeployCheck, string, string]>([
+    ["deployed", "link", "the bag instead of paying again"],
+    ["missing", "send", "the payment anew"],
+    ["unknown", "wait", "instead of paying on a guess"],
+  ])("answers a chain that says %s with %s: %s", (check, action) => {
+    expect(deployAction(check)).toBe(action)
   })
 
   it("checks the address of a deploy that merely went unconfirmed before any money moves again", () => {
@@ -244,27 +191,21 @@ describe("deployFailureKey", () => {
 })
 
 describe("checkErrorKey", () => {
-  it("says the transaction was not confirmed only when the chain answered that no contract is there", () => {
+  it("says the transaction was not confirmed only when the chain answered that no contract is there, and claims nothing when it could not be asked", () => {
     expect(checkErrorKey("missing")).toBe("errors.paymentFailed")
-  })
-
-  it("claims nothing about the money when the chain could not be asked", () => {
     expect(checkErrorKey("unknown")).toBe("errors.paymentUnchecked")
   })
 })
 
 describe("payErrorTone", () => {
-  it("stays neutral while the chain has not answered, since nothing failed yet", () => {
-    expect(payErrorTone(checkErrorKey("unknown"))).toBe("neutral")
-  })
-
-  it("turns red once the chain reported no contract, which is a real failed payment", () => {
-    expect(payErrorTone(checkErrorKey("missing"))).toBe("red")
-    expect(payErrorTone("errors.notLinked")).toBe("red")
-  })
-
-  it("keeps the confirmation timeout neutral, since the signed transaction may still land", () => {
-    expect(payErrorTone("errors.confirmTimeout")).toBe("neutral")
+  it.each([
+    [checkErrorKey("unknown"), "gray", "the chain has not answered, so nothing failed yet"],
+    [checkErrorKey("missing"), "red", "the chain reported no contract, a real failed payment"],
+    ["errors.notLinked", "red", "the money went out and the bag is not linked"],
+    ["errors.linkNotSaved", "red", "the money went out and the browser refused the mark"],
+    ["errors.confirmTimeout", "gray", "the signed transaction may still land"],
+  ])("paints %s %s: %s", (key, tone) => {
+    expect(payErrorTone(key)).toBe(tone)
   })
 })
 
@@ -275,21 +216,20 @@ describe("UNAUTHORIZED", () => {
 })
 
 describe("uploadErrorKey", () => {
-  it("hands the upload failure over as a key the dictionary knows, the shape the payment failure already travels in", () => {
-    const refused = new ApiError(429, "POST", "/api/v1/upload", "too many requests")
+  it.each([
+    [429, "too many requests", "errors.rateLimited"],
+    [502, "", "errors.uploadNoResponse"],
+    [504, "", "errors.uploadNoResponse"],
+    [500, "", "errors.serverError"],
+    [400, "invalid multipart", "errors.requestRejected"],
+    [400, "you have unpaid bags", "errors.hasUnpaid"],
+    [400, "invalid filename", "errors.badNames"],
+    [418, "", "errors.uploadFailed"],
+  ])("names a %i upload answered %j with the dictionary key %s", (status, detail, key) => {
+    const refused = new ApiError(status, "POST", "/api/v1/files", detail)
 
-    expect(uploadErrorKey(refused)).toBe(payErrorKey(refused))
-    expect(line(uploadErrorKey(refused))).toBe(en.errors.rateLimited)
-  })
-
-  it("names what the server did when it gives no reason: no answer, its own failure, a rejected request", () => {
-    const failed = (status: number, detail = "") => uploadErrorKey(new ApiError(status, "POST", "/api/v1/files", detail))
-
-    expect(line(failed(502))).toBe(en.errors.uploadNoResponse)
-    expect(line(failed(504))).toBe(en.errors.uploadNoResponse)
-    expect(line(failed(500))).toBe(en.errors.serverError)
-    expect(line(failed(400, "invalid multipart"))).toBe(en.errors.requestRejected)
-    expect(failed(418)).toBe("errors.uploadFailed")
+    expect(uploadErrorKey(refused)).toBe(key)
+    expect(line(key)).toBeDefined()
   })
 
   it("carries the status and adds the server's own words only where our line names no reason", () => {
@@ -301,11 +241,6 @@ describe("uploadErrorKey", () => {
     expect(uploadFailure(uploadErrorKey(limited), limited)).toEqual({ key: "errors.rateLimited", status: 429, detail: "" })
     expect(uploadFailure(uploadErrorKey(dropped), dropped)).toEqual({ key: "errors.offline", status: null, detail: "" })
     expect(uploadFailure(UNAUTHORIZED)).toEqual({ key: UNAUTHORIZED, status: null, detail: "" })
-  })
-
-  it("keeps the known rejections ahead of the plain one", () => {
-    expect(uploadErrorKey(new ApiError(400, "POST", "/api/v1/files", "you have unpaid bags"))).toBe("errors.hasUnpaid")
-    expect(uploadErrorKey(new ApiError(400, "POST", "/api/v1/files", "invalid filename"))).toBe("errors.badNames")
   })
 })
 

@@ -1,11 +1,9 @@
 {
   "siteTitle": "My TON Storage",
-  "unknown": "Unknown",
-  "yes": "Yes",
-  "no": "No",
   "hero": {
     "title": "File storage in TON Storage",
-    "sub": "Upload, provider selection and storage tracking in TON Storage.",
+    "place": "in TON Storage",
+    "sub": "Upload, provider selection and storage tracking",
     "more": "How does it work?"
   },
   "about": {
@@ -24,39 +22,17 @@
     "files": "My files"
   },
   "ui": {
-    "goUp": "Go up",
-    "language": "Language",
-    "theme": "Theme",
     "connect": "Connect wallet",
     "disconnect": "Disconnect",
     "search": "Search by key",
-    "copy": "Copy",
     "copyAddress": "Copy address",
-    "close": "Close",
-    "reset": "Reset",
-    "retry": "Retry",
     "continue": "Continue",
-    "back": "Back",
-    "cancel": "Cancel",
-    "clear": "Clear",
-    "sortedAsc": "{{label}} — sorted ascending",
-    "sortedDesc": "{{label}} — sorted descending",
-    "sortColumn": "Sort by {{label}}",
-    "rangeFrom": "{{label}}, from",
-    "rangeTo": "{{label}}, to",
-    "showing": "Showing {{shown}} of {{total}}"
+    "cancel": "Cancel"
   },
   "footer": {
     "providers": "Providers",
     "chat": "Support",
     "github": "GitHub"
-  },
-  "time": {
-    "sec": "{{count}} sec",
-    "min": "{{count}} min",
-    "hr": "{{count}} h",
-    "days": "{{count}} d",
-    "year": "{{count}} y"
   },
   "steps": {
     "upload": "Upload files",
@@ -200,7 +176,6 @@
     "noActive": "No active contracts",
     "showClosed": "Show closed",
     "refresh": "Refresh",
-    "showMore": "Show more",
     "empty": "No storage contracts found",
     "emptyHint": "Upload your first file to start",
     "emptyUnpaid": "Pay for a bag above to get a contract",
@@ -241,63 +216,13 @@
   "filters": {
     "title": "Filters",
     "proofNote": "How often the provider proves it still stores the files",
-    "ratingUnit": "rating",
-    "priceUnit": "GRAM / 200 GB · mo",
     "proofRare": "Long check periods reduce blockchain fees but increase the risk: a provider may stop storing the bag between infrequent checks. For safety, set the period to {{days}} days or less.",
     "allCountries": "All countries",
-    "countries_one": "{{count}} country",
-    "countries_other": "{{count}} countries",
     "ratingAny": "Any rating",
     "priceAny": "Any price"
   },
   "provider": {
-    "title": "Provider",
-    "filesAvailable": "Files available",
-    "address": "Address",
-    "maxBag": "Max bag size",
-    "lastOnline": "Last online",
-    "lastTelemetry": "Last telemetry",
-    "ago": "{{time}} ago",
-    "justNow": "Just now",
-    "showDetails": "Show details",
-    "hideDetails": "Hide details",
-    "hardware": "Hardware",
-    "cpu": "CPU",
-    "cores": "Cores",
-    "virtual": "Virtual",
-    "ram": "RAM",
-    "disk": "Disk",
-    "benchmarks": "Benchmarks",
-    "read": "Read",
-    "write": "Write",
-    "network": "Network",
-    "down": "Download",
-    "up": "Upload",
-    "ping": "Ping",
-    "country": "Country",
-    "isp": "ISP",
-    "software": "Software",
-    "storageHash": "ton-storage hash",
-    "providerHash": "ton-storage-provider hash",
-    "notChecked": "This provider has not been checked yet",
-    "allChecksPassed": "All checks passed"
-  },
-  "status": {
-    "stable": "Stable",
-    "partial": "Partial",
-    "unstable": "Unstable",
-    "unavailable": "Unavailable",
-    "notStored": "Not stored",
-    "noProofs": "Not proven",
-    "noData": "No data",
-    "unknown": "Unknown"
-  },
-  "reason": {
-    "passed": "Check passed ({{value}})",
-    "unreachable": "The provider is not responding or was not found in the network ({{value}})",
-    "noBagInfo": "The provider did not return the bag info ({{value}})",
-    "noProof": "The provider did not prove it stores the bag ({{value}})",
-    "checkerFailed": "The checker could not run the check ({{value}})"
+    "title": "Provider"
   },
   "errors": {
     "walletNotConnected": "Wallet not connected",
@@ -337,6 +262,7 @@
     "rowRemoved": "removed",
     "rowRecreated": "will be recreated",
     "rowOnContract": "on contract",
+    "rowCheckFailed": "Check not passed",
     "restoreRow": "Restore",
     "recreateSummary_one": "{{count}} provider will start its period from zero and take the full bounty — up to {{amount}}",
     "recreateSummary_other": "{{count}} providers will start their period from zero and take the full bounty — up to {{amount}}",
@@ -371,7 +297,6 @@
     "lastProof": "Last proof",
     "nextProof": "Next proof",
     "checksOf": "Checks",
-    "checkAgo": "Last check: {{time}} ago",
     "check": "Check",
     "checkHint": "Whether the provider passed the storage check. Updated hourly by mytonprovider.org."
   },

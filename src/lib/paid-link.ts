@@ -1,6 +1,7 @@
+import { readLocal, removeLocal, writeLocal } from "@myton/ui"
 import { markBagPaid } from "./api"
 import { asRecord } from "./json"
-import { PENDING_KEY, readStored, removeStored, writeStored } from "./local-storage"
+import { PENDING_KEY } from "./local-storage"
 import { GetMethodError, runGetMethod } from "./ton/toncenter"
 
 const GIVE_UP_AFTER_MS = 24 * 60 * 60 * 1000
@@ -16,7 +17,7 @@ interface PendingPaid {
 }
 
 export const readPendingPaid = (): PendingPaid | null => {
-  const raw = readStored(PENDING_KEY)
+  const raw = readLocal(PENDING_KEY)
   if (!raw) return null
 
   try {
@@ -38,13 +39,13 @@ export const readPendingPaid = (): PendingPaid | null => {
 }
 
 export const writePendingPaid = (bagId: string, contract: string, owner = "", description = "", size = 0): boolean =>
-  writeStored(PENDING_KEY, JSON.stringify({ bagId, contract, at: Date.now(), owner, description, size }))
+  writeLocal(PENDING_KEY, JSON.stringify({ bagId, contract, at: Date.now(), owner, description, size }))
 
-export const clearPendingPaid = (): void => removeStored(PENDING_KEY)
+export const clearPendingPaid = (): void => removeLocal(PENDING_KEY)
 
 export const markPendingLinked = (): void => {
   const pending = readPendingPaid()
-  if (pending) writeStored(PENDING_KEY, JSON.stringify({ ...pending, linked: true }))
+  if (pending) writeLocal(PENDING_KEY, JSON.stringify({ ...pending, linked: true }))
 }
 
 export const forgetPendingFound = (addresses: string[]): void => {

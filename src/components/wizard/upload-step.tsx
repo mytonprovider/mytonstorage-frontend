@@ -1,16 +1,32 @@
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from "react"
 import { File as FileIcon, Files, FileText, Folder, Upload, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { cx } from "@/lib/cx"
-import { onScrollNearBottom, useScrollbarGutter } from "@/lib/dom"
-import { formatBytes, formatBytesFloor, formatBytesOrZero, formatCountdown, formatDuration, splitFileName } from "@/lib/format"
+import {
+  ActionRow,
+  Button,
+  buttonClass,
+  Card,
+  cx,
+  DataCell,
+  DataHeadCell,
+  DataRow,
+  DataTable,
+  DataTableHead,
+  DataTableRows,
+  glyphClass,
+  IconButton,
+  Notice,
+  SectionTitle,
+  TextField,
+} from "@myton/ui"
+import { fmt } from "@myton/ui/domain"
+import { pickLang } from "@myton/ui/i18n"
+import { nearBottom, useScrollbarGutter } from "@/lib/dom"
+import { formatBytesOrZero, formatCountdown, formatDuration, splitFileName } from "@/lib/format"
 import { MAX_BAG_BYTES, MAX_BAG_FILES, MAX_DESCRIPTION } from "@/lib/pricing"
 import { hasFolder, mergeFiles, pickedFrom, rootsOf, roundedLeft, totalSize, validatePicked, type UploadStats } from "@/lib/upload"
 import type { PickedFile } from "@/types/bag"
-import { IconButton } from "../icon-button"
-import { TableFrame, TableHead, TableRows, TableScroll } from "../table"
-import { Notice } from "../notice"
-import { Sheet, SheetFooter } from "../sheet"
+import { ConfirmSheet } from "../confirm-sheet"
 import shared from "../shared.module.css"
 import styles from "./upload-step.module.css"
 
@@ -92,14 +108,15 @@ const DropZone = ({ folderMode, uploading, onFiles, onReadError }: DropZoneProps
       <p className={styles.hint}>{t("upload.hint")}</p>
       <div className={styles.actions}>
         <label
-          className={cx(shared.primary, styles.pick, (folderMode || uploading) && cx(styles.pickBlocked, styles.pickBlockedFilled))}
+          className={buttonClass({ variant: "primary", size: "xl" }, cx(shared.wide, styles.pick))}
+          aria-disabled={folderMode || uploading || undefined}
           title={folderMode ? t("upload.oneFolder") : undefined}
         >
           <Upload className={styles.pickIcon} aria-hidden="true" />
           <span>{t("upload.files")}</span>
           <input type="file" multiple disabled={folderMode || uploading} onChange={pickFromInput} className={styles.srInput} />
         </label>
-        <label className={cx(shared.secondary, styles.pick, uploading && cx(styles.pickBlocked, styles.pickBlockedOutline))}>
+        <label className={buttonClass({ size: "xl" }, cx(shared.wide, styles.pick))} aria-disabled={uploading || undefined}>
           <Folder className={styles.pickIcon} aria-hidden="true" />
           <span>{t("upload.folder")}</span>
           <input
@@ -114,7 +131,7 @@ const DropZone = ({ folderMode, uploading, onFiles, onReadError }: DropZoneProps
           />
         </label>
       </div>
-      <p className={styles.max}>{t("upload.max", { size: formatBytesFloor(MAX_BAG_BYTES) })}</p>
+      <p className={styles.max}>{t("upload.max", { size: fmt.bytes(MAX_BAG_BYTES, "down") })}</p>
     </div>
   )
 }
@@ -134,91 +151,76 @@ const PickedFiles = ({ files, uploading, onRemove, onClear }: PickedFilesProps) 
   return (
     <section className={styles.list}>
       <div className={styles.listHead}>
-        <h2 className={shared.tableTitle}>
-          <Files className={shared.titleIcon} aria-hidden="true" />
+        <SectionTitle size="lg" icon={Files}>
           <span>{t("upload.picked")}</span>
-        </h2>
+        </SectionTitle>
         <span className={shared.spacer} />
-        <button type="button" onClick={onClear} disabled={uploading} className={shared.textDanger}>
-          {t("ui.clear")}
-        </button>
+        <Button variant="text" tone="red" onClick={onClear} disabled={uploading}>
+          {t("ui:ui.clear")}
+        </Button>
       </div>
 
-      <TableFrame className={styles.panel} style={{ "--list-gutter": gutter } as CSSProperties}>
-        <TableHead className={styles.head}>
-          <span className={shared.tableHeadCell}>{t("upload.colFile")}</span>
-          <span className={shared.tableHeadCell}>{t("upload.colSize")}</span>
-          <span />
-        </TableHead>
-
-        <TableScroll
-          ref={gutterRef}
-          className={styles.scroll}
-          onScroll={onScrollNearBottom(NEAR_BOTTOM_PX, () => {
-            if (shownLimit < files.length) setShownLimit((current) => current + ROWS_PER_PAGE)
-          })}
+      <Card striped>
+        <DataTable
+          columns="minmax(0, 1fr) max-content max-content"
+          style={{ "--list-gutter": gutter } as CSSProperties}
+          className={styles.grid}
         >
-          <TableRows className={styles.rows}>
-            {files.slice(0, shownLimit).map((file, index) => {
-              const [stem, extension] = splitFileName(file.name)
+          <DataTableHead className={styles.head}>
+            <DataHeadCell>{t("upload.colFile")}</DataHeadCell>
+            <DataHeadCell>{t("upload.colSize")}</DataHeadCell>
+            <span />
+          </DataTableHead>
 
-              return (
-                <div key={`${file.name}-${index}`} className={styles.row}>
-                  <span className={shared.tableLead}>
-                    {file.name.includes("/") ? (
-                      <Folder className={styles.rowIcon} aria-hidden="true" />
-                    ) : (
-                      <FileIcon className={styles.rowIcon} aria-hidden="true" />
-                    )}
-                    <span title={file.name} className={cx(shared.tableValue, styles.fileName)}>
-                      <span className={shared.ellipsis}>{stem}</span>
-                      <span className={styles.fileExt}>{extension}</span>
-                    </span>
-                  </span>
-                  <span className={shared.tableCell}>
-                    <span className={shared.tableLabel}>{t("upload.colSize")}</span>
-                    <span className={shared.tableValue}>{formatBytes(file.size)}</span>
-                  </span>
-                  <IconButton size="xs" danger label={t("upload.removeFile")} onClick={() => onRemove(index)} disabled={uploading}>
-                    <X className={styles.removeIcon} aria-hidden="true" />
-                  </IconButton>
-                </div>
-              )
-            })}
-          </TableRows>
-        </TableScroll>
+          <div
+            ref={gutterRef}
+            className={styles.scroll}
+            onScroll={(event) => {
+              if (shownLimit < files.length && nearBottom(event.currentTarget, NEAR_BOTTOM_PX)) {
+                setShownLimit((current) => current + ROWS_PER_PAGE)
+              }
+            }}
+          >
+            <DataTableRows>
+              {files.slice(0, shownLimit).map((file, index) => {
+                const [stem, extension] = splitFileName(file.name)
 
-        <p className={styles.foot}>
-          {t("upload.total", { files: files.length, size: formatBytes(totalSize(files)) })}
-        </p>
-      </TableFrame>
+                return (
+                  <DataRow key={`${file.name}-${index}`}>
+                    <div className={styles.lead}>
+                      {file.name.includes("/") ? (
+                        <Folder className={styles.rowIcon} aria-hidden="true" />
+                      ) : (
+                        <FileIcon className={styles.rowIcon} aria-hidden="true" />
+                      )}
+                      <DataCell
+                        label={t("upload.colFile")}
+                        title={file.name}
+                        valueClassName={styles.fileName}
+                        value={
+                          <>
+                            <span className={shared.ellipsis}>{stem}</span>
+                            <span className={styles.fileExt}>{extension}</span>
+                          </>
+                        }
+                      />
+                    </div>
+                    <DataCell label={t("upload.colSize")} value={fmt.bytes(file.size)} />
+                    <IconButton size="xs" tone="red" label={t("upload.removeFile")} onClick={() => onRemove(index)} disabled={uploading}>
+                      <X className={glyphClass("xs")} aria-hidden="true" />
+                    </IconButton>
+                  </DataRow>
+                )
+              })}
+            </DataTableRows>
+          </div>
+
+          <p className={styles.foot}>
+            {t("upload.total", { files: files.length, size: fmt.bytes(totalSize(files)) })}
+          </p>
+        </DataTable>
+      </Card>
     </section>
-  )
-}
-
-interface ReplaceFolderSheetProps {
-  folder: PickedFile[] | null
-  pickedCount: number
-  onCancel: () => void
-  onConfirm: () => void
-}
-
-const ReplaceFolderSheet = ({ folder, pickedCount, onCancel, onConfirm }: ReplaceFolderSheetProps) => {
-  const { t } = useTranslation()
-
-  return (
-    <Sheet
-      open={folder !== null}
-      title={t("upload.replaceTitle")}
-      onClose={onCancel}
-    >
-      <p className={shared.sheetNote}>{t("upload.replaceNote", { count: pickedCount })}</p>
-      <SheetFooter className={shared.sheetActions}>
-        <button type="button" onClick={onConfirm} className={shared.danger}>
-          {t("upload.replace")}
-        </button>
-      </SheetFooter>
-    </Sheet>
   )
 }
 
@@ -255,9 +257,10 @@ export const UploadStep = ({
   onSubmit,
   onCancel,
 }: UploadStepProps) => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const lang = pickLang(i18n.language)
   const [pendingFolder, setPendingFolder] = useState<PickedFile[] | null>(null)
-  const [pickError, setPickError] = useState<{ errorKey: string, names?: string[] } | null>(null)
+  const [pickError, setPickError] = useState<{ errorKey: string; names?: string[] } | null>(null)
 
   const descriptionLength = [...description].length
   const size = totalSize(files)
@@ -311,10 +314,9 @@ export const UploadStep = ({
   return (
     <div className={styles.step}>
       <div className={styles.dropHead}>
-        <h2 className={shared.tableTitle}>
-          <Upload className={shared.titleIcon} aria-hidden="true" />
+        <SectionTitle size="lg" icon={Upload}>
           <span>{t("steps.upload")}</span>
-        </h2>
+        </SectionTitle>
       </div>
 
       <DropZone
@@ -331,12 +333,12 @@ export const UploadStep = ({
           className={styles.notice}
           tone="red"
           action={
-            <a href="https://github.com/xssnick/TON-Torrent" target="_blank" rel="noopener noreferrer">
+            <a href="https://github.com/xssnick/TON-Torrent" target="_blank" rel="noopener noreferrer" className={buttonClass({ size: "sm" })}>
               {t("upload.torrent")}
             </a>
           }
         >
-          {t("upload.tooLarge", { max: formatBytesFloor(MAX_BAG_BYTES) })}
+          {t("upload.tooLarge", { max: fmt.bytes(MAX_BAG_BYTES, "down") })}
         </Notice>
       )}
 
@@ -358,26 +360,20 @@ export const UploadStep = ({
 
           <section className={styles.form}>
             <div className={styles.formHead}>
-              <h2 className={shared.tableTitle}>
-                <FileText className={shared.titleIcon} aria-hidden="true" />
+              <SectionTitle size="lg" icon={FileText}>
                 <span>{t("files.desc")}</span>
                 <span className={styles.optional}>({t("upload.optional")})</span>
-              </h2>
+              </SectionTitle>
             </div>
 
-            <span className={styles.inputWrap}>
-                <input
-                  type="text"
-                  value={description}
-                  aria-label={t("files.desc")}
-                  onChange={(event) => onDescription(event.target.value)}
-                  disabled={uploading}
-                  className={styles.descInput}
-                />
-                <span className={cx(styles.counter, descriptionLength > MAX_DESCRIPTION && styles.counterOver)}>
-                  {descriptionLength} / {MAX_DESCRIPTION}
-                </span>
-            </span>
+            <TextField
+              value={description}
+              aria-label={t("files.desc")}
+              onChange={onDescription}
+              disabled={uploading}
+              counter={`${descriptionLength} / ${MAX_DESCRIPTION}`}
+              invalid={descriptionLength > MAX_DESCRIPTION}
+            />
 
             {uploading ? (
               <>
@@ -386,8 +382,8 @@ export const UploadStep = ({
                     <span className={styles.progressNote}>{t(assembling ? "upload.assembling" : "upload.sending")}</span>
                     <span className={styles.progressAmount}>
                       {assembling
-                        ? formatBytes(size)
-                        : sentBytes > 0 && t("upload.amount", { loaded: formatBytes(sentBytes), total: formatBytes(size) })}
+                        ? fmt.bytes(size)
+                        : sentBytes > 0 && t("upload.amount", { loaded: fmt.bytes(sentBytes), total: fmt.bytes(size) })}
                     </span>
                   </span>
                   <span className={styles.progressRow}>
@@ -405,7 +401,7 @@ export const UploadStep = ({
                   <span className={styles.progressMeta}>
                     {[
                       !assembling && stats?.speed != null && t("upload.perSecond", { value: formatBytesOrZero(stats.speed) }),
-                      !assembling && stats?.left != null && t("upload.left", { time: formatDuration(roundedLeft(stats.left), t) }),
+                      !assembling && stats?.left != null && t("upload.left", { time: formatDuration(roundedLeft(stats.left), lang) }),
                       t("upload.elapsed", { time: formatCountdown(stats?.elapsed ?? 0) }),
                     ]
                       .filter(Boolean)
@@ -413,23 +409,23 @@ export const UploadStep = ({
                   </span>
                 </div>
 
-                <div className={styles.submit}>
-                  <button ref={cancelRef} type="button" onClick={onCancel} className={shared.secondary}>
+                <ActionRow className={styles.submit}>
+                  <Button size="xl" ref={cancelRef} onClick={onCancel}>
                     {t("ui.cancel")}
-                  </button>
-                </div>
+                  </Button>
+                </ActionRow>
               </>
             ) : (
-              <div className={styles.submit}>
-                <button
-                  type="button"
+              <ActionRow className={styles.submit}>
+                <Button
+                  variant="primary"
+                  size="xl"
                   onClick={onSubmit}
                   disabled={tooLarge || tooMany || descriptionLength > MAX_DESCRIPTION}
-                  className={shared.primary}
                 >
                   {t("upload.submit")}
-                </button>
-              </div>
+                </Button>
+              </ActionRow>
             )}
           </section>
         </>
@@ -447,14 +443,15 @@ export const UploadStep = ({
         </Notice>
       )}
 
-      <ReplaceFolderSheet
-        folder={pendingFolder}
-        pickedCount={files.length}
-        onCancel={() => setPendingFolder(null)}
+      <ConfirmSheet
+        open={pendingFolder !== null}
+        title={t("upload.replaceTitle")}
+        note={t("upload.replaceNote", { count: files.length })}
+        confirmLabel={t("upload.replace")}
         onConfirm={() => {
           if (pendingFolder) onReplace(pendingFolder)
-          setPendingFolder(null)
         }}
+        onClose={() => setPendingFolder(null)}
       />
     </div>
   )

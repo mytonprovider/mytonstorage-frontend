@@ -1,6 +1,7 @@
-import "@fontsource-variable/inter"
-import "@fontsource-variable/jetbrains-mono"
-import "@/styles/global.css"
+import "@myton/ui/fonts.css"
+import "@myton/ui/styles.css"
+import "@myton/ui/site.css"
+import "@/styles/tokens.css"
 
 import { StrictMode } from "react"
 import ReactDOM from "react-dom/client"

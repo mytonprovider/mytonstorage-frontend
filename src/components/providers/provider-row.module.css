@@ -1,60 +1,36 @@
-.grid {
-  composes: tableSubgrid from "../shared.module.css";
-}
-
+/* Over the rows' pinned pick cells (layer 3), which scroll under it. */
 .headerRow {
-  composes: grid;
-  composes: tableHeadSkin from "../shared.module.css";
+  z-index: 4;
   --lead-py: var(--space-4);
   padding: var(--space-4) var(--space-4) var(--space-4) var(--space-3);
 }
 
+/* Over the row's own buttons (lifted to 2 by OpenRow) as they scroll under the pinned column. */
 .pickCell {
   position: sticky;
   left: 0;
-  z-index: 2;
+  z-index: 3;
   display: grid;
   place-items: center;
   align-self: stretch;
   padding: var(--lead-py) var(--space-3);
   margin: calc(-1 * var(--lead-py)) calc(-1 * var(--space-3));
   background: inherit;
+  /* The sticky cell covers the row's open button around the box: a tap beside the box opens the row, as anywhere. */
+  pointer-events: none;
+}
+
+.pickCell > * {
+  pointer-events: auto;
 }
 
 .columnStatus {
-  padding-left: calc(var(--space-3) + var(--space-2));
+  padding-left: var(--badge-word-inset);
 }
 
 .card {
-  composes: grid;
   --lead-py: var(--row-py);
-  position: relative;
-  width: 100%;
   padding: var(--row-py) var(--space-4) var(--row-py) var(--space-3);
-  background: var(--row-surface);
-  cursor: pointer;
-}
-
-.open {
-  position: absolute;
-  inset: 0;
-  padding: 0;
-  border: 0;
-  border-radius: inherit;
-  background: none;
-  cursor: pointer;
-}
-
-.open:focus-visible {
-  outline: none;
-}
-
-.card[data-viewed] {
-  background: var(--row-deep);
-}
-
-.card:has(.open:focus-visible) {
-  background: var(--row-deep);
 }
 
 .card[data-ring="yellow"] {
@@ -65,31 +41,50 @@
   --row-ring: var(--tone-red);
 }
 
-.card[data-ring]::after,
-.card:has(.open:focus-visible)::after {
+.card[data-ring="orange"] {
+  --row-ring: var(--tone-orange);
+}
+
+.card[data-ring]::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 3;
-  box-shadow: inset 0 0 0 1px var(--row-ring, var(--focus-edge));
+  border: 1px solid var(--row-ring, var(--focus-edge));
   pointer-events: none;
 }
 
-@media (hover: hover) {
-  .card:hover {
-    background: var(--row-hover);
-  }
+.card[data-ring] + .card[data-ring]::after {
+  top: -1px;
 }
 
-.cardSelected,
-.cardSelected:has(.open:focus-visible),
-.cardSelected[data-viewed] {
-  background: var(--row-picked);
+.headerRow:has(+ * .card:first-child[data-ring]) {
+  border-bottom-color: transparent;
+}
+
+.card[data-ring="yellow"]:has(+ .card[data-ring="yellow"])::after,
+.card[data-ring="orange"]:has(+ .card[data-ring="orange"])::after,
+.card[data-ring="red"]:has(+ .card[data-ring="red"])::after {
+  border-bottom-width: 0;
+}
+
+.card[data-ring="yellow"] + .card[data-ring="yellow"]::after,
+.card[data-ring="orange"] + .card[data-ring="orange"]::after,
+.card[data-ring="red"] + .card[data-ring="red"]::after {
+  border-top-width: 0;
+}
+
+/* A picked row stays picked when viewed or focused, and washes in its own tone under the pointer. */
+.cardSelected {
+  --row-surface: var(--row-picked);
+  --row-mark: var(--row-picked);
+  --row-hover: var(--row-picked-hover);
+  --control-press: var(--picked-control-press);
 }
 
 @media (hover: hover) {
   .cardSelected:hover {
-    background: var(--row-picked-hover);
+    --control-hover: var(--picked-control-hover);
   }
 }
 
@@ -103,14 +98,18 @@
 }
 
 .pick[aria-disabled="true"] {
-  opacity: 0.4;
+  opacity: var(--disabled-opacity);
   cursor: default;
 }
 
 @media (hover: hover) {
   .pick:hover {
-    background: color-mix(in srgb, var(--text) 10%, transparent);
+    background: var(--control-hover, var(--ghost-hover));
   }
+}
+
+.pick:active:not([aria-disabled="true"]) {
+  background: var(--control-press, var(--control-hover, var(--ghost-hover)));
 }
 
 @media (pointer: coarse) {
@@ -136,8 +135,6 @@
 }
 
 .key {
-  position: relative;
-  z-index: 1;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -146,21 +143,18 @@
 
 .pubkey {
   composes: tableMono from "../shared.module.css";
-  padding: 0;
-  border: 0;
-  cursor: pointer;
   color: var(--text);
   text-transform: uppercase;
 }
 
 .status {
-  composes: badge from "../shared.module.css";
   justify-self: start;
   min-width: 0;
 }
 
 .statusStack {
   composes: stack from "../shared.module.css";
+  line-height: var(--line-base);
 }
 
 .statusRow,
@@ -178,7 +172,7 @@
 .ratio {
   flex: none;
   font-size: var(--font-xs);
-  font-weight: 400;
+  font-weight: var(--w-regular);
 }
 
 .cell {
@@ -191,7 +185,7 @@
   gap: var(--space-2);
   min-height: var(--line-control);
   font-size: var(--font-base);
-  font-weight: 400;
+  font-weight: var(--w-regular);
   line-height: var(--line-control);
   color: var(--text);
 }
@@ -202,24 +196,25 @@
   font-size: var(--font-xs);
 }
 
-.placeholder {
-  cursor: default;
+/* A wash laid over the row's ground rather than in place of it, so the row's states still show under it. */
+.card[data-fate="new"] {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--tone-green-wash) var(--plate-mix), transparent),
+    color-mix(in srgb, var(--tone-green-wash) var(--plate-mix), transparent)
+  );
 }
 
-.card[data-fate="new"],
-.card[data-fate="new"]:hover {
-  background: var(--tone-green-weak);
-}
-
-.card[data-fate="removed"],
-.card[data-fate="removed"]:hover {
-  background: var(--tone-red-weak);
+.card[data-fate="removed"] {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--tone-red-wash) var(--plate-mix), transparent),
+    color-mix(in srgb, var(--tone-red-wash) var(--plate-mix), transparent)
+  );
 }
 
 .card[data-fate="removed"] .cellValue,
 .card[data-fate="removed"] .status,
 .card[data-fate="removed"] .pubkey {
-  opacity: 0.55;
+  opacity: var(--disabled-opacity);
 }
 
 .card[data-fate="removed"] .cellValue,

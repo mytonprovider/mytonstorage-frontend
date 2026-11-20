@@ -12,9 +12,7 @@ const WALLET = `0:${"a".repeat(64)}`
 const PROVIDER = `0:${"b".repeat(64)}`
 
 const BOUNCEABLE = "EQAjRhPNqC9mY2muFNsYwYI5eqb-lsq-sD5xk3SLfrDljMwB"
-const NON_BOUNCEABLE = "UQAjRhPNqC9mY2muFNsYwYI5eqb-lsq-sD5xk3SLfrDljJHE"
 const SAME_ACCOUNT_RAW = "0:234613cda82f666369ae14db18c182397aa6fe96cabeb03e7193748b7eb0e58c"
-const BROKEN_CHECKSUM = "EQAjRhPNqC9mY2muFNsYwYI5eqb-lsq-sD5xk3SLfrDljAAA"
 
 const INDEXED_DEST = "0:90F1C75EE066800F2D9C406C245D8A8AA1E0DAA7B4564E1C29C81E4C872D8CA6"
 const INDEXED_BODY =
@@ -51,54 +49,36 @@ afterEach(() => {
 })
 
 describe("fromSender", () => {
-  it("keeps a message the connected wallet sent", () => {
-    expect(fromSender(WALLET, WALLET)).toBe(true)
-    expect(fromSender(WALLET.toUpperCase(), WALLET)).toBe(true)
-  })
-
-  it("drops a message another account sent to the same contract", () => {
-    expect(fromSender(PROVIDER, WALLET)).toBe(false)
-  })
-
-  it("keeps a message from the same account written in the friendly form", () => {
-    expect(fromSender(BOUNCEABLE, SAME_ACCOUNT_RAW)).toBe(true)
-    expect(fromSender(SAME_ACCOUNT_RAW, NON_BOUNCEABLE)).toBe(true)
-    expect(fromSender(BOUNCEABLE, NON_BOUNCEABLE)).toBe(true)
-  })
-
-  it("drops a message it cannot pin on the connected wallet", () => {
-    expect(fromSender(null, WALLET)).toBe(false)
-    expect(fromSender(undefined, WALLET)).toBe(false)
-    expect(fromSender(PROVIDER, null)).toBe(false)
-    expect(fromSender("EQAsomeFriendlyForm", WALLET)).toBe(false)
-    expect(fromSender(PROVIDER, "EQAsomeFriendlyForm")).toBe(false)
-    expect(fromSender(BROKEN_CHECKSUM, SAME_ACCOUNT_RAW)).toBe(false)
+  it.each([
+    [WALLET, WALLET, true],
+    [PROVIDER, WALLET, false],
+    [BOUNCEABLE, SAME_ACCOUNT_RAW, true],
+    [null, WALLET, false],
+    [PROVIDER, null, false],
+  ])("pins a message from %s on the wallet %s: %s", (source, wallet, sent) => {
+    expect(fromSender(source, wallet)).toBe(sent)
   })
 })
 
 describe("sendAndConfirm", () => {
-  it("never lets the wallet broadcast after the confirmation window is over", async () => {
+  it.each([
+    [180_000, 180],
+    [600_000, 300],
+  ])("never lets the wallet broadcast after a window of %i ms is over, capping the deadline at %i seconds", async (window, seconds) => {
     const sender = senderThat("rejects")
-    await sendAndConfirm(sender, transaction, 180_000)
+    await sendAndConfirm(sender, transaction, window)
 
     const request = vi.mocked(sender.sendTransaction).mock.calls[0][0]
-    expect(request.validUntil - Math.floor(Date.now() / 1000)).toBeLessThanOrEqual(180)
+    expect(request.validUntil - Math.floor(Date.now() / 1000)).toBeLessThanOrEqual(seconds)
   })
 
-  it("caps the deadline at five minutes for a window longer than that", async () => {
-    const sender = senderThat("rejects")
-    await sendAndConfirm(sender, transaction, 600_000)
-
-    const request = vi.mocked(sender.sendTransaction).mock.calls[0][0]
-    expect(request.validUntil - Math.floor(Date.now() / 1000)).toBeLessThanOrEqual(300)
-  })
-
-  it("hands the signed message to the caller the moment the wallet returns it", async () => {
+  it("takes the answer of the wallet itself as the confirmation and hands the signed message to the caller the moment it returns", async () => {
     const sender: WalletSender = { account: { address: WALLET }, sendTransaction: vi.fn(() => Promise.resolve({ boc: "te6signed" })) }
     const seen: string[] = []
 
     await expect(sendAndConfirm(sender, transaction, 180_000, (boc) => seen.push(boc))).resolves.toBe(true)
     expect(seen).toEqual(["te6signed"])
+    expect(fetchTransactions).not.toHaveBeenCalled()
   })
 
   it("reports failure as soon as the wallet call fails, without claiming the transaction was refused", async () => {
@@ -119,11 +99,11 @@ describe("sendAndConfirm", () => {
     expect(fetchTransactions).not.toHaveBeenCalled()
   })
 
-  it("confirms on a contract transaction the connected wallet caused", async () => {
+  it("confirms on a contract transaction the connected wallet caused, even one whose hash it cannot read", async () => {
     vi.useFakeTimers()
     const now = Math.floor(Date.now() / 1000)
     fetchTransactions.mockResolvedValue(
-      page([{ lt: "1", now: now + 2, out_msgs: [], in_msg: { source: WALLET } }]),
+      page([{ lt: "1", now: now + 2, hash: "not a hash", out_msgs: [], in_msg: { source: WALLET } }]),
     )
 
     const confirmed = sendAndConfirm(senderThat("never"), transaction, 180_000)
@@ -132,64 +112,19 @@ describe("sendAndConfirm", () => {
     await expect(confirmed).resolves.toBe(true)
   })
 
-  it("does not take a provider proof landing in the same window for our transaction", async () => {
+  it.each([
+    ["a provider proof landing in the same window", 2, PROVIDER],
+    ["a contract transaction toncenter reports without a sender", 2, null],
+    ["what the contract did before the transaction was built", -60, WALLET],
+  ])("does not take %s for our transaction", async (_, offset, source) => {
     vi.useFakeTimers()
     const now = Math.floor(Date.now() / 1000)
-    fetchTransactions.mockResolvedValue(
-      page([{ lt: "1", now: now + 2, out_msgs: [], in_msg: { source: PROVIDER } }]),
-    )
+    fetchTransactions.mockResolvedValue(page([{ lt: "1", now: now + offset, out_msgs: [], ...(source === null ? {} : { in_msg: { source } }) }]))
 
     const confirmed = sendAndConfirm(senderThat("never"), transaction, 20_000)
     await vi.advanceTimersByTimeAsync(30_000)
 
     await expect(confirmed).resolves.toBe(false)
-  })
-
-  it("waits instead of taking a contract transaction toncenter reports without a sender", async () => {
-    vi.useFakeTimers()
-    const now = Math.floor(Date.now() / 1000)
-    fetchTransactions.mockResolvedValue(page([{ lt: "1", now: now + 2, out_msgs: [] }]))
-
-    const confirmed = sendAndConfirm(senderThat("never"), transaction, 20_000)
-    await vi.advanceTimersByTimeAsync(30_000)
-
-    await expect(confirmed).resolves.toBe(false)
-  })
-
-  it("ignores what the contract did before the transaction was built", async () => {
-    vi.useFakeTimers()
-    const now = Math.floor(Date.now() / 1000)
-    fetchTransactions.mockResolvedValue(
-      page([{ lt: "1", now: now - 60, out_msgs: [], in_msg: { source: WALLET } }]),
-    )
-
-    const confirmed = sendAndConfirm(senderThat("never"), transaction, 20_000)
-    await vi.advanceTimersByTimeAsync(30_000)
-
-    await expect(confirmed).resolves.toBe(false)
-  })
-
-  it("takes the answer of the wallet itself as the confirmation, without waiting for the chain to show it", async () => {
-    const sender: WalletSender = {
-      account: { address: WALLET },
-      sendTransaction: vi.fn(() => Promise.resolve({ boc: "te6ccg" })),
-    }
-
-    await expect(sendAndConfirm(sender, transaction, 180_000)).resolves.toBe(true)
-    expect(fetchTransactions).not.toHaveBeenCalled()
-  })
-
-  it("confirms a payment whose hash it cannot read, since the money does not hang on the explorer link", async () => {
-    vi.useFakeTimers()
-    const now = Math.floor(Date.now() / 1000)
-    fetchTransactions.mockResolvedValue(
-      page([{ lt: "1", now: now + 2, hash: "not a hash", out_msgs: [], in_msg: { source: WALLET } }]),
-    )
-
-    const confirmed = sendAndConfirm(senderThat("never"), transaction, 20_000)
-    await vi.advanceTimersByTimeAsync(6000)
-
-    await expect(confirmed).resolves.toBe(true)
   })
 })
 

@@ -1,38 +1,39 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type UIEvent } from "react"
 import { Loader, Minus, Plus, Server, SlidersHorizontal, SquareCheck } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import { Button, Card, cx, DataTable, DataTableRows, EmptyState, Hint, LoadError, Notice, SectionTitle } from "@myton/ui"
+import {
+  type Provider,
+  pubkeyFrom,
+  rankByRating,
+  sortProviders,
+  type SortDirection,
+  type SortField,
+} from "@myton/ui/domain"
 import { fetchProviderByKey } from "@/lib/api"
 import type { CheckWarn } from "@/lib/check-label"
-import { cx } from "@/lib/cx"
-import { nearBottom, useScrollbarGutter } from "@/lib/dom"
+import { nearBottom } from "@/lib/dom"
 import { DEFAULT_PICK_COUNT, DEFAULT_PROOF_DAYS, MAX_SELECTED, type ProviderFate } from "@/lib/pricing"
 import {
   NO_FILTERS,
+  autopickPool,
   countSpanMismatched,
   eligibleFor,
   freshSeed,
   hasFilters,
   hostingPool,
-  matches,
+  matchesQuery,
   pickBest,
   pinnedOf,
   priceCeiling,
-  pubkeyFrom,
   ratingCeiling,
-  sortProviders,
   type ProviderFilters,
-  type SortDirection,
-  type SortField,
 } from "@/lib/providers"
 import type { ProviderDecline } from "@/types/bag"
-import type { Provider } from "@/types/provider"
 import { CatalogToolbar, ProofPeriodRow, daysLabel } from "./catalog-toolbar"
-import { Hint } from "../hint"
-import { Notice } from "../notice"
-import { ProviderHeader, ProviderRow, ProviderSkeleton } from "./provider-row"
+import { ProviderHeader, ProviderRow, ProviderSkeleton, tableColumns } from "./provider-row"
 import { SelectedTable } from "./selected-table"
 import { StepFooter } from "./step-footer"
-import { TableFrame, TableRows } from "../table"
 import { RECIPES, STRATEGIES, StrategyCards, type Strategy } from "./strategy-cards"
 import shared from "../shared.module.css"
 import styles from "./providers-step.module.css"
@@ -149,14 +150,19 @@ export const ProvidersStep = ({
     () => poolOf(providers, filters, proofDays, bagSize, sortField, sortDirection),
     [providers, filters, proofDays, bagSize, sortField, sortDirection],
   )
+  // The place among those that can take this bag under the chosen filters; search does not renumber
+  const ranks = useMemo(() => rankByRating(pool), [pool])
 
+  // The search reaches past the countries, price and rating, not past what can take the bag
   const filtered = useMemo(() => {
     if (!query.trim()) return pool
-    const found = pool.filter((provider) => matches(provider, filters, proofDays, query, bagSize))
+    const found = poolOf(providers, NO_FILTERS, proofDays, bagSize, sortField, sortDirection).filter((provider) =>
+      matchesQuery(provider, query),
+    )
     if (found.length > 0) return found
     const hit = queryKey ? providers.find((provider) => provider.pubkey.toLowerCase() === queryKey) : undefined
     return hit ? [hit] : found
-  }, [pool, providers, filters, proofDays, query, queryKey, bagSize])
+  }, [pool, providers, proofDays, query, queryKey, bagSize, sortField, sortDirection])
 
   const spanMismatchedCount = useMemo(
     () => countSpanMismatched(providers, filters, proofDays, bagSize),
@@ -166,7 +172,7 @@ export const ProvidersStep = ({
   const emptyCatalog = !loading && !failed && providers.length === 0
   const hasPanel = !failed && !emptyCatalog
   const pickLimit = Math.max(1, Math.min(MAX_SELECTED, eligibleFor(providers).length))
-  const poolLimit = Math.min(pickLimit, eligibleFor(pool).length)
+  const poolLimit = Math.min(pickLimit, autopickPool(pool).length)
   const count = Math.min(selected.length || pickCount, pickLimit)
 
   const lookupKey = !loading && !failed && filtered.length === 0 ? queryKey : null
@@ -233,9 +239,7 @@ export const ProvidersStep = ({
     if (pool.length === 0) return
     setPickedFrom(providers)
     const recipe = RECIPES[next]
-    onSelected(
-      pickBest(pool, { count, ...recipe, priceMax, ratingMax, seed: nextSeed }),
-    )
+    onSelected(pickBest(pool, { count, ...recipe, priceMax, ratingMax, seed: nextSeed }))
   }
 
   const pickStrategy = (next: Strategy) => {
@@ -252,9 +256,7 @@ export const ProvidersStep = ({
     setStrategy("reliable")
     setSeed(firstSeed)
     setPickedFrom(providers)
-    onSelected(
-      pickBest(pool, { count: pickCount, ...RECIPES.reliable, priceMax, ratingMax, seed: firstSeed }),
-    )
+    onSelected(pickBest(pool, { count: pickCount, ...RECIPES.reliable, priceMax, ratingMax, seed: firstSeed }))
   }, [loading, providers, selected.length, pool, pickCount, priceMax, ratingMax, onSelected])
 
   const pinned = useMemo(() => {
@@ -287,11 +289,9 @@ export const ProvidersStep = ({
 
   const atBottom = useRef(false)
   const catalogRef = useRef<HTMLDivElement>(null)
-  const scrollRef = useRef<HTMLDivElement>(null)
   const rowsRef = useRef<HTMLDivElement>(null)
   const [catalogWindow, setCatalogWindow] = useState<string>()
   const [catalogHead, setCatalogHead] = useState<string>()
-  const [catalogGutter, gutterRef] = useScrollbarGutter()
 
   const showMore = useCallback(
     () => setShownLimit((current) => Math.min(current + PAGE, filtered.length)),
@@ -319,7 +319,8 @@ export const ProvidersStep = ({
 
   useEffect(() => {
     const onScroll = () => {
-      if ([catalogRef.current, scrollRef.current].some((box) => box && box.scrollHeight > box.clientHeight)) return
+      const box = catalogRef.current
+      if (box && box.scrollHeight > box.clientHeight) return
       const reached = nearBottom(document.documentElement, NEXT_PAGE_AHEAD)
       if (reached && !atBottom.current) showMore()
       atBottom.current = reached
@@ -358,14 +359,14 @@ export const ProvidersStep = ({
   const rareProof = proofDays > RARE_PROOF_DAYS ? t("filters.proofRare", { days: RARE_PROOF_DAYS }) : null
 
   const catalogSkeleton = (
-    <div className={styles.scrollX}>
+    <DataTable columns={tableColumns(true)}>
       <ProviderHeader />
-      <TableRows className={styles.rows}>
+      <DataTableRows>
         {Array.from({ length: SKELETON_ROWS }, (_, index) => (
           <ProviderSkeleton key={index} index={index} />
         ))}
-      </TableRows>
-    </div>
+      </DataTableRows>
+    </DataTable>
   )
 
   const onCatalogScroll = (event: UIEvent<HTMLDivElement>) => {
@@ -374,51 +375,44 @@ export const ProvidersStep = ({
   }
 
   const catalogBox = (
-    <div
-      ref={catalogRef}
-      style={{ "--catalog-window": catalogWindow, "--catalog-head": catalogHead, "--catalog-gutter": catalogGutter } as CSSProperties}
+    <DataTable
+      columns={tableColumns(true)}
+      gridRef={catalogRef}
+      style={{ "--catalog-window": catalogWindow, "--catalog-head": catalogHead } as CSSProperties}
       onScroll={onCatalogScroll}
       className={styles.catalog}
     >
       <ProviderHeader field={sortField} direction={sortDirection} onSort={sort} />
-      <div
-        ref={(box) => {
-          scrollRef.current = box
-          gutterRef(box)
-        }}
-        onScroll={onCatalogScroll}
-        className={styles.scroll}
-      >
-        <TableRows ref={rowsRef} className={styles.rows}>
-          {page.map((provider, index) => (
-            <ProviderRow
-              key={provider.pubkey}
-              provider={provider}
-              index={index % STAGGER}
-              fresh={!seenRows.current.has(provider.pubkey)}
-              viewed={provider.pubkey === viewedKey}
-              selected={selected.includes(provider.pubkey)}
-              full={selected.length >= MAX_SELECTED}
-              proofDays={proofDays}
-              copied={copied === provider.pubkey}
-              onToggle={toggle}
-              onOpen={openRow}
-              onCopy={onCopy}
-            />
-          ))}
-        </TableRows>
-      </div>
-    </div>
+      <DataTableRows ref={rowsRef}>
+        {page.map((provider, index) => (
+          <ProviderRow
+            key={provider.pubkey}
+            provider={provider}
+            rank={ranks[provider.pubkey]}
+            index={index % STAGGER}
+            fresh={!seenRows.current.has(provider.pubkey)}
+            viewed={provider.pubkey === viewedKey}
+            selected={selected.includes(provider.pubkey)}
+            full={selected.length >= MAX_SELECTED}
+            proofDays={proofDays}
+            copied={copied === provider.pubkey}
+            onToggle={toggle}
+            onOpen={openRow}
+            onCopy={onCopy}
+          />
+        ))}
+      </DataTableRows>
+    </DataTable>
   )
 
   const shownLine = (
     <span role="status" className={styles.showing}>
-      {t("ui.showing", { shown: page.length, total: filtered.length })}
+      {t("ui:ui.showing", { shown: page.length, total: filtered.length })}
     </span>
   )
 
   const panelBody = (bare: boolean) => {
-    const boxed = (content: ReactNode) => (bare ? <TableFrame>{content}</TableFrame> : content)
+    const boxed = (content: ReactNode) => (bare ? <Card striped>{content}</Card> : content)
 
     return (
       <div className={bare ? styles.bare : styles.panel}>
@@ -475,10 +469,9 @@ export const ProvidersStep = ({
   const catalogPart = (
     <>
       <div className={styles.headRow} data-sheet={editor ? "" : undefined}>
-        <h2 className={editor ? shared.sheetTitle : shared.tableTitle}>
-          <Server className={shared.titleIcon} aria-hidden="true" />
+        <SectionTitle size={editor ? "md" : "lg"} icon={Server}>
           <span>{t(editor ? "catalog.panel" : "catalog.stepTitle")}</span>
-        </h2>
+        </SectionTitle>
         <span className={shared.spacer} />
 
         {autoPick && (
@@ -536,31 +529,37 @@ export const ProvidersStep = ({
       {!autoPick && hasPanel && panelBody(true)}
 
       {!loading && !failed && filtered.length === 0 && lookupState === null && (
-        <div role="status" className={shared.emptyState}>
-          <p>{t("catalog.notFound")}</p>
-          {(hasFilters(filters) || query || proofDays !== DEFAULT_PROOF_DAYS) && (
-            <button
-              type="button"
-              onClick={() => {
-                setFilters(NO_FILTERS)
-                setQuery("")
-                if (proofDays !== DEFAULT_PROOF_DAYS) onProofDays(DEFAULT_PROOF_DAYS)
-              }}
-              className={cx(shared.textDanger, styles.emptyReset)}
-            >
-              {t("ui.reset")}
-            </button>
-          )}
-        </div>
+        <EmptyState
+          role="status"
+          title={t("catalog.notFound")}
+          action={
+            (hasFilters(filters) || query || proofDays !== DEFAULT_PROOF_DAYS) && (
+              <Button
+                variant="text"
+                tone="red"
+                onClick={() => {
+                  setFilters(NO_FILTERS)
+                  setQuery("")
+                  if (proofDays !== DEFAULT_PROOF_DAYS) onProofDays(DEFAULT_PROOF_DAYS)
+                }}
+              >
+                {t("ui:ui.reset")}
+              </Button>
+            )
+          }
+        />
       )}
 
       {lookupState === "checking" && (
-        <div role="status" className={shared.emptyState}>
-          <span className={styles.lookupBusy}>
-            <Loader strokeWidth={2.5} aria-hidden="true" className={styles.spinner} />
-            <span>{t("catalog.keyChecking")}</span>
-          </span>
-        </div>
+        <EmptyState
+          role="status"
+          title={
+            <span className={styles.lookupBusy}>
+              <Loader strokeWidth={2.5} aria-hidden="true" className={styles.spinner} />
+              <span>{t("catalog.keyChecking")}</span>
+            </span>
+          }
+        />
       )}
 
       {lookupState === "missing" && (
@@ -571,8 +570,8 @@ export const ProvidersStep = ({
             lookupSelected ? (
               <span>{t("catalog.keyAlreadySelected")}</span>
             ) : (
-              <button
-                type="button"
+              <Button
+                size="sm"
                 disabled={selected.length >= MAX_SELECTED}
                 title={
                   selected.length >= MAX_SELECTED
@@ -582,7 +581,7 @@ export const ProvidersStep = ({
                 onClick={addLookupKey}
               >
                 {t("catalog.addOffCatalog")}
-              </button>
+              </Button>
             )
           }
         >
@@ -595,9 +594,9 @@ export const ProvidersStep = ({
           tone="red"
           className={styles.stepAlert}
           action={
-            <button type="button" onClick={() => setLookupTry((attempt) => attempt + 1)}>
-              {t("ui.retry")}
-            </button>
+            <Button size="sm" onClick={() => setLookupTry((attempt) => attempt + 1)}>
+              {t("ui:ui.retry")}
+            </Button>
           }
         >
           {t("catalog.keyLookupFailed")}
@@ -605,13 +604,7 @@ export const ProvidersStep = ({
       )}
 
       {failed && (
-        <div role="alert" className={shared.emptyState}>
-          <p>{t("errors.failedToLoadProviders")}</p>
-          {status !== null && <p className={shared.errorCode}>{t("errors.statusCode", { status })}</p>}
-          <button type="button" onClick={onRetry} className={cx(shared.textAction, styles.emptyReset)}>
-            {t("ui.retry")}
-          </button>
-        </div>
+        <LoadError message={t("errors.failedToLoadProviders")} status={status} onRetry={onRetry} />
       )}
     </>
   )
@@ -621,9 +614,9 @@ export const ProvidersStep = ({
       tone="red"
       className={styles.stepError}
       action={
-        <button type="button" onClick={() => onSelected(withoutDeclined)}>
+        <Button size="sm" onClick={() => onSelected(withoutDeclined)}>
           {t("catalog.removeDeclined")}
-        </button>
+        </Button>
       }
     >
       {t("catalog.declinedSummary", { count: declines.length, total: selected.length })}
@@ -633,36 +626,37 @@ export const ProvidersStep = ({
   const selectedPart = (
     <>
       <div className={styles.sectionHead} data-sheet={editor ? "" : undefined}>
-        <h2 className={editor ? shared.sheetTitle : shared.tableTitle}>
-          <SquareCheck className={shared.titleIcon} aria-hidden="true" />
+        <SectionTitle size={editor ? "md" : "lg"} icon={SquareCheck}>
           <span>{t("catalog.selectedTitle")}</span>
-        </h2>
+        </SectionTitle>
         <span className={styles.sectionCount}>{`${selected.length} / ${MAX_SELECTED}`}</span>
         <div className={styles.headActions}>
           {autoPick && active && (
-            <button type="button" onClick={() => applyStrategy(active, count, freshSeed())} className={shared.textAction}>
+            <Button variant="text" onClick={() => applyStrategy(active, count, freshSeed())}>
               {t("catalog.pickAgain")}
-            </button>
+            </Button>
           )}
           <span className={shared.spacer} />
           {onRevert && (
-            <button type="button" onClick={onRevert} disabled={revertDisabled} className={shared.textDanger}>
+            <Button variant="text" tone="red" onClick={onRevert} disabled={revertDisabled}>
               {t("providers.revert")}
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
+          <Button
+            variant="text"
+            tone="red"
             onClick={() => onSelected([])}
-            className={cx(shared.textDanger, selected.length === 0 && shared.invisible)}
+            className={cx(selected.length === 0 && shared.invisible)}
           >
             {t("catalog.clearAll")}
-          </button>
+          </Button>
         </div>
       </div>
 
       {pinned.length > 0 ? (
         <SelectedTable
           pinned={pinned}
+          ranks={ranks}
           proofDays={proofDays}
           catalogReady={!loading && !failed}
           declineByKey={declineByKey}
@@ -674,7 +668,7 @@ export const ProvidersStep = ({
           onRemove={toggle}
         />
       ) : (
-        <p className={shared.emptyState}>{t("catalog.noneSelected")}</p>
+        <EmptyState title={t("catalog.noneSelected")} />
       )}
 
       {!editor && declinesNotice}

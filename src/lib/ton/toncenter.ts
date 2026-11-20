@@ -84,7 +84,7 @@ export class ChainRequestError extends Error {
   }
 }
 
-export interface StackEntry {
+interface StackEntry {
   type: string
   value: unknown
 }

@@ -29,7 +29,8 @@
           theme = localStorage.getItem("mts_theme")
         } catch (e) {}
         if (theme !== "dark" && theme !== "light") {
-          theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+          // No reported preference is dark, on every front.
+          theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"
         }
         document.documentElement.dataset.theme = theme
         document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "%BG_DARK%" : "%BG_LIGHT%"

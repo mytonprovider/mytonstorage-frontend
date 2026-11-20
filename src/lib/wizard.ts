@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useTonConnectUI } from "@tonconnect/ui-react"
+import { scrollToTop } from "@myton/ui"
+import { DAY } from "@myton/ui/domain"
 import type { PickedFile, ProviderDecline, ProviderOffer, UserBag } from "@/types/bag"
 import type { WalletTransaction } from "@/types/contract"
 import { ApiError, deleteBag, forgetOffers, initContract, markBagPaid, sessionEnded, useQuote } from "./api"
 import { useCountdown } from "./countdown"
-import { scrollToTop } from "./dom"
 import { checkErrorKey, deployFailureKey, OFFERS_INCOMPLETE, payErrorKey, UNAUTHORIZED, UNPAID_UNKNOWN, uploadErrorKey, uploadFailure, type UploadFailure } from "./errors"
-import { nowSeconds, SECONDS_IN_DAY } from "./format"
+import { nowSeconds } from "./format"
 import { clearPendingPaid, contractDeployed, markPendingLinked, readPendingPaid, writePendingPaid, type DeployCheck } from "./paid-link"
 import { DEFAULT_PROOF_DAYS, DEFAULT_STORAGE_DAYS, gridDays, storageCost } from "./pricing"
 import { normalizedExternalHash, sendAndConfirm, walletRefused } from "./ton/transactions"
@@ -290,7 +291,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
 
     requestQuote(
       data.bagId,
-      proofDays * SECONDS_IN_DAY,
+      proofDays * DAY,
       data.selected,
       bagSize,
       ({ offers: offered, declines: refused, complete }) => {
@@ -379,7 +380,7 @@ export const useWizardFlow = ({ restored, address, signOut, unpaidBags, unpaidKn
         providers: data.selected,
         amount: storageCost(offers, gridDays(storageDays, proofDays), proofDays),
         owner_address: address,
-        span: proofDays * SECONDS_IN_DAY,
+        span: proofDays * DAY,
       })
     } catch (error) {
       if (!onUnauthorized(error)) {

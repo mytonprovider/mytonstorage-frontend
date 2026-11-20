@@ -1,9 +1,8 @@
 import type { ReactNode } from "react"
 import { Loader } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { Notice } from "../notice"
+import { ActionRow, Button, Notice, SheetFooter } from "@myton/ui"
 import { SheetField } from "../sheet-fields"
-import { SheetFooter } from "../sheet"
 import shared from "../shared.module.css"
 import styles from "./providers-step.module.css"
 
@@ -66,21 +65,20 @@ export const StepFooter = ({
   const actions = (
     <>
       {onBack && (
-        <button type="button" onClick={onBack} className={shared.secondary}>
-          {t("ui.back")}
-        </button>
+        <Button size="xl" onClick={onBack}>
+          {t("ui:ui.back")}
+        </Button>
       )}
-      <span className={shared.spacer} />
-      <button
-        type="button"
+      <Button
+        variant="primary"
+        size="xl"
         onClick={onContinue}
         disabled={noneSelected || checking || submitDisabled}
         title={submitDisabled ? submitReason : noneSelected ? t("catalog.noneSelected") : undefined}
-        className={shared.primary}
       >
         {checking && <Loader strokeWidth={2.5} aria-hidden="true" className={styles.spinner} />}
         <span>{submitLabel ?? t("ui.continue")}</span>
-      </button>
+      </Button>
     </>
   )
 
@@ -91,7 +89,7 @@ export const StepFooter = ({
         {summary}
         {declined}
         {errorNotice}
-        <div className={styles.footer}>{actions}</div>
+        <ActionRow className={styles.footer}>{actions}</ActionRow>
       </SheetFooter>
     )
   }
@@ -100,7 +98,7 @@ export const StepFooter = ({
     <>
       {warningNotice}
       {summary}
-      <SheetFooter className={styles.footer}>{actions}</SheetFooter>
+      <ActionRow className={styles.footer}>{actions}</ActionRow>
       {errorNotice}
     </>
   )

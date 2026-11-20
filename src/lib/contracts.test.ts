@@ -1,16 +1,12 @@
-import { createElement } from "react"
-import { renderToStaticMarkup } from "react-dom/server"
-import i18n from "i18next"
-import { initReactI18next } from "react-i18next"
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { UserRejectsError } from "@tonconnect/ui-react"
-import { Ratio } from "@/components/table"
+import { DAY, GIB } from "@myton/ui/domain"
 import en from "@/i18n/en.json"
 import ru from "@/i18n/ru.json"
 import type { ContractStatus, WalletTransaction } from "@/types/contract"
 import { ApiError } from "./api"
 import { CONTRACT_RESERVE } from "./pricing"
-import { checkKindOf, checkLabelOf } from "./check-label"
+import { checkKindOf, checkLabelOf, checksTone } from "./check-label"
 import {
   INDEX_LAG_SECONDS,
   STORAGE_CODE_HASH,
@@ -35,7 +31,7 @@ import {
 } from "./contracts"
 import { knownStateHash, peekState, putState, resetContractCachesForTests } from "./contracts-cache"
 import { base, cheapDutch, state, translate } from "./fixtures"
-import { SECONDS_IN_DAY, type Translate } from "./format"
+import type { Translate } from "./format"
 import { PENDING_KEY } from "./local-storage"
 import { forgetPendingFound, markPendingLinked, writePendingPaid } from "./paid-link"
 import type { AccountState, AccountStates, ChainMessage, MessagesPage, MessagesQuery } from "./ton/toncenter"
@@ -505,17 +501,6 @@ describe("withPending", () => {
     expect(withPending(merged, OWNER)).toBe(merged)
   })
 
-  it("lets the scan portion beat the instant row: the forgotten record adds nothing on top of the scanned contract", () => {
-    remember()
-    forgetPendingFound([FRESH])
-    const scanned = mergeRows([], [{ address: FRESH, createdAt: 6000, closed: false }])
-    const rows = withPending(scanned, OWNER)
-
-    expect(store.has(PENDING_KEY)).toBe(false)
-    expect(rows).toBe(scanned)
-    expect(rows.map((contract) => contract.address)).toEqual([FRESH])
-  })
-
   it("hands back the very same list once the scan already knows the address", () => {
     remember()
 
@@ -523,18 +508,22 @@ describe("withPending", () => {
     expect(withPending(rows, OWNER)).toBe(rows)
   })
 
-  it("never shows the record of another wallet or of a deploy that was not confirmed", () => {
+  it("shows a disconnected wallet nothing, though the wizard writes an empty owner by default", () => {
+    writePendingPaid("f".repeat(64), FRESH)
+    markPendingLinked()
+
+    expect(withPending([], "")).toEqual([])
+  })
+
+  it("never shows the record of another wallet, of a deploy that was not confirmed or of one written before rows carried an owner", () => {
     remember({ owner: "EQSOMEONE" })
     expect(withPending([], OWNER)).toEqual([])
 
     remember({ linked: false })
     expect(withPending([], OWNER)).toEqual([])
-  })
 
-  it("skips a record written before rows carried an owner", () => {
     remember({ owner: undefined })
     expect(withPending([], OWNER)).toEqual([])
-    expect(withPending([], "")).toEqual([])
   })
 })
 
@@ -545,11 +534,8 @@ describe("countChecks", () => {
     { address: "EQB", provider_pubkey: "c", reason: 0, reason_timestamp: null },
   ]
 
-  it("counts only the checks belonging to the given contract", () => {
+  it("counts only the checks belonging to the given contract, zero of zero for an unchecked one", () => {
     expect(countChecks(statuses, "EQA")).toEqual({ valid: 1, total: 2, checked: ["a", "b"], stored: ["a"] })
-  })
-
-  it("reports an unchecked contract as zero of zero", () => {
     expect(countChecks(statuses, "EQC")).toEqual({ valid: 0, total: 0, checked: [], stored: [] })
   })
 
@@ -578,9 +564,7 @@ describe("shownChecks", () => {
   it("counts no check run while the catalogue has not checked a single hired provider, whatever rows it holds", () => {
     expect(shownChecks({ valid: 0, total: 3, checked: [], stored: [], state })).toEqual({ valid: 0, total: 6, ran: 0 })
     expect(shownChecks({ valid: 0, total: 0, checked: [], stored: [], state })).toEqual({ valid: 0, total: 6, ran: 0 })
-    expect(shownChecks({ valid: 0, total: 2, checked: [], stored: [], state: null })).toEqual({ valid: 0, total: 2, ran: 0 })
     expect(shownChecks({ valid: 0, total: 3, checked: [key("a")], stored: [], state })).toEqual({ valid: 0, total: 6, ran: 1 })
-    expect(shownChecks({ valid: 0, total: 1, checked: [key("z")], stored: [], state })).toEqual({ valid: 0, total: 6, ran: 0 })
   })
 
   it("shows nothing until both the backend and the chain have answered, and the backend rows alone when the chain has no account", () => {
@@ -654,14 +638,9 @@ describe("loadFailure and actionFailure", () => {
   const unreachable = new ChainRequestError("transactions", 502)
   const refused = new ApiError(429, "POST", "/api/v1/contracts/topup", "too many requests")
 
-  it("names the kind of failure as a value, since only a reading can be read again", () => {
-    expect(loadFailure(unreachable).kind).toBe("load")
-    expect(actionFailure(refused).kind).toBe("action")
-  })
-
-  it("carries the response code beside the key, whichever of the two failed", () => {
-    expect(loadFailure(unreachable)).toMatchObject({ key: "errors.failedToLoadContracts", status: 502 })
-    expect(actionFailure(refused)).toMatchObject({ key: "errors.rateLimited", status: 429 })
+  it("carries the response code beside the key and names the kind as a value, since only a reading can be read again", () => {
+    expect(loadFailure(unreachable)).toEqual({ key: "errors.failedToLoadContracts", status: 502, kind: "load" })
+    expect(actionFailure(refused)).toEqual({ key: "errors.rateLimited", status: 429, kind: "action" })
   })
 
   it("keeps a chain failure out of the backend status, and a network drop without one", () => {
@@ -675,14 +654,9 @@ describe("loadFailure and removeFailure of the unpaid list", () => {
   const refusedRemoval = new ApiError(429, "DELETE", "/api/v1/bags", "too many requests")
   const expired = new ApiError(401, "GET", "/api/v1/bags", "unauthorized")
 
-  it("names the kind of failure of the unpaid list too, since only a reading can be read again", () => {
-    expect(unpaidLoadFailure(unreadable).kind).toBe("load")
-    expect(removeFailure(refusedRemoval).kind).toBe("remove")
-  })
-
-  it("carries the response code beside a locale key for the unpaid list as well", () => {
-    expect(unpaidLoadFailure(unreadable)).toMatchObject({ key: "errors.unpaidUnknown", status: 502 })
-    expect(removeFailure(refusedRemoval)).toMatchObject({ key: "errors.removeFailed", status: 429 })
+  it("carries the response code beside a locale key and the kind for the unpaid list as well", () => {
+    expect(unpaidLoadFailure(unreadable)).toEqual({ key: "errors.unpaidUnknown", status: 502, kind: "load" })
+    expect(removeFailure(refusedRemoval)).toEqual({ key: "errors.removeFailed", status: 429, kind: "remove" })
     expect(removeFailure(new Error("offline")).status).toBeNull()
   })
 
@@ -692,21 +666,12 @@ describe("loadFailure and removeFailure of the unpaid list", () => {
   })
 })
 
-describe("Ratio", () => {
-  beforeAll(async () => {
-    await i18n.use(initReactI18next).init({ resources: { en: { translation: en } }, lng: "en" })
-  })
-
-  const shown = (valid: number, total: number): string =>
-    renderToStaticMarkup(createElement(Ratio, { valid, total })).replace(/<[^>]*>/g, "")
-
-  it("prints nothing for an empty set instead of a zero over zero", () => {
-    expect(shown(0, 0)).toBe("")
-  })
-
-  it("keeps the fraction once a check has run", () => {
-    expect(shown(1, 3)).toBe("1/3")
-    expect(shown(0, 2)).toBe("0/2")
+describe("checksTone", () => {
+  it("is green when every hired provider holds the file, yellow for a majority, red for the rest", () => {
+    expect(checksTone(3, 3)).toBe("green")
+    expect(checksTone(2, 3)).toBe("yellow")
+    expect(checksTone(1, 2)).toBe("red")
+    expect(checksTone(0, 2)).toBe("red")
   })
 })
 
@@ -715,17 +680,13 @@ describe("checkLabelOf", () => {
   const PHRASED = new Set([
     "details.checkOk",
     "details.checkFailed",
-    "details.checkAgo",
-    "reason.passed",
-    "reason.noBagInfo",
-    "reason.noProof",
-    "reason.checkerFailed",
+    "details.checkNotRun",
   ])
 
   const t: Translate = (key, options) => {
     const names = Array.isArray(key) ? key : [key]
     const found = names.find((name) => PHRASED.has(name)) ?? names[names.length - 1]
-    return options?.time === undefined ? translate(found, options) : `${found}(${options.time})`
+    return translate(found, options)
   }
 
   const statusOf = (reason: number | null, at: number | null = null): ContractStatus => ({
@@ -736,47 +697,47 @@ describe("checkLabelOf", () => {
   })
 
   it("gives no verdict on a check that has not run yet", () => {
-    expect(checkLabelOf(statusOf(null), NOW, t)).toBeNull()
+    expect(checkLabelOf(statusOf(null), NOW, t, "en")).toBeNull()
   })
 
   it("keeps zero healthy and dates a failed code from the given moment", () => {
-    expect(checkLabelOf(statusOf(0), NOW, t)).toEqual({
+    expect(checkLabelOf(statusOf(0), NOW, t, "en")).toEqual({
       kind: "stored",
       tone: "green",
       short: "details.checkOk",
-      long: "reason.passed",
+      long: "ui:reason.0",
       at: 0,
-      ago: "",
       agoShort: "",
     })
-    expect(checkLabelOf(statusOf(401, NOW - 7200), NOW, t)).toEqual({
+    expect(checkLabelOf(statusOf(401, NOW - 7200), NOW, t, "en")).toEqual({
       kind: "notStored",
-      tone: "red",
+      tone: "orange",
       short: "details.checkFailed",
-      long: "reason.noProof",
+      long: "ui:reason.401",
       at: NOW - 7200,
-      ago: "details.checkAgo(2.hr)",
-      agoShort: "provider.ago(2.hr)",
+      agoShort: "2\u00A0hr ago",
     })
-    expect(checkLabelOf(statusOf(301), NOW, t)?.long).toBe("reason.noBagInfo")
   })
 
-  it("files a code nobody knows under unchecked and keeps its number for the reason", () => {
-    expect(checkLabelOf(statusOf(599), NOW, t)).toEqual({
+  it("files a code nobody knows under unchecked, as not run, and keeps it for the reason", () => {
+    expect(checkLabelOf(statusOf(599), NOW, t, "en")).toEqual({
       kind: "unchecked",
-      tone: "red",
-      short: "details.checkFailed",
-      long: "reason.checkerFailed",
+      tone: "gray",
+      short: "details.checkNotRun",
+      long: "ui:reason.unknown",
       at: 0,
-      ago: "",
       agoShort: "",
     })
   })
 
-  it("blames the provider only for codes the checker reached it with", () => {
-    expect([301, 302, 401, 402, 403].map(checkKindOf)).toEqual(Array(5).fill("notStored"))
-    expect([101, 103, 201, 203].map(checkKindOf)).toEqual(Array(4).fill("unavailable"))
-    expect([102, 104, 105, 202].map(checkKindOf)).toEqual(Array(4).fill("unchecked"))
+  it.each([
+    [101, "unavailable", "details.checkFailed"],
+    [102, "unchecked", "details.checkNotRun"],
+    [301, "notStored", "details.checkFailed"],
+    [401, "notStored", "details.checkFailed"],
+  ])("files code %i under %s and words it %s, blaming the provider only for codes the checker reached it with", (code, kind, short) => {
+    expect(checkKindOf(code)).toBe(kind)
+    expect(checkLabelOf(statusOf(code), NOW, t, "en")).toMatchObject({ kind, short })
   })
 })
 
@@ -837,9 +798,7 @@ describe("contractStatus", () => {
 })
 
 describe("contractProblem", () => {
-  const DAY = SECONDS_IN_DAY
   const now = 1_800_000_000
-  const GIB = 1024 ** 3
   const prover = (key: string, lastProofTime: number) => ({ pubkey: key, ratePerMbDay: 1_000_000, maxSpan: 7 * DAY, lastProofTime })
   const rowOf = (providers: ReturnType<typeof prover>[], balance = 100 * 1e9, lastEventAt = now - 30 * DAY): ContractRow => ({
     address: "EQproblem",

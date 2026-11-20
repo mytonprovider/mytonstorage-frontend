@@ -11,7 +11,7 @@ export interface UnpaidBags {
   bags: UserBag[]
 }
 
-export interface ProviderContractData {
+interface ProviderContractData {
   key: string
   price_per_mb_day: number
 }

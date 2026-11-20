@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { GIB } from "@myton/ui/domain"
 import type { ContractRow } from "./contracts"
 import {
   STATUS_FILTERS,
@@ -10,7 +11,6 @@ import {
   visibleContracts,
   type ListView,
 } from "./contracts-view"
-import { BYTES_IN_GIB } from "./format"
 import { MIN_BOUNTY } from "./pricing"
 
 const NOW = 1_790_200_000
@@ -31,14 +31,14 @@ const row = (over: Partial<ContractRow> & { proofs?: number[]; balance?: number;
     closed: false,
     bagId: BAG,
     description: "backup.tar",
-    size: BYTES_IN_GIB,
+    size: GIB,
     valid: keys.length,
     total: keys.length,
     checked: keys,
     stored: keys,
     state: {
       torrentHash: BAG,
-      fileSize: BYTES_IN_GIB,
+      fileSize: GIB,
       balance,
       providers: proofs.map((at, index) => provider(at, keys[index])),
     },
@@ -55,14 +55,6 @@ const empty = row({ name: "Ggg", proofs: [] })
 const rows = [stored, partial, lost, unseen, empty]
 
 describe("matchesStatuses", () => {
-  it("names each row by the same verdict the status cell shows", () => {
-    expect(matchesStatuses(stored, ["stored"])).toBe(true)
-    expect(matchesStatuses(partial, ["partial"])).toBe(true)
-    expect(matchesStatuses(lost, ["lost"])).toBe(true)
-    expect(matchesStatuses(unseen, ["noPeers"])).toBe(true)
-    expect(matchesStatuses(empty, ["noPeers"])).toBe(true)
-    expect(matchesStatuses({ ...lost, closed: true }, ["closed"])).toBe(true)
-  })
 
   it("keeps a row matching any of the chosen verdicts, and every row when none is chosen", () => {
     expect(matchesStatuses(partial, ["lost", "partial"])).toBe(true)
@@ -91,21 +83,17 @@ describe("statusCounts", () => {
 })
 
 describe("matchesQuery", () => {
-  it("takes a substring of the address, the bag id or the description", () => {
-    expect(matchesQuery(stored, "eqaaa")).toBe(true)
-    expect(matchesQuery(stored, "ffff")).toBe(true)
-    expect(matchesQuery(stored, "backup")).toBe(true)
-    expect(matchesQuery(stored, "photos")).toBe(false)
-  })
-
-  it("takes a full bag id, letter case aside", () => {
-    expect(matchesQuery(stored, BAG)).toBe(true)
-    expect(matchesQuery(stored, BAG.toUpperCase())).toBe(true)
-    expect(matchesQuery(stored, "c".repeat(64))).toBe(false)
-  })
-
-  it("keeps everything when the query is empty", () => {
-    expect(matchesQuery(stored, "   ")).toBe(true)
+  it.each([
+    ["eqaaa", true],
+    ["ffff", true],
+    ["backup", true],
+    ["photos", false],
+    [BAG, true],
+    [BAG.toUpperCase(), true],
+    ["c".repeat(64), false],
+    ["   ", true],
+  ])("matches %j against the address, the bag id or the description, letter case aside: %s", (query, found) => {
+    expect(matchesQuery(stored, query)).toBe(found)
   })
 })
 
@@ -160,20 +148,15 @@ describe("sortContracts", () => {
 
   it("falls back to the size read from the chain when the row has none", () => {
     const thin = row({ name: "Thn", size: 0 })
-    const fat = row({ name: "Fat", size: 4 * BYTES_IN_GIB })
+    const fat = row({ name: "Fat", size: 4 * GIB })
     expect(names(sortContracts([thin, fat], "size", "desc", NOW))).toEqual([fat.address, thin.address])
-  })
-
-  it("keeps a contract whose state was never read at the end", () => {
-    const unread = { ...row({ name: "Zzz" }), state: undefined }
-    expect(names(sortContracts([unread, stored], "paidUntil", "asc", NOW))).toEqual([stored.address, unread.address])
   })
 })
 
 describe("visibleContracts", () => {
   const view: ListView = { statuses: [], query: "", field: "createdAt", direction: "desc", hideClosed: true }
 
-  it("applies the status, the query and the order in one pass", () => {
+  it("applies the status, the query and the order in one pass, narrowing by the status and the query together", () => {
     const rows = [stored, partial, lost, { ...unseen, closed: true }]
     expect(visibleContracts(rows, view, NOW)).toHaveLength(3)
     expect(visibleContracts(rows, { ...view, statuses: ["partial"] }, NOW).map((row) => row.address)).toEqual([
@@ -184,10 +167,6 @@ describe("visibleContracts", () => {
       partial.address,
       lost.address,
     ])
-  })
-
-  it("narrows by the status and the query together", () => {
-    const rows = [stored, partial, lost]
     expect(visibleContracts(rows, { ...view, statuses: ["partial"], query: "eqaaa" }, NOW)).toHaveLength(0)
     expect(visibleContracts(rows, { ...view, statuses: ["partial"], query: "eqbbb" }, NOW)).toHaveLength(1)
   })

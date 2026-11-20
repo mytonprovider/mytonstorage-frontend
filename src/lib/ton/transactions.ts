@@ -1,8 +1,8 @@
 import { TonConnectError, UserRejectsError } from "@tonconnect/ui-react"
 import { beginCell, Cell, loadMessage, storeMessage } from "@ton/core"
+import { toRaw } from "@myton/ui/domain"
 import type { WalletTransaction } from "@/types/contract"
 import { nowSeconds, sleep } from "../format"
-import { toRawAddress } from "./ton-address"
 import { fetchTransactions, type ChainTransaction } from "./toncenter"
 
 const VALID_FOR_SECONDS = 300
@@ -19,8 +19,8 @@ export interface WalletSender {
 export const walletRefused = (error: unknown): boolean => error instanceof UserRejectsError
 
 export const fromSender = (source: string | null | undefined, wallet: string | null | undefined): boolean => {
-  const sender = toRawAddress(source)
-  return sender !== null && sender === toRawAddress(wallet)
+  const sender = toRaw(source)
+  return sender !== null && sender === toRaw(wallet)
 }
 
 export const normalizedExternalHash = (boc: string): string | null => {

@@ -1,5 +1,6 @@
+import { DAY, GIB } from "@myton/ui/domain"
 import type { ProviderOffer } from "@/types/bag"
-import { BYTES_IN_GIB, MIB, SECONDS_IN_DAY } from "./format"
+import { MIB } from "./format"
 import type { StorageProvider } from "./ton/storage-data"
 
 export const CONTRACT_RESERVE = 5e6
@@ -51,7 +52,7 @@ export const nearestProofDays = (days: number): number =>
 
 export const MAX_SELECTED = 10
 export const DEFAULT_PICK_COUNT = 5
-export const MAX_BAG_BYTES = 4 * BYTES_IN_GIB
+export const MAX_BAG_BYTES = 4 * GIB
 export const MAX_BAG_FILES = 5000
 export const MAX_DESCRIPTION = 100
 
@@ -137,7 +138,7 @@ export const paidDaysLeft = (
   if (round <= 0) return null
 
   const left = Math.max(0, balance)
-  if (spent(first) > left) return exhaustedAt(left) / SECONDS_IN_DAY
+  if (spent(first) > left) return exhaustedAt(left) / DAY
 
   let lo = first
   let over = Math.min(SEARCH_TOP, last + Math.floor(left / fastest) + round)
@@ -147,7 +148,7 @@ export const paidDaysLeft = (
     else over = mid
   }
 
-  return dueAfter(lo) / SECONDS_IN_DAY
+  return dueAfter(lo) / DAY
 }
 
 export const topupForDays = (
@@ -161,20 +162,17 @@ export const topupForDays = (
   if (round <= 0) return 0
 
   const paid = Math.max(0, paidDaysLeft(fileSize, providers, balance, now) ?? 0)
-  return Math.max(0, spent((paid + days) * SECONDS_IN_DAY - ROUND_EPSILON) - Math.max(0, balance))
+  return Math.max(0, spent((paid + days) * DAY - ROUND_EPSILON) - Math.max(0, balance))
 }
 
 export const payoutDays = (fileSize: number, providers: Omit<StorageProvider, "pubkey">[]): number =>
-  spending(fileSize, providers).round / SECONDS_IN_DAY
-
-export const roundCost = (fileSize: number, providers: Omit<StorageProvider, "pubkey">[]): number =>
-  dailyCost(fileSize, providers) * roundDays(providers)
+  spending(fileSize, providers).round / DAY
 
 export const roundDays = (providers: Pick<StorageProvider, "maxSpan">[]): number =>
-  providers.length ? Math.min(...providers.map(({ maxSpan }) => maxSpan)) / SECONDS_IN_DAY : 0
+  providers.length ? Math.min(...providers.map(({ maxSpan }) => maxSpan)) / DAY : 0
 
 export const fullBounty = (fileSize: number, ratePerMibDay: number, spanSeconds: number): number =>
-  Number((BigInt(fileSize) * BigInt(ratePerMibDay) * BigInt(spanSeconds)) / BigInt(SECONDS_IN_DAY * MIB))
+  Number((BigInt(fileSize) * BigInt(ratePerMibDay) * BigInt(spanSeconds)) / BigInt(DAY * MIB))
 
 export const restartBalance = (fileSize: number, providers: Omit<StorageProvider, "pubkey">[]): number => {
   const returning = providers
@@ -193,7 +191,7 @@ export const minTopupDays = (fileSize: number, providers: Omit<StorageProvider, 
   const paid = paidDaysLeft(fileSize, providers, balance) ?? 0
   const covered = paidDaysLeft(fileSize, providers, restartBalance(fileSize, providers)) ?? 0
 
-  return Math.max(round / SECONDS_IN_DAY, covered - paid)
+  return Math.max(round / DAY, covered - paid)
 }
 
 export const offerRates = (offers: ProviderOffer[] | null): Map<string, number> =>

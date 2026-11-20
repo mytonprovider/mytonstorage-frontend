@@ -1,7 +1,27 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react"
-import { Check, RefreshCw, ScrollText } from "lucide-react"
+import { RefreshCw, ScrollText } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { cx } from "@/lib/cx"
+import {
+  Button,
+  Card,
+  cx,
+  FieldList,
+  CheckMark,
+  DataHeadCell,
+  DataTable,
+  DataTableHead,
+  DataTableRows,
+  EmptyState,
+  FilterOption,
+  LoadError,
+  Notice,
+  SearchField,
+  SectionTitle,
+  Sheet,
+  ShowMore,
+  SortColumn,
+} from "@myton/ui"
+import { fmt } from "@myton/ui/domain"
 import { contractProblem, verdictWord, type ContractRow as ContractRowData, type ContractsState } from "@/lib/contracts"
 import {
   STATUS_FILTERS,
@@ -12,19 +32,13 @@ import {
   type SortDirection,
   type StatusFilter,
 } from "@/lib/contracts-view"
-import { nowSeconds, shortenMiddle, tonLabel } from "@/lib/format"
+import { nowSeconds, tonLabel } from "@/lib/format"
 import { readListView, writeListView } from "@/lib/local-storage"
 import { payErrorTone } from "@/lib/errors"
-import { useDismiss } from "@/lib/dismiss"
 import { COLUMNS, ContractRow, SkeletonRow, type EditorKind } from "./contract-row"
 import { ConfirmSheet } from "../confirm-sheet"
 import { ContractDetails } from "./contract-details"
-import { Menu, MenuOption } from "../menu"
-import { Notice } from "../notice"
-import { SearchField } from "../search-field"
-import { Sheet } from "../sheet"
-import { SortColumn } from "../sort-column"
-import { TableFrame, TableRows, TableScroll } from "../table"
+import { Menu } from "../menu"
 import shared from "../shared.module.css"
 import styles from "./contracts-list.module.css"
 
@@ -97,6 +111,11 @@ export const ContractsList = ({
   const { t } = useTranslation()
   const [withdrawFor, setWithdrawFor] = useState<string | null>(null)
   const [infoFor, setInfoFor] = useState<string | null>(null)
+  const [viewedFor, setViewedFor] = useState<string | null>(null)
+  const openInfo = (address: string) => {
+    setViewedFor(address)
+    setInfoFor(address)
+  }
   const [statusOpen, setStatusOpen] = useState(false)
   const [stored] = useState(storedView)
   const [shownLimit, setShownLimit] = useState(stored.rows || ROW_PORTION)
@@ -104,8 +123,6 @@ export const ContractsList = ({
   const [query, setQuery] = useState("")
   const [sortField, setSortField] = useState(stored.field)
   const [sortDirection, setSortDirection] = useState(stored.direction)
-
-  useDismiss(statusOpen, () => setStatusOpen(false))
 
   const statuses = useMemo(() => statusCounts(contracts), [contracts])
   const filtering = picked.length > 0 || query.trim() !== ""
@@ -119,6 +136,8 @@ export const ContractsList = ({
     [contracts, picked, query, sortField, sortDirection, hideClosed],
   )
   const portion = visible.slice(0, shownLimit)
+  // A first load that failed has no list to call empty; the error stands in its place
+  const unread = errorKind === "load" && contracts.length === 0
 
   useEffect(() => {
     if (portion.length > 0) writeListView({ shown: portion.length })
@@ -133,6 +152,12 @@ export const ContractsList = ({
   const editingContract = contracts.find((contract) => contract.address === editing?.address) ?? null
   const withdrawContract = contracts.find((contract) => contract.address === withdrawFor) ?? null
   const withdrawLost = withdrawContract !== null && contractProblem(withdrawContract, nowSeconds()) === "lost"
+  const withdrawAlert = withdrawContract?.state?.providers.length === 0 ? "fix.emptyNote" : "fix.lostNote"
+  const statusLabels = [
+    t("files.statusAny"),
+    ...STATUS_FILTERS.map((option) => t(verdictWord(option))),
+    t("files.statuses", { count: STATUS_FILTERS.length }),
+  ]
   const editorTitle = { extend: "files.topupTitle", edit: "files.editTitle", fix: "fix.titleReplace" }
 
   const pickStatus = (option: StatusFilter) => {
@@ -173,43 +198,27 @@ export const ContractsList = ({
   return (
     <div>
       <div className={styles.heading}>
-        <h2 className={shared.tableTitle}>
-          <ScrollText className={shared.titleIcon} aria-hidden="true" />
+        <SectionTitle size="lg" icon={ScrollText}>
           <span>{t("files.title")}</span>
-        </h2>
+        </SectionTitle>
         <span className={shared.spacer} />
         <div className={styles.headActions}>
-          <button type="button" disabled={refreshing} onClick={onRefresh} className={styles.toggle}>
+          <Button variant="text" disabled={refreshing} onClick={onRefresh}>
             <RefreshCw aria-hidden="true" className={cx(styles.refreshIcon, refreshing && shared.spinner)} />
             <span>{t("files.refresh")}</span>
-          </button>
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={hideClosed}
-            onClick={() => onHideClosed(!hideClosed)}
-            className={styles.toggle}
-          >
-            <span className={cx(shared.check, hideClosed && shared.checkOn)}>
-              {hideClosed && <Check strokeWidth={3.5} className={shared.checkIcon} aria-hidden="true" />}
-            </span>
+          </Button>
+          <Button variant="text" role="checkbox" aria-checked={hideClosed} onClick={() => onHideClosed(!hideClosed)}>
+            <CheckMark checked={hideClosed} />
             <span>{t("files.hideClosed")}</span>
-          </button>
+          </Button>
         </div>
       </div>
 
-      {error && (
-        <Notice
-          tone={payErrorTone(error)}
-          className={styles.error}
-          action={
-            errorKind === "load" && (
-              <button type="button" onClick={onRetry}>
-                {t("ui.retry")}
-              </button>
-            )
-          }
-        >
+      {error && errorKind === "load" && (
+        <LoadError message={t(error)} status={status} onRetry={onRetry} className={cx(shared.listError, contracts.length > 0 && shared.listErrorCompact)} />
+      )}
+      {error && errorKind !== "load" && (
+        <Notice tone={payErrorTone(error)} className={shared.listError}>
           {t(error)}
           {status !== null && <span className={shared.errorCode}>{t("errors.statusCode", { status })}</span>}
         </Notice>
@@ -220,11 +229,12 @@ export const ContractsList = ({
           <SearchField
             value={query}
             onChange={search}
-            placeholder={t("files.searchPlaceholder")}
-            className={cx(shared.searchFieldOnPage, styles.search)}
+            label={t("files.searchPlaceholder")}
+            size="md"
+            className={styles.search}
           />
           <Menu
-            labels={[t("files.statusAny"), ...STATUS_FILTERS.map((option) => t(verdictWord(option))), t("files.statuses", { count: STATUS_FILTERS.length })]}
+            labels={statusLabels}
             label={
               picked.length === 0
                 ? t("files.statusAny")
@@ -237,12 +247,12 @@ export const ContractsList = ({
             onToggle={() => setStatusOpen(!statusOpen)}
           >
             {STATUS_FILTERS.map((option) => (
-              <MenuOption
+              <FilterOption
                 key={option}
                 label={t(verdictWord(option))}
                 count={statuses[option]}
-                selected={picked.includes(option)}
-                dimmed={statuses[option] === 0 && !picked.includes(option)}
+                checked={picked.includes(option)}
+                disabled={statuses[option] === 0 && !picked.includes(option)}
                 onToggle={() => pickStatus(option)}
               />
             ))}
@@ -250,33 +260,32 @@ export const ContractsList = ({
         </div>
       )}
 
-      {!loading && visible.length === 0 ? (
-        <div className={shared.emptyState}>
-          {filtering ? (
-            <>
-              <p>{t("files.noMatches")}</p>
-              <button type="button" onClick={reset} className={cx(shared.textDanger, styles.reset)}>
-                {t("ui.reset")}
-              </button>
-            </>
-          ) : contracts.length > 0 ? (
-            <>
-              <p>{t("files.noActive")}</p>
-              <button type="button" onClick={() => onHideClosed(false)} className={cx(shared.textAccent, styles.reset)}>
+      {unread ? null : !loading && visible.length === 0 ? (
+        filtering ? (
+          <EmptyState
+            title={t("files.noMatches")}
+            action={
+              <Button variant="text" tone="red" onClick={reset}>
+                {t("ui:ui.reset")}
+              </Button>
+            }
+          />
+        ) : contracts.length > 0 ? (
+          <EmptyState
+            title={t("files.noActive")}
+            action={
+              <Button variant="text" tone="accent" onClick={() => onHideClosed(false)}>
                 {t("files.showClosed")}
-              </button>
-            </>
-          ) : (
-            <>
-              <p>{t("files.empty")}</p>
-              <p className={shared.emptyHint}>{t(hasUnpaid ? "files.emptyUnpaid" : "files.emptyHint")}</p>
-            </>
-          )}
-        </div>
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState title={t("files.empty")} hint={t(hasUnpaid ? "files.emptyUnpaid" : "files.emptyHint")} />
+        )
       ) : (
         <div className={styles.list}>
-          <TableScroll className={styles.scroll}>
-            <div className={styles.head}>
+          <DataTable framed stack columns={`repeat(${COLUMNS.length + 1}, max-content)`}>
+            <DataTableHead>
               {COLUMNS.map(({ word, field, hint }) => (
                 <SortColumn
                   key={word}
@@ -287,52 +296,48 @@ export const ContractsList = ({
                   onSort={field && (() => sort(field))}
                 />
               ))}
-              <span className={cx(shared.tableHeadCell, styles.actionsHead)}>{t("files.actions")}</span>
-            </div>
+              <DataHeadCell className={styles.actionsHead}>{t("files.actions")}</DataHeadCell>
+            </DataTableHead>
 
-            <TableFrame className={styles.frame}>
-              <TableRows className={styles.rows}>
-                {loading &&
-                  visible.length === 0 &&
-                  Array.from({ length: stored.rows || SKELETON_ROWS }, (_, index) => <SkeletonRow key={index} />)}
-                {portion.map((contract, index) => {
-                  const openKind =
-                    editing && editing.address === contract.address && !contract.closed ? editing.kind : null
+            <DataTableRows className={styles.rows}>
+              {loading &&
+                visible.length === 0 &&
+                Array.from({ length: stored.rows || SKELETON_ROWS }, (_, index) => <SkeletonRow key={index} />)}
+              {portion.map((contract, index) => {
+                const openKind =
+                  editing && editing.address === contract.address && !contract.closed ? editing.kind : null
 
-                  return (
-                    <ContractRow
-                      key={contract.address}
-                      contract={contract}
-                      index={index % ROW_PORTION}
-                      openKind={openKind}
-                      active={busy === contract.address}
-                      busy={busy !== null}
-                      copied={copied}
-                      onCopy={onCopy}
-                      onOpen={() => setInfoFor(contract.address)}
-                      onAction={(kind) => toggleFor(contract.address, kind)}
-                      onAskWithdraw={() => setWithdrawFor(contract.address)}
-                    />
-                  )
-                })}
-              </TableRows>
-            </TableFrame>
-          </TableScroll>
+                return (
+                  <ContractRow
+                    key={contract.address}
+                    contract={contract}
+                    index={index % ROW_PORTION}
+                    openKind={openKind}
+                    active={busy === contract.address}
+                    busy={busy !== null}
+                    copied={copied}
+                    viewed={contract.address === viewedFor}
+                    onCopy={onCopy}
+                    onOpen={() => openInfo(contract.address)}
+                    onAction={(kind) => toggleFor(contract.address, kind)}
+                    onAskWithdraw={() => setWithdrawFor(contract.address)}
+                  />
+                )
+              })}
+            </DataTableRows>
+          </DataTable>
 
-          {visible.length > portion.length && (
-            <div className={styles.more}>
-              <span role="status" className={styles.showing}>
-                {t("ui.showing", { shown: portion.length, total: visible.length })}
-              </span>
-              <button type="button" className={shared.secondary} onClick={() => setShownLimit((count) => count + ROW_PORTION)}>
-                {t("files.showMore")}
-              </button>
-            </div>
+          {portion.length > 0 && (
+            <ShowMore
+              shown={portion.length}
+              total={visible.length}
+              onMore={() => setShownLimit((count) => count + ROW_PORTION)}
+            />
           )}
         </div>
       )}
 
-      <Sheet open={infoContract !== null} title={t("files.details")} onClose={() => setInfoFor(null)}>
+      <Sheet open={infoContract !== null} wide title={t("files.details")} onClose={() => setInfoFor(null)}>
         {infoContract && (
           <ContractDetails
             contract={infoContract}
@@ -354,8 +359,8 @@ export const ContractsList = ({
       <Sheet
         open={editing !== null && editingContract !== null}
         title={t(editorTitle[editing?.kind ?? "edit"])}
-        subject={editingContract ? shortenMiddle(editingContract.address, 6, 6) : undefined}
-        wide={editing?.kind === "edit"}
+        subject={editingContract ? fmt.shortKey(editingContract.address) : undefined}
+        wide={editing?.kind === "edit" || editing?.kind === "fix"}
         onClose={() => onEditingChange(null)}
       >
         <div className={shared.sheetBody}>
@@ -366,25 +371,26 @@ export const ContractsList = ({
       <ConfirmSheet
         open={withdrawFor !== null}
         title={t("files.withdrawTitle")}
-        subject={withdrawFor ? shortenMiddle(withdrawFor, 6, 6) : undefined}
-        alert={withdrawLost ? t(withdrawContract?.state?.providers.length === 0 ? "fix.emptyNote" : "fix.lostNote") : undefined}
+        subject={withdrawFor ? fmt.shortKey(withdrawFor) : undefined}
+        alert={withdrawLost ? t(withdrawAlert) : undefined}
         note={withdrawContract?.state ? undefined : t("files.withdrawNote")}
         confirmLabel={t(withdrawLost ? "files.withdrawTitle" : "files.withdraw")}
         onConfirm={() => {
           if (withdrawFor) onWithdraw(withdrawFor)
-          setWithdrawFor(null)
         }}
         onClose={() => setWithdrawFor(null)}
       >
         {withdrawContract?.state && (
-          <div className={styles.closeCard}>
-            <div className={styles.closeTotal}>
-              <span>{t("details.balance")}</span>
-              <span className={shared.spacer} />
-              <span className={styles.closeBalance}>{tonLabel(withdrawContract.state.balance)}</span>
-            </div>
-            <span className={styles.closeNote}>{t("files.withdrawNote")}</span>
-          </div>
+          <Card pad="row" className={styles.closeCard}>
+            <FieldList>
+              <div className={styles.closeTotal}>
+                <span>{t("details.balance")}</span>
+                <span className={shared.spacer} />
+                <span className={styles.closeBalance}>{tonLabel(withdrawContract.state.balance)}</span>
+              </div>
+              <span className={styles.closeNote}>{t("files.withdrawNote")}</span>
+            </FieldList>
+          </Card>
         )}
       </ConfirmSheet>
     </div>

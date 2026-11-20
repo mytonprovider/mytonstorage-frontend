@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react"
+import { readLocal, writeLocal } from "@myton/ui"
 import type { ContractStatus } from "@/types/contract"
 import { fetchContractStatuses } from "./api"
 import type { ContractRow } from "./contracts"
 import { asArray, asRecord } from "./json"
-import { CONTRACTS_KEY, LANGUAGE_KEY, PENDING_KEY, STATES_KEY, THEME_KEY, readStored, wipeStored, writeStored } from "./local-storage"
+import { CONTRACTS_KEY, LANGUAGE_KEY, PENDING_KEY, STATES_KEY, THEME_KEY, wipeStored } from "./local-storage"
 import { fetchAccountStates, type AccountState } from "./ton/toncenter"
 import { parseStorageData, type StorageProvider } from "./ton/storage-data"
 
@@ -29,7 +30,7 @@ interface ContractsCache {
 
 export const readContractsCache = (owner: string): ContractsCache | null => {
   if (!owner) return null
-  const raw = readStored(CONTRACTS_KEY)
+  const raw = readLocal(CONTRACTS_KEY)
   if (raw === null) return null
 
   try {
@@ -52,7 +53,7 @@ export const writeContractsCache = (owner: string, cache: ContractsCache): void 
     delete bare.state
     return bare
   })
-  writeStored(CONTRACTS_KEY, JSON.stringify({ owner, headLt: cache.headLt, closedLt: cache.closedLt, rows }))
+  writeLocal(CONTRACTS_KEY, JSON.stringify({ owner, headLt: cache.headLt, closedLt: cache.closedLt, rows }))
 }
 
 interface StateEntry {
@@ -91,7 +92,7 @@ const readStates = (): void => {
   if (stateRead) return
   stateRead = true
   try {
-    const stored = asRecord(JSON.parse(readStored(STATES_KEY) ?? "null"))
+    const stored = asRecord(JSON.parse(readLocal(STATES_KEY) ?? "null"))
     Object.entries(stored).forEach(([address, entry]) => {
       const { stateHash, value } = asRecord(entry)
       const state = stateFrom(value)
@@ -103,7 +104,7 @@ const readStates = (): void => {
 }
 
 const writeStates = (): void => {
-  writeStored(STATES_KEY, JSON.stringify(Object.fromEntries(stateByAddress)))
+  writeLocal(STATES_KEY, JSON.stringify(Object.fromEntries(stateByAddress)))
 }
 
 export const peekState = (address: string): ContractState | undefined => {

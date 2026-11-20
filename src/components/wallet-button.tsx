@@ -1,13 +1,9 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Check, ChevronDown, Copy, LogOut, Wallet } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useIsConnectionRestored, useTonAddress, useTonConnectUI } from "@tonconnect/ui-react"
-import { cx } from "@/lib/cx"
-import { useDismiss } from "@/lib/dismiss"
-import { useCopyFeedback } from "@/lib/dom"
+import { buttonClass, cx, Popover, ShortId, skeletonClass, useCopyFeedback } from "@myton/ui"
 import { walletExpected } from "@/lib/session"
-import { shortenMiddle } from "@/lib/format"
-import shared from "./shared.module.css"
 import styles from "./wallet-button.module.css"
 
 export const WalletButton = () => {
@@ -16,14 +12,13 @@ export const WalletButton = () => {
   const restored = useIsConnectionRestored()
   const address = useTonAddress()
   const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const { copied, copy } = useCopyFeedback()
-
-  useDismiss(open, () => setOpen(false))
 
   if (!restored && walletExpected) {
     return (
       <div className={styles.root}>
-        <span aria-hidden="true" className={cx(styles.button, shared.ghost)}>
+        <span aria-hidden="true" className={skeletonClass(buttonClass({ variant: "primary" }, styles.button))}>
           <Wallet className={styles.buttonIcon} aria-hidden="true" />
           <span className={styles.label}>{t("ui.connect")}</span>
         </span>
@@ -34,7 +29,7 @@ export const WalletButton = () => {
   if (!address) {
     return (
       <div className={styles.root}>
-        <button type="button" onClick={() => void tonConnectUI.openModal()} className={styles.button}>
+        <button type="button" onClick={() => void tonConnectUI.openModal()} className={buttonClass({ variant: "primary" }, styles.button)}>
           <Wallet className={styles.buttonIcon} aria-hidden="true" />
           <span className={styles.label}>{t("ui.connect")}</span>
         </button>
@@ -43,16 +38,22 @@ export const WalletButton = () => {
   }
 
   return (
-    <div data-menuroot="1" className={styles.root}>
-      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={styles.button}>
+    <div className={styles.root}>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className={buttonClass({ variant: "primary" }, styles.button)}
+      >
         <Wallet className={styles.buttonIcon} aria-hidden="true" />
-        <span className={cx(styles.label, styles.address)}>{shortenMiddle(address, 4, 4)}</span>
+        <ShortId value={address} upper={false} className={styles.label} />
         <ChevronDown className={cx(styles.chevron, open && styles.open)} aria-hidden="true" />
       </button>
 
       {open && (
-        <div className={styles.menu}>
-          <button type="button" onClick={() => copy(address)} className={styles.item}>
+        <Popover anchor={triggerRef} align="end" fit="content" onDismiss={() => setOpen(false)}>
+          <button type="button" onClick={() => void copy(address)} className={styles.item}>
             {copied === address ? (
               <Check className={cx(styles.icon, styles.done)} aria-hidden="true" />
             ) : (
@@ -71,7 +72,7 @@ export const WalletButton = () => {
             <LogOut className={styles.dangerIcon} aria-hidden="true" />
             <span>{t("ui.disconnect")}</span>
           </button>
-        </div>
+        </Popover>
       )}
     </div>
   )

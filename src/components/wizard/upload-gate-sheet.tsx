@@ -1,10 +1,9 @@
 import { useTranslation } from "react-i18next"
+import { Button, Card, cx, Sheet, SheetFooter } from "@myton/ui"
+import { fmt } from "@myton/ui/domain"
 import { countdownTone, useCountdown } from "@/lib/countdown"
-import { cx } from "@/lib/cx"
-import { formatBytes, formatCountdown } from "@/lib/format"
+import { formatCountdown } from "@/lib/format"
 import type { UserBag } from "@/types/bag"
-import { Sheet, SheetFooter } from "../sheet"
-import shared from "../shared.module.css"
 import styles from "./upload-gate-sheet.module.css"
 
 interface UploadGateSheetProps {
@@ -24,10 +23,10 @@ export const UploadGateSheet = ({ bag, freeStorageSeconds, onClose, onReplace, o
     <Sheet open={bag !== null} title={t("files.finishTitle")} onClose={onClose}>
       {bag && (
         <div className={styles.body}>
-          <div className={styles.bag}>
+          <Card pad="row" className={styles.bag}>
             <span className={styles.name}>{bag.description || bag.bag_id.slice(0, 8)}</span>
             <span className={styles.meta}>
-              {formatBytes(bag.bag_size)}
+              {fmt.bytes(bag.bag_size)}
               {" · "}
               {tone !== "over" ? (
                 <span className={cx(tone === "soon" && styles.soon)}>
@@ -37,16 +36,16 @@ export const UploadGateSheet = ({ bag, freeStorageSeconds, onClose, onReplace, o
                 <span className={styles.over}>{t("files.expired")}</span>
               )}
             </span>
-          </div>
+          </Card>
           <p className={styles.note}>{t("files.finishNote")}</p>
 
-          <SheetFooter className={shared.sheetActions}>
-            <button type="button" onClick={onResume} className={shared.secondary}>
+          <SheetFooter>
+            <Button size="xl" onClick={onResume}>
               {t("files.goPay")}
-            </button>
-            <button type="button" onClick={onReplace} className={shared.danger}>
+            </Button>
+            <Button variant="danger" size="xl" onClick={onReplace}>
               {t("files.deleteAndUpload")}
-            </button>
+            </Button>
           </SheetFooter>
         </div>
       )}

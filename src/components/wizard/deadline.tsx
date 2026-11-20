@@ -1,8 +1,8 @@
 import { Clock } from "lucide-react"
 import { Trans, useTranslation } from "react-i18next"
+import { Button, Notice } from "@myton/ui"
 import { countdownTone, useCountdown } from "@/lib/countdown"
 import { formatCountdown } from "@/lib/format"
-import { Notice } from "../notice"
 import styles from "./deadline.module.css"
 
 interface DeadlineProps {
@@ -21,9 +21,9 @@ export const Deadline = ({ deadline, onRestart }: DeadlineProps) => {
         tone="red"
         className={styles.notice}
         action={
-          <button type="button" onClick={onRestart}>
+          <Button size="sm" onClick={onRestart}>
             {t("wizard.uploadAgain")}
-          </button>
+          </Button>
         }
       >
         {t("wizard.expired")}
@@ -32,7 +32,7 @@ export const Deadline = ({ deadline, onRestart }: DeadlineProps) => {
   }
 
   return (
-    <Notice tone={tone === "soon" ? "yellow" : "neutral"} icon={Clock} className={styles.notice}>
+    <Notice tone={tone === "soon" ? "yellow" : "gray"} icon={Clock} className={styles.notice}>
       <Trans
         i18nKey="wizard.left"
         values={{ time: formatCountdown(left) }}

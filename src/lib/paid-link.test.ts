@@ -170,50 +170,29 @@ describe("retryPendingPaid", () => {
 })
 
 describe("pending paid record", () => {
-  it("keeps reading a record written before the row fields existed", () => {
+  it("keeps reading a record written before the row fields existed, and holds a single payment the next one replaces", () => {
     store.set(PENDING_KEY, JSON.stringify({ bagId: BAG, contract: CONTRACT, at: 5 }))
 
     expect(readPendingPaid()).toMatchObject({ bagId: BAG, contract: CONTRACT, at: 5, linked: false })
-  })
 
-  it("carries the row fields the wizard wrote", () => {
-    writePendingPaid(BAG, CONTRACT, "EQOWNER", "backup", 42)
-
-    expect(readPendingPaid()).toMatchObject({ owner: "EQOWNER", description: "backup", size: 42, linked: false })
-  })
-
-  it("holds a single payment: paying the next bag replaces the record of the first", () => {
-    writePendingPaid(BAG, CONTRACT)
     const second = "e".repeat(64)
     writePendingPaid(second, "EQSECOND", "EQOWNER", "more", 7)
 
     expect(readPendingPaid()).toMatchObject({ bagId: second, contract: "EQSECOND", linked: false })
-    forgetPendingFound([CONTRACT])
-    expect(readPendingPaid()).toMatchObject({ bagId: second, contract: "EQSECOND" })
   })
 
-  it("reports the write a locked-down browser refused, so the wizard can warn the link is unsaved", () => {
+  it("reports the write a locked-down browser refused, so the wizard can warn the link is unsaved, and reads it as no pending payment instead of crashing", () => {
     vi.stubGlobal("localStorage", {
       setItem: () => {
         throw new DOMException("QuotaExceededError")
       },
-      getItem: () => null,
+      getItem: () => {
+        throw new DOMException("SecurityError")
+      },
       removeItem: () => undefined,
     })
 
     expect(writePendingPaid(BAG, CONTRACT)).toBe(false)
-    expect(readPendingPaid()).toBeNull()
-  })
-
-  it("reads a locked-down storage as no pending payment instead of crashing", () => {
-    vi.stubGlobal("localStorage", {
-      getItem: () => {
-        throw new DOMException("SecurityError")
-      },
-      setItem: () => undefined,
-      removeItem: () => undefined,
-    })
-
     expect(readPendingPaid()).toBeNull()
   })
 
