@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest"
-import type { Provider } from "@/types/provider"
 import {
-  MIN_AUTOPICK_UPTIME,
   MIN_UPTIME,
   NO_FILTERS,
+  ONLINE_WINDOW_SECONDS,
   bounds,
   countMatching,
   countSpanMismatched,
@@ -12,6 +11,7 @@ import {
   matches,
   matchesQuery,
   mergeManual,
+  onlineSince,
   pickBest,
   pickReplacements,
   pubkeyFrom,
@@ -240,20 +240,27 @@ describe("the strategy reshuffle", () => {
   })
 })
 
-describe("the autopick uptime floor", () => {
-  const pickCheapest = (pool: Provider[]): string[] =>
-    pickBest(pool, { count: 1, diversity: "any", criterion: "price", priceMax: 4, ratingMax: 5 })
+describe("the online window", () => {
+  const checked = base.last_online_check_time ?? 0
+  const stale = { ...cheapDutch, last_online_check_time: checked - ONLINE_WINDOW_SECONDS - 1 }
 
-  it("passes over the cheapest provider when its uptime is below the floor", () => {
-    expect(pickCheapest([base, { ...cheapDutch, uptime: 48 }])).toEqual([base.pubkey])
+  it("hides a provider whose last check is older than the window behind the freshest one", () => {
+    const since = onlineSince([base, stale])
+    expect(matches({ ...cheapDutch, last_online_check_time: checked - ONLINE_WINDOW_SECONDS }, NO_FILTERS, 7, "", 0, since)).toBe(true)
+    expect(matches(stale, NO_FILTERS, 7, "", 0, since)).toBe(false)
+    expect(countMatching([base, stale], NO_FILTERS, 7)).toBe(1)
   })
 
-  it("keeps a provider standing exactly on the floor", () => {
-    expect(pickCheapest([base, { ...cheapDutch, uptime: MIN_AUTOPICK_UPTIME }])).toEqual([cheapDutch.pubkey])
+  it("keeps the last round when the checker stalls, because the window follows the catalog, not the clock", () => {
+    expect(countMatching([stale], NO_FILTERS, 7)).toBe(1)
   })
 
-  it("falls back to the whole pool when nobody clears the floor", () => {
-    expect(pickCheapest([{ ...base, uptime: 48 }, { ...cheapDutch, uptime: 30 }])).toEqual([cheapDutch.pubkey])
+  it("keeps everyone when the catalog carries no checks at all", () => {
+    expect(countMatching([{ ...base, last_online_check_time: null }], NO_FILTERS, 7)).toBe(1)
+  })
+
+  it("offers no stale provider as a replacement", () => {
+    expect(pickReplacements([base, stale], { skip: [], count: 2, proofDays: 7, bagSize: 1024 })).toEqual([base.pubkey])
   })
 })
 

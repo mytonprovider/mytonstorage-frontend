@@ -176,12 +176,47 @@ const quotedDecline = (value: unknown): value is ProviderDecline => {
 
 const OFFERS_TTL = 15 * 60
 
-const quotedCache = new Map<string, { offer: ProviderOffer; at: number }>()
+const OFFERS_BATCH = 50
+
+type Quoted = { offer: ProviderOffer } | { decline: ProviderDecline }
+
+const quotedCache = new Map<string, { quoted: Quoted; at: number }>()
+
+const quoting = new Map<string, Promise<void>>()
 
 const quoteKey = (bagId: string, pubkey: string, span: number): string =>
   `${bagId}:${pubkey.toLowerCase()}:${span}`
 
-export const forgetOffers = (): void => quotedCache.clear()
+const freshQuote = (key: string): Quoted | null => {
+  const known = quotedCache.get(key)
+  return known && nowSeconds() - known.at <= OFFERS_TTL ? known.quoted : null
+}
+
+export const forgetOffers = (bagId?: string): void => {
+  if (bagId === undefined) {
+    quotedCache.clear()
+    return
+  }
+  for (const key of quotedCache.keys()) if (key.startsWith(`${bagId}:`)) quotedCache.delete(key)
+}
+
+const askOffers = async (bagId: string, span: number, providers: string[], bagSize: number, signal?: AbortSignal): Promise<void> => {
+  const at = nowSeconds()
+  const quoted = asRecord(
+    await request(API_URL, "/api/v1/providers/offers", {
+      body: { bag_id: bagId, bag_size: bagSize, span, providers },
+      credentials: "include",
+      signal,
+    }),
+  )
+
+  asArray(quoted.offers)
+    .filter(quotedOffer)
+    .forEach((offer) => quotedCache.set(quoteKey(bagId, offer.provider.key, span), { quoted: { offer }, at }))
+  asArray(quoted.declines)
+    .filter(quotedDecline)
+    .forEach((decline) => quotedCache.set(quoteKey(bagId, decline.provider_key, span), { quoted: { decline }, at }))
+}
 
 export const fetchOffers = async (
   bagId: string,
@@ -190,39 +225,35 @@ export const fetchOffers = async (
   bagSize = 0,
   signal?: AbortSignal,
 ): Promise<Offers> => {
-  const at = nowSeconds()
-  const held: ProviderOffer[] = []
-  const asking: string[] = []
+  const byKey = new Map(providers.map((pubkey) => [quoteKey(bagId, pubkey, span), pubkey]))
+  const keys = [...byKey.keys()]
+  const waiting = [...new Set(keys.flatMap((key) => quoting.get(key) ?? []))]
+  const asking = [...byKey].filter(([key]) => !freshQuote(key) && !quoting.has(key)).map(([, pubkey]) => pubkey)
+  const asked: Promise<void>[] = []
 
-  providers.forEach((pubkey) => {
-    const key = quoteKey(bagId, pubkey, span)
-    const known = quotedCache.get(key)
-    if (known && at - known.at <= OFFERS_TTL) {
-      held.push(known.offer)
-      return
-    }
-    quotedCache.delete(key)
-    asking.push(pubkey)
-  })
-
-  if (!asking.length) return { offers: held, declines: [] }
-
-  const quoted = asRecord(
-    await request(API_URL, "/api/v1/providers/offers", {
-      body: { bag_id: bagId, bag_size: bagSize, span, providers: asking },
-      credentials: "include",
-      signal,
-    }),
-  )
-
-  const offers = asArray(quoted.offers).filter(quotedOffer)
-  offers.forEach((offer) => quotedCache.set(quoteKey(bagId, offer.provider.key, span), { offer, at }))
-
-  return {
-    offers: [...held, ...offers],
-    declines: asArray(quoted.declines).filter(quotedDecline),
+  for (let at = 0; at < asking.length; at += OFFERS_BATCH) {
+    const batch = asking.slice(at, at + OFFERS_BATCH)
+    const batchKeys = batch.map((pubkey) => quoteKey(bagId, pubkey, span))
+    const done = askOffers(bagId, span, batch, bagSize, signal).finally(() => batchKeys.forEach((key) => quoting.delete(key)))
+    batchKeys.forEach((key) => quoting.set(key, done))
+    asked.push(done)
   }
+
+  await Promise.all([...asked, ...waiting])
+
+  const offers: ProviderOffer[] = []
+  const declines: ProviderDecline[] = []
+  keys.forEach((key) => {
+    const quoted = freshQuote(key)
+    if (!quoted) return
+    if ("offer" in quoted) offers.push(quoted.offer)
+    else declines.push(quoted.decline)
+  })
+  return { offers, declines }
 }
+
+export const prefetchOffers = (bagId: string, span: number, providers: string[], bagSize: number): Promise<void> =>
+  fetchOffers(bagId, span, providers, bagSize).then(() => undefined, () => undefined)
 
 interface QuoteOutcome {
   offers: ProviderOffer[]

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useTonConnectUI } from "@tonconnect/ui-react"
 import type { BagInfoShort, ContractStatus, StorageContract, WalletTransaction } from "@/types/contract"
+import type { Provider } from "@/types/provider"
 import type { Tone } from "@/types/tone"
 import { failureStatus, fetchBagDetails, notifyProviders, sessionEnded } from "./api"
 import type { ContractState } from "./contracts-cache"
-import { CONTRACT_RESERVE, paidDaysLeft, payoutDays } from "./pricing"
-import { pubkeyFrom } from "./providers"
+import { commonSpan, CONTRACT_RESERVE, paidDaysLeft, payoutDays } from "./pricing"
+import { hostingPool, pubkeyFrom } from "./providers"
 import { getStatuses, knownStateHash, peekState, putStates, readContractsCache, refreshState, stateOf, writeContractsCache } from "./contracts-cache"
 import { nowSeconds, SECONDS_IN_DAY } from "./format"
 import { readListView, writeListView } from "./local-storage"
@@ -390,6 +391,22 @@ export const contractProblem = (row: ContractRow, now: number): ContractProblem 
   if (paymentTone(paidDaysLeft(state.fileSize, state.providers, state.balance, now), payoutDays(state.fileSize, state.providers))) return "balance"
   return silent.length ? "replace" : null
 }
+
+export const quoteTargetOf = (row: ContractRow): { bagId: string; span: number; fileSize: number } | null =>
+  row.state ? { bagId: row.bagId || row.state.torrentHash, span: commonSpan(row.state.providers), fileSize: row.state.fileSize } : null
+
+export const replacementQuotes = (rows: ContractRow[], catalog: Provider[], now: number) =>
+  rows.flatMap((row) => {
+    const target = contractProblem(row, now) === "replace" ? quoteTargetOf(row) : null
+    if (!target?.bagId) return []
+    const current = new Set((row.state?.providers ?? []).map(({ pubkey }) => pubkey.toLowerCase()))
+    const silent = new Set(silentProviders(row, now).map((key) => key.toLowerCase()))
+    const alive = [...current].filter((key) => !silent.has(key))
+    const pool = hostingPool(catalog, target.span / SECONDS_IN_DAY, target.fileSize)
+      .map(({ pubkey }) => pubkey.toLowerCase())
+      .filter((key) => !current.has(key))
+    return [{ ...target, keys: [...alive, ...pool] }]
+  })
 
 const ACTION_TIMEOUT_MS = 180_000
 

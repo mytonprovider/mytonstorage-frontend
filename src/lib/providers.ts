@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Provider } from "@/types/provider"
 import type { Tone } from "@/types/tone"
 import { failureStatus, fetchProviders } from "./api"
-import { BYTES_IN_GIB, NANO, SECONDS_IN_DAY } from "./format"
+import { BYTES_IN_GIB, NANO, nowSeconds, SECONDS_IN_DAY } from "./format"
 import { MAX_SELECTED } from "./pricing"
 
 export interface ProviderFilters {
@@ -34,11 +34,15 @@ export const NO_FILTERS: ProviderFilters = {
   priceMax: null,
 }
 
-export const MIN_UPTIME = 20
+export const MIN_UPTIME = 50
 
-export const MIN_AUTOPICK_UPTIME = 50
+export const ONLINE_WINDOW_SECONDS = 300
 
 export const MIN_PROVEN_DAYS = 30
+
+const CATALOG_MAX_AGE_SECONDS = 300
+
+const CATALOG_TICK_MS = 60_000
 
 const SHORTLIST_WIDTH = 2
 
@@ -138,8 +142,12 @@ const withinFilters = (provider: Provider, filters: ProviderFilters): boolean =>
   return true
 }
 
-const canHostBag = (provider: Provider, bagSize: number): boolean => {
+export const onlineSince = (list: Provider[]): number =>
+  list.reduce((newest, provider) => Math.max(newest, provider.last_online_check_time ?? 0), 0) - ONLINE_WINDOW_SECONDS
+
+const canHostBag = (provider: Provider, bagSize: number, since: number): boolean => {
   if ((provider.uptime || 0) <= MIN_UPTIME) return false
+  if ((provider.last_online_check_time ?? 0) < since) return false
 
   const free = freeSpace(provider)
   if (free == null || free === 0) return false
@@ -154,7 +162,8 @@ const matchesApartFromSpan = (
   filters: ProviderFilters,
   query: string,
   bagSize: number,
-): boolean => matchesQuery(provider, query) && withinFilters(provider, filters) && canHostBag(provider, bagSize)
+  since: number,
+): boolean => matchesQuery(provider, query) && withinFilters(provider, filters) && canHostBag(provider, bagSize, since)
 
 export const matches = (
   provider: Provider,
@@ -162,18 +171,30 @@ export const matches = (
   proofDays: number,
   query: string,
   bagSize = 0,
-): boolean => matchesApartFromSpan(provider, filters, query, bagSize) && spanAllows(provider, proofDays)
+  since = 0,
+): boolean => matchesApartFromSpan(provider, filters, query, bagSize, since) && spanAllows(provider, proofDays)
 
 export const countSpanMismatched = (
   all: Provider[],
   filters: ProviderFilters,
   proofDays: number,
   bagSize = 0,
-): number =>
-  all.filter((provider) => matchesApartFromSpan(provider, filters, "", bagSize) && !spanAllows(provider, proofDays)).length
+): number => {
+  const since = onlineSince(all)
+  return all.filter((provider) => matchesApartFromSpan(provider, filters, "", bagSize, since) && !spanAllows(provider, proofDays)).length
+}
+
+export const hostingPool = (catalog: Provider[], proofDays: number | null, bagSize: number, filters = NO_FILTERS): Provider[] => {
+  const since = onlineSince(catalog)
+  return catalog.filter((provider) =>
+    proofDays === null
+      ? matchesApartFromSpan(provider, filters, "", bagSize, since)
+      : matches(provider, filters, proofDays, "", bagSize, since),
+  )
+}
 
 export const countMatching = (all: Provider[], filters: ProviderFilters, proofDays: number, bagSize = 0): number =>
-  all.filter((provider) => matches(provider, filters, proofDays, "", bagSize)).length
+  hostingPool(all, proofDays, bagSize, filters).length
 
 const DECLINE_KEYS: [string, string][] = [
   ["context deadline exceeded", "declines.longResponse"],
@@ -318,9 +339,7 @@ const orderedFor = (pool: Provider[], options: PickOptions): Provider[] => {
 }
 
 export const pickBest = (list: Provider[], options: PickOptions): string[] => {
-  const eligible = eligibleFor(list)
-  const steady = eligible.filter((provider) => (provider.uptime || 0) >= MIN_AUTOPICK_UPTIME)
-  const base = steady.length ? steady : eligible
+  const base = eligibleFor(list)
   if (!base.length) return []
 
   const want = Math.min(options.count, MAX_SELECTED, base.length)
@@ -351,11 +370,7 @@ export const pickReplacements = (
   { skip, count, proofDays, bagSize, seed }: { skip: string[]; count: number; proofDays: number | null; bagSize: number; seed?: number },
 ): string[] => {
   const skipped = new Set(skip.map((key) => key.toLowerCase()))
-  const pool = catalog.filter(
-    (provider) =>
-      !skipped.has(provider.pubkey.toLowerCase()) &&
-      (proofDays === null ? matchesApartFromSpan(provider, NO_FILTERS, "", bagSize) : matches(provider, NO_FILTERS, proofDays, "", bagSize)),
-  )
+  const pool = hostingPool(catalog, proofDays, bagSize).filter((provider) => !skipped.has(provider.pubkey.toLowerCase()))
   return pickBest(pool, {
     count,
     criterion: "uptime",
@@ -415,29 +430,51 @@ export const useProviderCatalog = (): ProviderCatalog => {
   const [manual, setManual] = useState<Provider[]>([])
   const [loading, setLoading] = useState(true)
   const [failure, setFailure] = useState<{ status: number | null } | null>(null)
-  const [fetchedAt, setFetchedAt] = useState(() => Date.now())
+  const [fetchedAt, setFetchedAt] = useState(nowSeconds)
   const [attempt, setAttempt] = useState(0)
+  const triedAt = useRef(0)
 
-  useEffect(() => {
-    const controller = new AbortController()
-
-    setLoading(true)
-    setFailure(null)
-    fetchProviders(controller.signal)
+  const load = useCallback((signal: AbortSignal, quiet: boolean) => {
+    triedAt.current = nowSeconds()
+    if (!quiet) {
+      setLoading(true)
+      setFailure(null)
+    }
+    fetchProviders(signal)
       .then((list) => {
-        if (controller.signal.aborted) return
+        if (signal.aborted) return
         setProviders(list)
-        setFetchedAt(Date.now())
+        setFetchedAt(nowSeconds())
+        setFailure(null)
         setLoading(false)
       })
       .catch((error: unknown) => {
-        if (controller.signal.aborted) return
+        if (signal.aborted || quiet) return
         setFailure({ status: failureStatus(error) })
         setLoading(false)
       })
+  }, [])
 
+  useEffect(() => {
+    const controller = new AbortController()
+    load(controller.signal, false)
     return () => controller.abort()
-  }, [attempt])
+  }, [attempt, load])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const tick = (): void => {
+      if (document.visibilityState === "visible" && nowSeconds() - triedAt.current >= CATALOG_MAX_AGE_SECONDS) load(controller.signal, true)
+    }
+    const timer = window.setInterval(tick, CATALOG_TICK_MS)
+    document.addEventListener("visibilitychange", tick)
+
+    return () => {
+      controller.abort()
+      window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", tick)
+    }
+  }, [load])
 
   const reload = useCallback(() => setAttempt((value) => value + 1), [])
 

@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react"
 import { SquareCheck } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { useQuote } from "@/lib/api"
-import { silentProviders, type ContractRow } from "@/lib/contracts"
+import { forgetOffers, useQuote } from "@/lib/api"
+import { quoteTargetOf, silentProviders, type ContractRow } from "@/lib/contracts"
 import { useContractData } from "@/lib/contracts-cache"
 import { cx } from "@/lib/cx"
 import { formatDate, nowSeconds, SECONDS_IN_DAY, tonLabel } from "@/lib/format"
-import { commonSpan, FEE_GAS, nextPaidDaysLeft, offerRates, providerFate, quotedBounties, recreateTotal, unquotedBounties, updateFee } from "@/lib/pricing"
+import { FEE_GAS, nextPaidDaysLeft, offerRates, providerFate, quotedBounties, recreateTotal, unquotedBounties, updateFee } from "@/lib/pricing"
 import { declineKeyOf, freshSeed, pickReplacements, spanAllows } from "@/lib/providers"
 import type { ProviderOffer } from "@/types/bag"
 import type { Provider } from "@/types/provider"
@@ -58,14 +58,14 @@ export const ContractFix = ({
   const [attempt, setAttempt] = useState(0)
   const [offers, setOffers] = useState<ProviderOffer[] | null>(null)
   const [quoteError, setQuoteError] = useState<string | null>(null)
+  const [pickedFrom, setPickedFrom] = useState<Provider[] | null>(null)
   const { checking, invalidate, request } = useQuote()
   const { state: latest } = useContractData(contract.address)
 
   const now = nowSeconds()
   const state = latest ?? contract.state
   const silent = state ? silentProviders({ ...contract, state }, now) : []
-  const span = state ? commonSpan(state.providers) : 0
-  const fileSize = state?.fileSize ?? 0
+  const { bagId, span, fileSize } = quoteTargetOf({ ...contract, state }) ?? { bagId: "", span: 0, fileSize: 0 }
   const alive = (state?.providers ?? []).map(({ pubkey }) => pubkey).filter((key) => !silent.includes(key))
   const unanswered = alive.filter((key) => key.toLowerCase() in keptDeclines)
   const stuck = unanswered.length > 0 && unanswered.length === alive.length
@@ -77,13 +77,17 @@ export const ContractFix = ({
     bagSize: fileSize,
     seed,
   }
-  const added = state ? pickReplacements(providers, { ...wanted, proofDays: span / SECONDS_IN_DAY }) : []
-  const spanLimited = added.length < wanted.count && pickReplacements(providers, { ...wanted, proofDays: null }).length > added.length
-  const bagId = contract.bagId || state?.torrentHash || ""
+  const candidates = pickedFrom ?? providers
+  const added = state ? pickReplacements(candidates, { ...wanted, proofDays: span / SECONDS_IN_DAY }) : []
+  const spanLimited = added.length < wanted.count && pickReplacements(candidates, { ...wanted, proofDays: null }).length > added.length
   const picking = catalogLoading || catalogFailed
   const keptKey = kept.join(",")
   const addedKey = added.join(",")
   const gone = !state || silent.length === 0 || silent.length === state.providers.length
+
+  useEffect(() => {
+    if (!picking && pickedFrom === null) setPickedFrom(providers)
+  }, [picking, pickedFrom, providers])
 
   useEffect(() => {
     invalidate()
@@ -153,12 +157,14 @@ export const ContractFix = ({
   }
 
   const pickAgain = () => {
+    setPickedFrom(providers)
     setSeed(freshSeed())
     setRounds(0)
     setDropped(0)
   }
 
   const askAgain = () => {
+    forgetOffers(bagId)
     setKeptDeclines({})
     setAttempt((count) => count + 1)
   }

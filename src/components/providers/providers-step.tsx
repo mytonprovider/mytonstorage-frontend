@@ -12,6 +12,7 @@ import {
   eligibleFor,
   freshSeed,
   hasFilters,
+  hostingPool,
   matches,
   pickBest,
   pinnedOf,
@@ -50,6 +51,15 @@ const orderPinned = (list: Provider[], strategy: Strategy | null): Provider[] =>
   if (recipe.diversity === "differentCountries") return sortProviders(list, "location", "asc")
   return sortProviders(list, "rating", "desc")
 }
+
+const poolOf = (
+  list: Provider[],
+  filters: ProviderFilters,
+  proofDays: number,
+  bagSize: number,
+  sortField: SortField,
+  sortDirection: SortDirection,
+): Provider[] => sortProviders(hostingPool(list, proofDays, bagSize, filters), sortField, sortDirection)
 
 interface ProvidersStepProps {
   providers: Provider[]
@@ -136,7 +146,7 @@ export const ProvidersStep = ({
   const ratingMax = useMemo(() => ratingCeiling(providers), [providers])
 
   const pool = useMemo(
-    () => sortProviders(providers.filter((provider) => matches(provider, filters, proofDays, "", bagSize)), sortField, sortDirection),
+    () => poolOf(providers, filters, proofDays, bagSize, sortField, sortDirection),
     [providers, filters, proofDays, bagSize, sortField, sortDirection],
   )
 
@@ -190,22 +200,24 @@ export const ProvidersStep = ({
     if (lookupKey) onSelected([...selected, lookupKey])
   }
 
-  const picks = useMemo(
-    () =>
-      Object.fromEntries(
-        STRATEGIES.map((option) => [
-          option,
-          pickBest(pool, {
-            count: pickCount,
-            ...RECIPES[option],
-            priceMax,
-            ratingMax,
-            seed: option === strategy ? seed : 0,
-          }),
-        ]),
-      ) as Record<Strategy, string[]>,
-    [pool, pickCount, priceMax, ratingMax, strategy, seed],
-  )
+  const [pickedFrom, setPickedFrom] = useState<Provider[] | null>(null)
+
+  const picks = useMemo(() => {
+    const base = pickedFrom ?? providers
+    const basePool = poolOf(base, filters, proofDays, bagSize, sortField, sortDirection)
+    return Object.fromEntries(
+      STRATEGIES.map((option) => [
+        option,
+        pickBest(basePool, {
+          count: pickCount,
+          ...RECIPES[option],
+          priceMax: priceCeiling(base),
+          ratingMax: ratingCeiling(base),
+          seed: option === strategy ? seed : 0,
+        }),
+      ]),
+    ) as Record<Strategy, string[]>
+  }, [pickedFrom, providers, filters, proofDays, bagSize, sortField, sortDirection, pickCount, strategy, seed])
 
   const matchesSelection = (option: Strategy) =>
     selected.length > 0 && picks[option].length === selected.length && picks[option].every((key) => selected.includes(key))
@@ -219,6 +231,7 @@ export const ProvidersStep = ({
     setPickCount(count)
     setSeed(nextSeed)
     if (pool.length === 0) return
+    setPickedFrom(providers)
     const recipe = RECIPES[next]
     onSelected(
       pickBest(pool, { count, ...recipe, priceMax, ratingMax, seed: nextSeed }),
@@ -238,10 +251,11 @@ export const ProvidersStep = ({
     const firstSeed = freshSeed()
     setStrategy("reliable")
     setSeed(firstSeed)
+    setPickedFrom(providers)
     onSelected(
       pickBest(pool, { count: pickCount, ...RECIPES.reliable, priceMax, ratingMax, seed: firstSeed }),
     )
-  }, [loading, providers.length, selected.length, pool, pickCount, priceMax, ratingMax, onSelected])
+  }, [loading, providers, selected.length, pool, pickCount, priceMax, ratingMax, onSelected])
 
   const pinned = useMemo(() => {
     const known = new Map(providers.map((provider) => [provider.pubkey, provider]))
