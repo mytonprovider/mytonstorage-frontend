@@ -5,6 +5,10 @@ on:
     branches:
       - master
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -14,13 +18,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set image
-        run: echo "IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/mytonstorage-frontend:${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+        run: echo "IMAGE=ghcr.io/${{ github.repository }}:${GITHUB_SHA::7}" >> "$GITHUB_ENV"
 
-      - name: Log in to Docker Hub
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push image
         run: |
@@ -47,8 +52,13 @@ jobs:
           username: deploy
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            set -e
+
             cd /opt/mytonstorage-frontend
 
             sed -i "s|^FRONTEND_IMAGE=.*|FRONTEND_IMAGE=${{ env.IMAGE }}|" .env.hub
 
             task hub:up
+
+            sleep 3
+            [ "$(docker inspect -f '{{.Config.Image}} {{.State.Running}} {{.RestartCount}}' mytonstorage-frontend-frontend-1)" = "${{ env.IMAGE }} true 0" ]
